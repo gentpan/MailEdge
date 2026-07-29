@@ -4,7 +4,10 @@ import ComposeModal from "../components/ComposeModal";
 import type { ComposeDraft } from "../components/ComposeModal";
 import MessageList from "../components/MessageList";
 import MessageView from "../components/MessageView";
+import OutboxView from "../components/OutboxView";
+import SharesView from "../components/SharesView";
 import Sidebar from "../components/Sidebar";
+import type { MailView } from "../components/Sidebar";
 import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import { api } from "../lib/api";
 import type { ProviderView, SendResponse } from "../lib/api";
@@ -14,6 +17,7 @@ export default function MailPage() {
 
   const [mailboxId, setMailboxId] = useState(mailboxes[0]?.id);
   const [folder, setFolder] = useState<MailFolder>("inbox");
+  const [view, setView] = useState<MailView>("mail");
   const [items, setItems] = useState<MessageSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(false);
@@ -140,38 +144,51 @@ export default function MailPage() {
   }
 
   return (
-    <div className={`shell${detail ? " shell--detail" : ""}`}>
+    <div className={`shell${detail && view === "mail" ? " shell--detail" : ""}`}>
       <Sidebar
         user={user}
         mailboxes={mailboxes}
         activeMailboxId={mailboxId}
         activeFolder={folder}
+        view={view}
         stats={stats}
         onSelectMailbox={setMailboxId}
-        onSelectFolder={setFolder}
+        onSelectFolder={(next) => {
+          setView("mail");
+          setFolder(next);
+        }}
+        onSelectView={setView}
         onCompose={() => setComposeDraft({})}
         onSignOut={() => void signOut()}
       />
 
-      <MessageList
-        items={items}
-        loading={listLoading}
-        activeId={activeId}
-        search={search}
-        onSearch={setSearch}
-        onSelect={(id) => void openMessage(id)}
-        onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}
-        hasMore={Boolean(cursor)}
-      />
+      {view === "outbox" ? (
+        <OutboxView />
+      ) : view === "shares" ? (
+        <SharesView />
+      ) : (
+        <>
+          <MessageList
+            items={items}
+            loading={listLoading}
+            activeId={activeId}
+            search={search}
+            onSearch={setSearch}
+            onSelect={(id) => void openMessage(id)}
+            onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}
+            hasMore={Boolean(cursor)}
+          />
 
-      <MessageView
-        message={detail}
-        loading={detailLoading}
-        onReply={replyTo}
-        onArchive={(id) => void moveTo(id, "archive")}
-        onDelete={(id) => void removeMessage(id)}
-        onToggleStar={(message) => void toggleStar(message)}
-      />
+          <MessageView
+            message={detail}
+            loading={detailLoading}
+            onReply={replyTo}
+            onArchive={(id) => void moveTo(id, "archive")}
+            onDelete={(id) => void removeMessage(id)}
+            onToggleStar={(message) => void toggleStar(message)}
+          />
+        </>
+      )}
 
       {composeDraft && (
         <ComposeModal

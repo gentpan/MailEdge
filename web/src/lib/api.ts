@@ -41,7 +41,14 @@ export interface OutboundView {
   providerType: string | null;
   providerMessageId: string | null;
   attempts: number;
-  attemptLog: Array<{ providerType: string; at: string; success: boolean; error?: string }>;
+  attemptLog: Array<{
+    providerId: string;
+    providerType: string;
+    at: string;
+    success: boolean;
+    error?: string;
+    failureKind?: "transient" | "permanent";
+  }>;
   lastError: string | null;
   nextRetryAt: string | null;
   createdAt: string;
@@ -165,9 +172,11 @@ export const api = {
       shares: Array<{
         token: string;
         filename: string;
+        content_type: string;
         size: number;
         downloads: number;
         is_revoked: number;
+        message_id: string | null;
         expires_at: string | null;
         created_at: string;
       }>;

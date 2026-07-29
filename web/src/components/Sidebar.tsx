@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
-import { Archive, Inbox, Mails, PenSquare, Send, Settings, Trash2 } from "lucide-react";
+import { Archive, Inbox, Link2, Mails, PenSquare, Send, Settings, SendHorizontal, Trash2 } from "lucide-react";
 import type { FolderStats, MailFolder } from "../../../src/shared/message";
 import type { Mailbox, User } from "../lib/api";
+
+export type MailView = "mail" | "outbox" | "shares";
 
 const FOLDERS: Array<{ key: MailFolder; label: string; icon: typeof Inbox }> = [
   { key: "inbox", label: "收件箱", icon: Inbox },
@@ -15,9 +17,11 @@ interface Props {
   mailboxes: Mailbox[];
   activeMailboxId: string | undefined;
   activeFolder: MailFolder;
+  view: MailView;
   stats: FolderStats[];
   onSelectMailbox: (id: string) => void;
   onSelectFolder: (folder: MailFolder) => void;
+  onSelectView: (view: MailView) => void;
   onCompose: () => void;
   onSignOut: () => void;
 }
@@ -27,9 +31,11 @@ export default function Sidebar({
   mailboxes,
   activeMailboxId,
   activeFolder,
+  view,
   stats,
   onSelectMailbox,
   onSelectFolder,
+  onSelectView,
   onCompose,
   onSignOut,
 }: Props) {
@@ -51,11 +57,12 @@ export default function Sidebar({
         {FOLDERS.map((folder) => {
           const Icon = folder.icon;
           const unread = unreadOf(folder.key);
+          const active = view === "mail" && activeFolder === folder.key;
           return (
             <button
               key={folder.key}
               type="button"
-              className={`nav-item${activeFolder === folder.key ? " nav-item--active" : ""}`}
+              className={`nav-item${active ? " nav-item--active" : ""}`}
               onClick={() => onSelectFolder(folder.key)}
             >
               <Icon size={16} />
@@ -64,6 +71,26 @@ export default function Sidebar({
             </button>
           );
         })}
+      </nav>
+
+      <nav className="sidebar__section">
+        <span className="sidebar__label">投递</span>
+        <button
+          type="button"
+          className={`nav-item${view === "outbox" ? " nav-item--active" : ""}`}
+          onClick={() => onSelectView("outbox")}
+        >
+          <SendHorizontal size={16} />
+          发信记录
+        </button>
+        <button
+          type="button"
+          className={`nav-item${view === "shares" ? " nav-item--active" : ""}`}
+          onClick={() => onSelectView("shares")}
+        >
+          <Link2 size={16} />
+          附件链接
+        </button>
       </nav>
 
       {mailboxes.length > 1 && (
