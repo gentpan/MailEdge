@@ -165,7 +165,7 @@ export default function Sidebar({
 
         <div className="sidebar__footer-row">
           <LanguageToggle />
-          <button className="btn btn--ghost btn--sm" type="button" onClick={onSignOut} title={t("nav.signOut")}>
+          <button className="btn btn--secondary btn--sm" type="button" onClick={onSignOut} title={t("nav.signOut")}>
             <LogOut size={14} />
             {t("nav.signOut")}
           </button>
