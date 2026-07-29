@@ -132,11 +132,27 @@ npm run deploy
 
 ### 4. 配置收件
 
-在 Cloudflare 控制台 → 你的域名 → Email Routing：把具体地址或 catch-all 的目标设为 **Send to a Worker → mailedge**。
+**必须先完成上一步的部署**，Worker 才会出现在 Email Routing 的下拉列表里。
+
+Cloudflare 面板 → **Compute** → **Email Service** → **Email Routing** → 选择域名（首次进入需先启用，它会自动写入 MX 与 SPF 记录）。
+
+然后 **Routing Rules** → **Create routing rule**：
+
+| 字段 | 填写 |
+| --- | --- |
+| Email pattern | 地址的本地部分，如 `support` |
+| Action | **Send to a Worker** |
+| Worker | `mailedge` |
+
+想接收整个域名的邮件，改用 **Catch-all address**，action 同样设为 Send to a Worker。
+
+> 投递给 Worker 只在新版 Email Routing 界面提供。若面板提示需要切换到新界面，按提示切换即可。
 
 ### 5. 初始化
 
-打开部署后的域名，首次访问会进入初始化页，创建管理员并绑定第一个收件地址。之后到「设置 → 发信服务」配置渠道并设为默认。
+打开部署后的域名，首次访问会进入初始化页，创建管理员并绑定第一个收件地址。**这里填写的地址必须与上一步的路由规则一致**，否则 Worker 收到邮件时找不到对应信箱，会直接退信（`550 未知收件人`）。
+
+之后到「设置 → 发信服务」配置渠道，先「测试发送」确认可用，再「设为默认」。
 
 发往任意外部邮箱需要 Workers Paid（含每月 3,000 封，超出每 1,000 封 0.35 美元）；收件在免费和付费计划都可用。
 

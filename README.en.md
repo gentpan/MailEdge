@@ -132,11 +132,27 @@ npm run deploy
 
 ### 4. Wire up receiving
 
-In the Cloudflare dashboard → your domain → Email Routing: set the destination of a specific address, or of the catch-all, to **Send to a Worker → mailedge**.
+**Deploy first.** The Worker only appears in the Email Routing dropdown once it has been deployed.
+
+Cloudflare dashboard → **Compute** → **Email Service** → **Email Routing** → pick your domain (enable it on first visit; it writes the MX and SPF records for you).
+
+Then **Routing Rules** → **Create routing rule**:
+
+| Field | Value |
+| --- | --- |
+| Email pattern | the local part of the address, e.g. `support` |
+| Action | **Send to a Worker** |
+| Worker | `mailedge` |
+
+To receive mail for the whole domain, use **Catch-all address** instead, with the same action.
+
+> Delivering to a Worker is only available in the new Email Routing interface. If the dashboard prompts you to switch, do so.
 
 ### 5. Initialize
 
-Open the deployed domain. On first visit you get a setup page: create the admin account and bind the first receiving address. Then head to Settings → Sending providers to configure a provider and mark it as default.
+Open the deployed domain. On first visit you get a setup page: create the admin account and bind the first receiving address. **That address must match the routing rule from the previous step** — otherwise the Worker won't find a mailbox for incoming mail and will reject it (`550 unknown recipient`).
+
+Then head to Settings → Sending providers: fill in the credentials, hit "Test send" to confirm it works, and mark it as default.
 
 Sending to arbitrary external addresses requires Workers Paid (3,000 messages/month included, $0.35 per 1,000 after that). Receiving works on both free and paid plans.
 
