@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import {
   Archive,
+  AtSign,
   Inbox,
+  Layers,
   Link2,
   MailQuestion,
   Mails,
@@ -114,14 +116,24 @@ export default function Sidebar({
       {mailboxes.length > 1 && (
         <div className="sidebar__section">
           <span className="sidebar__label">信箱</span>
+          <button
+            type="button"
+            className={`nav-item${activeMailboxId === "all" ? " nav-item--active" : ""}`}
+            onClick={() => onSelectMailbox("all")}
+          >
+            <Layers size={16} />
+            全部信箱
+          </button>
           {mailboxes.map((mailbox) => (
             <button
               key={mailbox.id}
               type="button"
               className={`nav-item${activeMailboxId === mailbox.id ? " nav-item--active" : ""}`}
               onClick={() => onSelectMailbox(mailbox.id)}
+              title={mailbox.address}
             >
-              {mailbox.address}
+              <AtSign size={16} />
+              <span className="nav-item__text">{mailbox.address}</span>
             </button>
           ))}
         </div>

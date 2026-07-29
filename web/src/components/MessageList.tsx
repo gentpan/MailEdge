@@ -9,8 +9,10 @@ interface Props {
   search: string;
   /** 当前文件夹，用于决定空态文案与是否显示原始收件人 */
   folder: MailFolder;
+  /** 聚合视图下标出每封信属于哪个信箱 */
+  showMailbox?: boolean;
   onSearch: (value: string) => void;
-  onSelect: (id: string) => void;
+  onSelect: (message: MessageSummary) => void;
   onLoadMore: () => void;
   hasMore: boolean;
 }
@@ -30,6 +32,7 @@ export default function MessageList({
   activeId,
   search,
   folder,
+  showMailbox,
   onSearch,
   onSelect,
   onLoadMore,
@@ -78,9 +81,14 @@ export default function MessageList({
             ]
               .filter(Boolean)
               .join(" ")}
-            onClick={() => onSelect(item.id)}
+            onClick={() => onSelect(item)}
           >
             <div className="message-row__top">
+              {showMailbox && item.mailboxAddress && (
+                <span className="message-row__mailbox" title={item.mailboxAddress}>
+                  {item.mailboxAddress.split("@")[0]}
+                </span>
+              )}
               <span className="message-row__from">
                 {item.direction === "outbound"
                   ? `发往 ${item.to.map(displayName).join("、")}`

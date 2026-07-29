@@ -15,7 +15,10 @@ import type { ProviderView, SendResponse } from "../lib/api";
 export default function MailPage() {
   const { user, mailboxes, signOut } = useSession();
 
-  const [mailboxId, setMailboxId] = useState(mailboxes[0]?.id);
+  // 多个信箱时默认聚合视图，单个信箱就直接用它
+  const [mailboxId, setMailboxId] = useState(mailboxes.length > 1 ? "all" : mailboxes[0]?.id);
+  // 聚合视图下每封信可能来自不同信箱，操作要按邮件自身的信箱路由
+  const [detailMailboxId, setDetailMailboxId] = useState<string | undefined>(undefined);
   const [folder, setFolder] = useState<MailFolder>("inbox");
   const [view, setView] = useState<MailView>("mail");
   const [items, setItems] = useState<MessageSummary[]>([]);
@@ -79,13 +82,17 @@ export default function MailPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  async function openMessage(id: string) {
-    setActiveId(id);
+  async function openMessage(message: MessageSummary) {
+    const owner = message.mailboxId ?? mailboxId;
+    setActiveId(message.id);
+    setDetailMailboxId(owner);
     setDetailLoading(true);
     try {
-      const result = await api.message(id, mailboxId);
+      const result = await api.message(message.id, owner);
       setDetail(result.message);
-      setItems((previous) => previous.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
+      setItems((previous) =>
+        previous.map((item) => (item.id === message.id ? { ...item, isRead: true } : item)),
+      );
       void loadStats();
     } finally {
       setDetailLoading(false);
@@ -93,7 +100,7 @@ export default function MailPage() {
   }
 
   async function moveTo(id: string, target: MailFolder) {
-    await api.patchMessage(id, { folder: target }, mailboxId);
+    await api.patchMessage(id, { folder: target }, detailMailboxId ?? mailboxId);
     setItems((previous) => previous.filter((item) => item.id !== id));
     if (activeId === id) {
       setActiveId(null);
@@ -103,7 +110,7 @@ export default function MailPage() {
   }
 
   async function removeMessage(id: string) {
-    await api.deleteMessage(id, mailboxId);
+    await api.deleteMessage(id, detailMailboxId ?? mailboxId);
     setItems((previous) => previous.filter((item) => item.id !== id));
     if (activeId === id) {
       setActiveId(null);
@@ -114,7 +121,7 @@ export default function MailPage() {
 
   async function toggleStar(message: MessageDetail) {
     const next = !message.isStarred;
-    await api.patchMessage(message.id, { isStarred: next }, mailboxId);
+    await api.patchMessage(message.id, { isStarred: next }, detailMailboxId ?? mailboxId);
     setDetail({ ...message, isStarred: next });
     setItems((previous) =>
       previous.map((item) => (item.id === message.id ? { ...item, isStarred: next } : item)),
@@ -174,8 +181,9 @@ export default function MailPage() {
             activeId={activeId}
             search={search}
             folder={folder}
+            showMailbox={mailboxId === "all"}
             onSearch={setSearch}
-            onSelect={(id) => void openMessage(id)}
+            onSelect={(message) => void openMessage(message)}
             onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}
             hasMore={Boolean(cursor)}
           />

@@ -290,6 +290,12 @@
   font-weight: var(--weight-medium);
 }
 
+.nav-item__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav-item__count {
   margin-left: auto;
   font-size: var(--text-xs);
@@ -428,6 +434,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.message-row__mailbox {
+  flex: none;
+  max-width: 88px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-100);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-row--active .message-row__mailbox {
+  background: var(--color-neutral-0);
 }
 
 .message-row__to {

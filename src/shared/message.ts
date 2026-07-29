@@ -21,6 +21,9 @@ export interface MessageAttachmentView {
 
 export interface MessageSummary {
   id: string;
+  /** 所属信箱。聚合视图下每封信可能来自不同信箱，后续操作要按它路由 */
+  mailboxId?: string;
+  mailboxAddress?: string;
   internalId: string | null;
   direction: MailDirection;
   folder: MailFolder;
