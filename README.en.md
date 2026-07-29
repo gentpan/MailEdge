@@ -59,7 +59,25 @@ Classification and push run on the inbound Worker inside `waitUntil`, each wrapp
 
 ## Stack
 
-Cloudflare Workers · D1 · R2 · Durable Objects (SQLite) · Email Routing · Hono · React · Vite · TypeScript
+Everything runs on Cloudflare — frontend and backend ship in a single deploy, no server of your own.
+
+| Layer | Choice | Notes |
+| --- | --- | --- |
+| Runtime | Cloudflare Workers | Edge execution via three entry points: `fetch` / `email` / `scheduled` |
+| Receiving | Email Routing + `postal-mime` | Forwarded to an Email Worker, MIME parsed |
+| Sending | In-house `MailProvider` abstraction | Cloudflare Email Service / Sendflare / Resend / SMTP |
+| SMTP | `cloudflare:sockets` | Raw TCP via `connect()`, hand-written SMTP session (587/465) |
+| Accounts · config · outbound state machine | D1 (SQLite) | Data that needs cross-mailbox queries |
+| Mail bodies | Durable Objects + built-in SQLite | One instance per address, naturally sharded |
+| Attachments | R2 | Free egress, partitioned by mailbox/month |
+| Scheduled jobs | Cron Triggers | Retry deferred mail, purge expired shares |
+| Crypto | Web Crypto (AES-GCM / PBKDF2) | Provider-key encryption, password hashing, session signing |
+| API framework | Hono | Lightweight routing, native to Workers |
+| Frontend | React 19 + Vite 7 | Served through Workers Assets |
+| Styling | Hand-written CSS + design tokens | No Tailwind / CSS-in-JS — all driven by CSS variables |
+| i18n | In-house lightweight layer | English/Chinese, no third-party library |
+| AI | OpenAI-compatible endpoint | Reply / summary / classification, any compatible provider |
+| Language · tooling | TypeScript 7 · Wrangler | Native compiler, end-to-end type safety |
 
 ## Architecture
 

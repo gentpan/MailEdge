@@ -61,7 +61,25 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 
 ## 技术栈
 
-Cloudflare Workers · D1 · R2 · Durable Objects (SQLite) · Email Routing · Hono · React · Vite · TypeScript
+全部构建在 Cloudflare 平台上，前后端同一次部署，无需自建服务器。
+
+| 层 | 选型 | 说明 |
+| --- | --- | --- |
+| 运行时 | Cloudflare Workers | 边缘执行，`fetch` / `email` / `scheduled` 三个入口 |
+| 收件 | Email Routing + `postal-mime` | 转发到 Email Worker，解析 MIME |
+| 发件 | 自研 `MailProvider` 抽象 | Cloudflare Email Service / Sendflare / Resend / SMTP |
+| SMTP | `cloudflare:sockets` | `connect()` 裸 TCP，手写 SMTP 会话（587/465） |
+| 账户 · 配置 · 发信状态机 | D1（SQLite） | 需要跨信箱查询的数据 |
+| 邮件正文 | Durable Objects + 内置 SQLite | 一地址一实例，天然分片 |
+| 附件 | R2 | 出口流量免费，按信箱/年月分区 |
+| 定时任务 | Cron Triggers | 重试 deferred 邮件、清理过期分享 |
+| 加密 | Web Crypto（AES-GCM / PBKDF2） | 渠道密钥加密、口令哈希、会话签名 |
+| API 框架 | Hono | 轻量路由，贴合 Workers |
+| 前端 | React 19 + Vite 7 | 通过 Workers Assets 托管 |
+| 样式 | 纯手写 CSS + 设计令牌 | 无 Tailwind / CSS-in-JS，全部 CSS 变量驱动 |
+| i18n | 自研轻量方案 | 中/英，无第三方库 |
+| AI | OpenAI 兼容接口 | 回复 / 总结 / 分类，可接任意兼容服务商 |
+| 语言 · 工具链 | TypeScript 7 · Wrangler | 原生编译器，端到端类型安全 |
 
 ## 架构
 
