@@ -1,0 +1,8 @@
+# 复制为 .dev.vars（本地）或用 `wrangler secret put` 写入线上。
+# 32 字节 base64，用于加密 mail_providers.config_encrypted
+# 生成：openssl rand -base64 32
+ENCRYPTION_KEY="REPLACE_WITH_BASE64_32_BYTES"
+
+# 会话 Cookie 签名密钥
+# 生成：openssl rand -base64 32
+SESSION_SECRET="REPLACE_WITH_BASE64_32_BYTES"

@@ -1,0 +1,265 @@
+import { Hono } from "hono";
+import { findByAddress, listMailboxes, mailboxStub } from "../db/mailboxes";
+import { createOutbound, getOutbound, listOutbound, loadPayload, savePayload } from "../db/outbound";
+import { base64ToBytes } from "../lib/crypto";
+import { newId, newMessageId } from "../lib/id";
+import { appendShareSection, prepareAttachments } from "../mail/attachments";
+import type { IncomingAttachment } from "../mail/attachments";
+import { dispatch } from "../mail/dispatcher";
+import type { MailAddress, SendMailInput } from "../mail/types";
+import { requireAuth } from "./auth";
+import type { AppContext } from "./context";
+
+const send = new Hono<AppContext>();
+send.use("*", requireAuth);
+
+send.post("/send", async (c) => {
+  const user = c.get("user");
+  const parsed = await parseSendRequest(c.req.raw);
+  if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+
+  const { input, attachments, providerId } = parsed;
+
+  // 发件地址必须是本人持有的信箱，避免任意伪造 From
+  const mailboxes = await listMailboxes(c.env, user.id);
+  const mailbox = mailboxes.find((item) => item.address === input.from.email.toLowerCase());
+  if (!mailbox) return c.json({ error: `发件地址 ${input.from.email} 不属于当前账户` }, 403);
+
+  if (!input.to.length) return c.json({ error: "收件人不能为空" }, 400);
+  if (!input.html && !input.text) return c.json({ error: "邮件正文不能为空" }, 400);
+
+  const internalId = newMessageId();
+  const bodySize = new TextEncoder().encode((input.html ?? "") + (input.text ?? "")).byteLength;
+
+  // 智能附件：小文件真发，大文件转 R2 下载链接
+  const prepared = await prepareAttachments(c.env, {
+    messageId: internalId,
+    userId: user.id,
+    attachments,
+    bodySize,
+  });
+
+  const finalInput = appendShareSection({ ...input, attachments: prepared.inline }, prepared.shared);
+
+  const payloadKey = await savePayload(c.env, internalId, finalInput);
+  await createOutbound(c.env, {
+    id: internalId,
+    userId: user.id,
+    mailboxId: mailbox.id,
+    input: finalInput,
+    payloadKey,
+  });
+
+  const result = await dispatch(c.env, { internalId, input: finalInput, preferredProviderId: providerId });
+
+  // 在「已发送」里留底
+  const stub = mailboxStub(c.env, mailbox);
+  await stub.store({
+    id: newId("msg"),
+    internalId,
+    direction: "outbound",
+    folder: "sent",
+    from: input.from,
+    to: input.to,
+    cc: input.cc,
+    bcc: input.bcc,
+    replyTo: input.replyTo ?? null,
+    subject: input.subject,
+    html: finalInput.html ?? null,
+    text: finalInput.text ?? null,
+    headers: finalInput.headers,
+    size: bodySize,
+    isRead: true,
+    status: result.status,
+    provider: result.provider,
+    error: result.error ?? null,
+    attachments: [
+      ...prepared.inline.map((item) => ({
+        id: newId("att"),
+        filename: item.filename,
+        contentType: item.contentType,
+        size: item.content.byteLength,
+        mode: "inline" as const,
+        r2Key: null,
+        token: null,
+      })),
+      ...prepared.shared.map((item) => ({
+        id: newId("att"),
+        filename: item.filename,
+        contentType: item.contentType,
+        size: item.size,
+        mode: "link" as const,
+        r2Key: null,
+        token: item.token,
+      })),
+    ],
+  });
+
+  return c.json(
+    {
+      internalId,
+      status: result.status,
+      provider: result.provider,
+      providerMessageId: result.providerMessageId,
+      success: result.success,
+      error: result.error,
+      attempts: result.attempts,
+      smartAttachments: {
+        inline: prepared.inline.map((item) => ({ filename: item.filename, size: item.content.byteLength })),
+        shared: prepared.shared.map((item) => ({ filename: item.filename, size: item.size, url: item.url })),
+      },
+    },
+    result.success ? 200 : result.status === "deferred" ? 202 : 502,
+  );
+});
+
+/** 发信记录（状态机视图） */
+send.get("/outbox", async (c) => {
+  const records = await listOutbound(c.env, c.get("user").id, 100);
+  return c.json({ messages: records });
+});
+
+send.get("/outbox/:id", async (c) => {
+  const record = await getOutbound(c.env, c.req.param("id"));
+  if (!record || record.userId !== c.get("user").id) return c.json({ error: "记录不存在" }, 404);
+  return c.json({ message: record });
+});
+
+/** 手动重试：沿用同一个内部 ID，不会生成新邮件 */
+send.post("/outbox/:id/retry", async (c) => {
+  const record = await getOutbound(c.env, c.req.param("id"));
+  if (!record || record.userId !== c.get("user").id) return c.json({ error: "记录不存在" }, 404);
+  if (record.status === "sent") return c.json({ error: "该邮件已发送成功" }, 409);
+  if (!record.payloadKey) return c.json({ error: "发送载荷已清理，无法重试" }, 409);
+
+  const input = await loadPayload(c.env, record.payloadKey);
+  if (!input) return c.json({ error: "发送载荷已过期，无法重试" }, 409);
+
+  const result = await dispatch(c.env, { internalId: record.id, input });
+
+  if (record.mailboxId) {
+    const mailbox = (await listMailboxes(c.env, c.get("user").id)).find((item) => item.id === record.mailboxId);
+    if (mailbox) {
+      await mailboxStub(c.env, mailbox).updateOutboundStatus(record.id, {
+        status: result.status,
+        provider: result.provider,
+        error: result.error ?? null,
+      });
+    }
+  }
+
+  return c.json({ result }, result.success ? 200 : 502);
+});
+
+/** 校验一个地址是否由本系统接收（前端写信时提示用） */
+send.get("/resolve", async (c) => {
+  const address = c.req.query("address");
+  if (!address) return c.json({ error: "缺少 address" }, 400);
+  const mailbox = await findByAddress(c.env, address);
+  return c.json({ internal: Boolean(mailbox) });
+});
+
+type ParsedSend =
+  | { error: string }
+  | { input: SendMailInput; attachments: IncomingAttachment[]; providerId?: string };
+
+/**
+ * 同时支持两种提交方式：
+ *   multipart/form-data：payload 字段是 JSON，文件放在 attachments 字段（前端上传用）
+ *   application/json：附件用 base64 内联（脚本调用用）
+ */
+async function parseSendRequest(request: Request): Promise<ParsedSend> {
+  const contentType = request.headers.get("Content-Type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const rawPayload = form.get("payload");
+    if (typeof rawPayload !== "string") return { error: "缺少 payload 字段" };
+
+    let body: RawSendBody;
+    try {
+      body = JSON.parse(rawPayload) as RawSendBody;
+    } catch {
+      return { error: "payload 不是合法 JSON" };
+    }
+
+    const attachments: IncomingAttachment[] = [];
+    for (const entry of form.getAll("attachments")) {
+      if (typeof entry === "string") continue;
+      attachments.push({
+        filename: entry.name,
+        contentType: entry.type || "application/octet-stream",
+        content: await entry.arrayBuffer(),
+      });
+    }
+
+    return buildInput(body, attachments);
+  }
+
+  let body: RawSendBody;
+  try {
+    body = (await request.json()) as RawSendBody;
+  } catch {
+    return { error: "请求体不是合法 JSON" };
+  }
+
+  const attachments: IncomingAttachment[] = (body.attachments ?? []).map((item) => ({
+    filename: item.filename,
+    contentType: item.contentType || "application/octet-stream",
+    contentId: item.contentId,
+    content: base64ToBytes(item.content).slice().buffer as ArrayBuffer,
+  }));
+
+  return buildInput(body, attachments);
+}
+
+interface RawSendBody {
+  from?: MailAddress | string;
+  to?: Array<MailAddress | string> | string;
+  cc?: Array<MailAddress | string>;
+  bcc?: Array<MailAddress | string>;
+  replyTo?: MailAddress | string;
+  subject?: string;
+  html?: string;
+  text?: string;
+  headers?: Record<string, string>;
+  providerId?: string;
+  attachments?: Array<{ filename: string; contentType: string; content: string; contentId?: string }>;
+}
+
+function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): ParsedSend {
+  const from = normalizeAddress(body.from);
+  if (!from) return { error: "缺少发件地址" };
+
+  const to = normalizeList(body.to);
+  const input: SendMailInput = {
+    from,
+    to,
+    cc: normalizeList(body.cc),
+    bcc: normalizeList(body.bcc),
+    replyTo: normalizeAddress(body.replyTo) ?? undefined,
+    subject: body.subject?.trim() || "(无主题)",
+    html: body.html,
+    text: body.text,
+    headers: body.headers,
+  };
+
+  return { input, attachments, providerId: body.providerId };
+}
+
+function normalizeAddress(value: MailAddress | string | undefined): MailAddress | null {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const email = value.trim();
+    return email ? { email } : null;
+  }
+  return value.email ? { email: value.email.trim(), name: value.name } : null;
+}
+
+function normalizeList(value: Array<MailAddress | string> | string | undefined): MailAddress[] {
+  if (!value) return [];
+  const list = typeof value === "string" ? value.split(/[,;]/) : value;
+  return list.map(normalizeAddress).filter((item): item is MailAddress => item !== null);
+}
+
+export default send;

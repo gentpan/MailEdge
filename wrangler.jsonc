@@ -1,0 +1,75 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mailedge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // 前端静态资源。/api/* 与 /d/* 必须先进 Worker，其余走 SPA 回退。
+  "assets": {
+    "directory": "./web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/d/*"]
+  },
+
+  // Cloudflare Email Service 发信绑定（需要 Workers Paid）
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ],
+
+  // 账户、Provider 配置、发信状态机
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mailedge",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // 附件与待重试的发信载荷
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "mailedge-attachments"
+    }
+  ],
+
+  // 每个邮箱一个 Durable Object，内部使用 SQLite 存邮件
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MAILBOX",
+        "class_name": "MailboxDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MailboxDO"]
+    }
+  ],
+
+  // deferred 状态的邮件重试
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+
+  "vars": {
+    // 超过该字节数的附件改走 R2 下载链接（智能附件）
+    "SMART_ATTACHMENT_THRESHOLD": "3145728",
+    // Cloudflare Email Service 单封上限 5 MiB，留出编码余量
+    "MAX_EMAIL_SIZE": "4718592",
+    // R2 下载链接有效期
+    "ATTACHMENT_LINK_TTL_DAYS": "7",
+    "APP_URL": "https://mailedge.example.com"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
