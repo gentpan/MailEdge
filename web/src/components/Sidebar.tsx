@@ -5,6 +5,7 @@ import {
   Inbox,
   Layers,
   Link2,
+  LogOut,
   MailQuestion,
   Mails,
   PenSquare,
@@ -20,6 +21,11 @@ import type { TranslationKey } from "../i18n/dict";
 import LanguageToggle from "./LanguageToggle";
 
 export type MailView = "mail" | "outbox" | "shares";
+
+/** 头像用的首字母：优先取名字，退到邮箱首字符 */
+function initial(value: string): string {
+  return (value.trim()[0] ?? "?").toUpperCase();
+}
 
 const FOLDERS: Array<{ key: MailFolder; labelKey: TranslationKey; icon: typeof Inbox }> = [
   { key: "inbox", labelKey: "folder.inbox", icon: Inbox },
@@ -148,13 +154,22 @@ export default function Sidebar({
           <Settings size={16} />
           {t("nav.settings")}
         </Link>
-        <div className="sidebar__footer-row">
-          <span className="sidebar__user">{user.name || user.email}</span>
-          <LanguageToggle />
+
+        <div className="user-card">
+          <span className="user-card__avatar">{initial(user.name || user.email)}</span>
+          <div className="user-card__meta">
+            <span className="user-card__name">{user.name || user.email}</span>
+            {user.name && <span className="user-card__email">{user.email}</span>}
+          </div>
         </div>
-        <button className="btn btn--ghost btn--sm" type="button" onClick={onSignOut}>
-          {t("nav.signOut")}
-        </button>
+
+        <div className="sidebar__footer-row">
+          <LanguageToggle />
+          <button className="btn btn--ghost btn--sm" type="button" onClick={onSignOut} title={t("nav.signOut")}>
+            <LogOut size={14} />
+            {t("nav.signOut")}
+          </button>
+        </div>
       </div>
     </aside>
   );

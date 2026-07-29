@@ -75,8 +75,14 @@ export default function SettingsPage() {
         </nav>
 
         <div className="sidebar__footer">
+          <div className="user-card">
+            <span className="user-card__avatar">{(user.name || user.email).trim()[0]?.toUpperCase() ?? "?"}</span>
+            <div className="user-card__meta">
+              <span className="user-card__name">{user.name || user.email}</span>
+              {user.name && <span className="user-card__email">{user.email}</span>}
+            </div>
+          </div>
           <div className="sidebar__footer-row">
-            <span className="sidebar__user">{user.name || user.email}</span>
             <LanguageToggle />
           </div>
         </div>

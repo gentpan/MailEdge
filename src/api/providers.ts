@@ -92,7 +92,12 @@ providers.post("/:id/test", requireAdmin, async (c) => {
 });
 
 function defaultName(type: MailProviderType): string {
-  return { cloudflare: "Cloudflare Email Service", resend: "Resend", sendflare: "Sendflare" }[type];
+  return {
+    cloudflare: "Cloudflare Email Service",
+    resend: "Resend",
+    sendflare: "Sendflare",
+    smtp: "SMTP",
+  }[type];
 }
 
 /**
@@ -141,6 +146,20 @@ async function normalizeConfig(
         verifiedDomains: toStringArray(raw.verifiedDomains),
       },
     };
+  }
+
+  if (type === "smtp") {
+    const previous = existing?.config.type === "smtp" ? existing.config.password : undefined;
+    const host = typeof raw.host === "string" ? raw.host.trim() : "";
+    const username = typeof raw.username === "string" ? raw.username.trim() : "";
+    const password = keep(raw.password, previous);
+    const port = Number(raw.port) || 587;
+    const security = raw.security === "tls" ? "tls" : "starttls";
+    if (!host) return { error: "请填写 SMTP 服务器地址" };
+    if (!username) return { error: "请填写 SMTP 用户名" };
+    if (!password) return { error: "请填写 SMTP 密码（Gmail 用应用专用密码）" };
+    if (port === 25) return { error: "Workers 禁止 25 端口，请用 587（STARTTLS）或 465（TLS）" };
+    return { value: { type: "smtp", host, port, username, password, security } };
   }
 
   return { error: `不支持的邮件服务：${type}` };

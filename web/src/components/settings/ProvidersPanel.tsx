@@ -3,7 +3,7 @@ import type { MailProviderType } from "../../../../src/mail/types";
 import { useI18n } from "../../i18n";
 import ProviderSection from "./ProviderSection";
 
-const ORDER: MailProviderType[] = ["cloudflare", "sendflare", "resend"];
+const ORDER: MailProviderType[] = ["cloudflare", "sendflare", "resend", "smtp"];
 
 interface Props {
   providers: ProviderView[];

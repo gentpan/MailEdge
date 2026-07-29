@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, CircleAlert, Cloud, Send, Trash2, Zap } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Cloud, Send, Server, Trash2, Zap } from "lucide-react";
 import { api } from "../../lib/api";
 import type { Mailbox, ProviderView } from "../../lib/api";
 import type { MailProviderType } from "../../../../src/mail/types";
@@ -12,6 +12,7 @@ const ICONS: Record<MailProviderType, typeof Cloud> = {
   cloudflare: Cloud,
   sendflare: Zap,
   resend: Send,
+  smtp: Server,
 };
 
 interface Props {
@@ -30,6 +31,13 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
   const [secret, setSecret] = useState("");
   const [baseUrl, setBaseUrl] = useState((provider?.config.baseUrl as string) ?? "");
   const [defaultDomain, setDefaultDomain] = useState((provider?.config.defaultDomain as string) ?? "");
+  const [smtpHost, setSmtpHost] = useState((provider?.config.host as string) ?? "");
+  const [smtpPort, setSmtpPort] = useState((provider?.config.port as number) ?? 587);
+  const [smtpUser, setSmtpUser] = useState((provider?.config.username as string) ?? "");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [smtpSecurity, setSmtpSecurity] = useState<"tls" | "starttls">(
+    (provider?.config.security as "tls" | "starttls") ?? "starttls",
+  );
   const [priority, setPriority] = useState(provider?.priority ?? 100);
   const [enabled, setEnabled] = useState(provider?.isEnabled ?? true);
 
@@ -56,12 +64,21 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
             ? { defaultDomain }
             : type === "resend"
               ? { apiKey }
-              : { token, secret, baseUrl },
+              : type === "sendflare"
+                ? { token, secret, baseUrl }
+                : {
+                    host: smtpHost,
+                    port: smtpPort,
+                    username: smtpUser,
+                    password: smtpPass,
+                    security: smtpSecurity,
+                  },
       });
       setMessage({ kind: "success", text: t("common.saved") });
       setApiKey("");
       setToken("");
       setSecret("");
+      setSmtpPass("");
       onChanged();
     } catch (error) {
       setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
@@ -189,6 +206,70 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                   value={baseUrl}
                   placeholder="https://api.sendflare.com"
                   onChange={(event) => setBaseUrl(event.target.value)}
+                />
+              </FormRow>
+            </>
+          )}
+
+          {type === "smtp" && (
+            <>
+              <FormRow label={t("providers.smtp.preset")}>
+                <button
+                  className="btn btn--secondary btn--sm"
+                  type="button"
+                  onClick={() => {
+                    setSmtpHost("smtp.gmail.com");
+                    setSmtpPort(587);
+                    setSmtpSecurity("starttls");
+                  }}
+                >
+                  Gmail
+                </button>
+              </FormRow>
+              <FormRow label={t("providers.smtp.host")}>
+                <input
+                  className="input"
+                  value={smtpHost}
+                  placeholder="smtp.gmail.com"
+                  onChange={(event) => setSmtpHost(event.target.value)}
+                />
+              </FormRow>
+              <FormRow label={t("providers.smtp.port")}>
+                <input
+                  className="input"
+                  type="number"
+                  value={smtpPort}
+                  onChange={(event) => setSmtpPort(Number(event.target.value))}
+                />
+              </FormRow>
+              <FormRow label={t("providers.smtp.security")}>
+                <select
+                  className="select"
+                  value={smtpSecurity}
+                  onChange={(event) => setSmtpSecurity(event.target.value as "tls" | "starttls")}
+                >
+                  <option value="starttls">STARTTLS（587）</option>
+                  <option value="tls">TLS（465）</option>
+                </select>
+              </FormRow>
+              <FormRow label={t("providers.smtp.username")} hint={t("providers.smtp.username.hint")}>
+                <input
+                  className="input"
+                  value={smtpUser}
+                  placeholder="you@gmail.com"
+                  onChange={(event) => setSmtpUser(event.target.value)}
+                />
+              </FormRow>
+              <FormRow
+                label={t("providers.smtp.password")}
+                hint={configured ? t("providers.keepSecret") : t("providers.smtp.password.hint")}
+              >
+                <input
+                  className="input"
+                  type="password"
+                  value={smtpPass}
+                  placeholder={configured ? "••••••••" : ""}
+                  onChange={(event) => setSmtpPass(event.target.value)}
                 />
               </FormRow>
             </>

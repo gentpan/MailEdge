@@ -81,8 +81,13 @@ Cloudflare Workers · D1 · R2 · Durable Objects (SQLite) · Email Routing · H
 | Cloudflare Email Service | 默认原生渠道 | Workers Binding，无额外 HTTP 请求；单封 ≤ 5 MiB、≤ 32 个附件；发往任意外部邮箱需要 Workers Paid |
 | Sendflare | 备用或主渠道 | REST API，Bearer Token，可选 HMAC-SHA256 签名 |
 | Resend | 成熟备用渠道 | REST API，需要在其后台验证域名 |
+| SMTP | 通用代发 | 用 Workers `connect()` 走 587 STARTTLS / 465 TLS，手写 SMTP 会话；可用 Gmail 等外部邮箱（应用专用密码） |
 
-新增 SES / Mailgun / Postmark / SMTP 只需要在 [src/mail/providers/](src/mail/providers/) 加一个类，并在 [factory.ts](src/mail/factory.ts) 加一个分支。
+新增 SES / Mailgun / Postmark 只需要在 [src/mail/providers/](src/mail/providers/) 加一个类，并在 [factory.ts](src/mail/factory.ts) 加一个分支。
+
+> **SMTP 用 Gmail 代发**：主机 `smtp.gmail.com`、端口 587、加密 STARTTLS、用户名填完整邮箱、密码填「应用专用密码」（需先开两步验证，不能用登录密码）。设置页有 Gmail 一键预设。
+>
+> Workers **禁止 25 端口**出站，所以 SMTP 只能走 587/465——发信本来也不需要 25。IMAP 代收同理不适合 Worker，收信请用 Email Routing 转发。
 
 ### 状态机与切换规则
 

@@ -1,4 +1,4 @@
-export type MailProviderType = "cloudflare" | "resend" | "sendflare";
+export type MailProviderType = "cloudflare" | "resend" | "sendflare" | "smtp";
 
 export interface MailAddress {
   email: string;
@@ -50,7 +50,16 @@ export type FailureKind = "transient" | "permanent";
 export type MailProviderConfig =
   | { type: "cloudflare"; defaultDomain?: string }
   | { type: "resend"; apiKey: string; verifiedDomains?: string[] }
-  | { type: "sendflare"; token: string; secret?: string; baseUrl?: string; verifiedDomains?: string[] };
+  | { type: "sendflare"; token: string; secret?: string; baseUrl?: string; verifiedDomains?: string[] }
+  | {
+      type: "smtp";
+      host: string;
+      port: number;
+      username: string;
+      password: string;
+      /** 465 用 tls（连接即加密）；587 用 starttls（明文握手后升级） */
+      security: "tls" | "starttls";
+    };
 
 export interface MailProviderRecord {
   id: string;

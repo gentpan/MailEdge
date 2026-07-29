@@ -37,4 +37,5 @@ export const PROVIDER_LABELS: Record<string, string> = {
   cloudflare: "Cloudflare Email Service",
   resend: "Resend",
   sendflare: "Sendflare",
+  smtp: "SMTP",
 };

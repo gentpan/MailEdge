@@ -129,11 +129,17 @@ export function redactProvider(record: MailProviderRecord) {
   } else if (config.type === "resend") {
     redacted.apiKey = maskSecret(config.apiKey);
     redacted.verifiedDomains = config.verifiedDomains ?? [];
-  } else {
+  } else if (config.type === "sendflare") {
     redacted.token = maskSecret(config.token);
     redacted.secret = config.secret ? maskSecret(config.secret) : null;
     redacted.baseUrl = config.baseUrl ?? null;
     redacted.verifiedDomains = config.verifiedDomains ?? [];
+  } else {
+    redacted.host = config.host;
+    redacted.port = config.port;
+    redacted.username = config.username;
+    redacted.password = maskSecret(config.password);
+    redacted.security = config.security;
   }
 
   return {

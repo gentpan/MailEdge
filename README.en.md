@@ -79,8 +79,13 @@ Cloudflare Workers · D1 · R2 · Durable Objects (SQLite) · Email Routing · H
 | Cloudflare Email Service | Default, native | Workers binding, no extra HTTP request; ≤ 5 MiB per message, ≤ 32 attachments; sending to arbitrary external addresses requires Workers Paid |
 | Sendflare | Backup or primary | REST API, bearer token, optional HMAC-SHA256 signing |
 | Resend | Mature backup | REST API, requires domain verification in their dashboard |
+| SMTP | Generic relay | Raw SMTP session over Workers `connect()` on 587 STARTTLS / 465 TLS; works with external mailboxes like Gmail (app password) |
 
-To add SES / Mailgun / Postmark / SMTP, drop a class into [src/mail/providers/](src/mail/providers/) and add one branch to [factory.ts](src/mail/factory.ts).
+To add SES / Mailgun / Postmark, drop a class into [src/mail/providers/](src/mail/providers/) and add one branch to [factory.ts](src/mail/factory.ts).
+
+> **SMTP via Gmail**: host `smtp.gmail.com`, port 587, STARTTLS, username = full email, password = an *app password* (2FA required — not your login password). The settings page has a one-click Gmail preset.
+>
+> Workers **block outbound port 25**, so SMTP only uses 587/465 — sending never needs 25 anyway. IMAP polling is likewise a poor fit for a Worker; receive via Email Routing forwarding instead.
 
 ### State machine and failover rules
 
