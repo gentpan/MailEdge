@@ -1,5 +1,9 @@
 import PostalMime from "postal-mime";
+import { classifyEmail } from "../ai/tasks";
+import { getAiConfig, getTelegramConfig } from "../db/appSettings";
 import { findByAddress, mailboxStub } from "../db/mailboxes";
+import type { MailboxRecord } from "../db/mailboxes";
+import { sendTelegram, shouldNotify } from "../notify/telegram";
 import type { StoreMessageInput } from "../do/mailbox";
 import type { Env } from "../env";
 import { newId } from "../lib/id";
@@ -91,6 +95,58 @@ export async function handleInboundEmail(
       httpMetadata: { contentType: "message/rfc822" },
     }).then(() => undefined),
   );
+
+  // AI 分类与 Telegram 推送不阻塞投递，放到 waitUntil 里异步跑
+  ctx.waitUntil(
+    postProcess(env, {
+      mailbox,
+      messageId,
+      from: toAddress(parsed.from)?.email ?? message.from,
+      subject: parsed.subject ?? "(无主题)",
+      text: parsed.text ?? stripHtml(parsed.html ?? ""),
+      snippet: (parsed.text ?? stripHtml(parsed.html ?? "")).replace(/\s+/g, " ").trim().slice(0, 300),
+    }),
+  );
+}
+
+/**
+ * 收信后处理：先分类（若开启），再按分类决定是否推 Telegram。
+ * 全程 try/catch 隔离——AI 或推送出问题绝不能影响已入库的邮件。
+ */
+async function postProcess(
+  env: Env,
+  ctx: { mailbox: MailboxRecord; messageId: string; from: string; subject: string; text: string; snippet: string },
+): Promise<void> {
+  let category: string | null = null;
+
+  try {
+    const ai = await getAiConfig(env);
+    if (ai.enabled && ai.apiKey && ai.autoClassify) {
+      category = await classifyEmail(ai, { subject: ctx.subject, from: ctx.from, text: ctx.text });
+      await mailboxStub(env, ctx.mailbox).setCategory(ctx.messageId, category);
+    }
+  } catch (error) {
+    console.error("[MailEdge] 分类失败", error);
+  }
+
+  try {
+    const telegram = await getTelegramConfig(env);
+    if (shouldNotify(telegram, category)) {
+      await sendTelegram(telegram, {
+        from: ctx.from,
+        subject: ctx.subject,
+        snippet: ctx.snippet,
+        mailbox: ctx.mailbox.address,
+        category,
+      });
+    }
+  } catch (error) {
+    console.error("[MailEdge] Telegram 推送失败", error);
+  }
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ");
 }
 
 function toArrayBuffer(content: string | ArrayBuffer | Uint8Array): ArrayBuffer {

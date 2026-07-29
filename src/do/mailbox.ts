@@ -31,6 +31,8 @@ export interface StoreMessageInput {
   status?: string | null;
   provider?: string | null;
   error?: string | null;
+  category?: string | null;
+  aiSummary?: string | null;
   receivedAt?: string;
   attachments?: Array<{
     id: string;
@@ -86,6 +88,8 @@ export class MailboxDO extends DurableObject<Env> {
         status       TEXT,
         provider     TEXT,
         error        TEXT,
+        category     TEXT,
+        ai_summary   TEXT,
         received_at  TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_messages_folder ON messages(folder, received_at DESC);
@@ -104,6 +108,17 @@ export class MailboxDO extends DurableObject<Env> {
       );
       CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
     `);
+
+    // 存量 DO 的补列：category / ai_summary 是后加的，ADD COLUMN 幂等靠 catch 兜住。
+    // 必须在依赖这些列的索引之前执行——否则存量表上的 CREATE INDEX 会因列不存在而抛错。
+    for (const column of ["category TEXT", "ai_summary TEXT"]) {
+      try {
+        this.sql.exec(`ALTER TABLE messages ADD COLUMN ${column}`);
+      } catch {
+        // 列已存在，忽略
+      }
+    }
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_messages_category ON messages(category)`);
   }
 
   async store(input: StoreMessageInput): Promise<void> {
@@ -115,9 +130,11 @@ export class MailboxDO extends DurableObject<Env> {
        (id, internal_id, direction, folder, message_id, in_reply_to, thread_id,
         from_email, from_name, to_json, cc_json, bcc_json, reply_to_json,
         subject, snippet, html, text, headers_json, size, is_read, is_starred,
-        status, provider, error, received_at)
+        status, provider, error, category, ai_summary, received_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               COALESCE((SELECT is_starred FROM messages WHERE id = ?), 0), ?, ?, ?, ?)`,
+               COALESCE((SELECT is_starred FROM messages WHERE id = ?), 0), ?, ?, ?,
+               COALESCE(?, (SELECT category FROM messages WHERE id = ?)),
+               COALESCE(?, (SELECT ai_summary FROM messages WHERE id = ?)), ?)`,
       input.id,
       input.internalId ?? null,
       input.direction,
@@ -142,6 +159,10 @@ export class MailboxDO extends DurableObject<Env> {
       input.status ?? null,
       input.provider ?? null,
       input.error ?? null,
+      input.category ?? null,
+      input.id,
+      input.aiSummary ?? null,
+      input.id,
       receivedAt,
     );
 
@@ -164,6 +185,7 @@ export class MailboxDO extends DurableObject<Env> {
 
   async list(params: {
     folder?: MailFolder;
+    category?: string;
     limit?: number;
     before?: string;
     search?: string;
@@ -175,6 +197,10 @@ export class MailboxDO extends DurableObject<Env> {
     if (params.folder) {
       conditions.push("folder = ?");
       values.push(params.folder);
+    }
+    if (params.category) {
+      conditions.push("category = ?");
+      values.push(params.category);
     }
     if (params.before) {
       conditions.push("received_at < ?");
@@ -228,8 +254,17 @@ export class MailboxDO extends DurableObject<Env> {
       messageId: row.message_id,
       inReplyTo: row.in_reply_to,
       error: row.error,
+      aiSummary: row.ai_summary,
       attachments,
     };
+  }
+
+  async setCategory(id: string, category: string): Promise<void> {
+    this.sql.exec(`UPDATE messages SET category = ? WHERE id = ?`, category, id);
+  }
+
+  async setSummary(id: string, summary: string): Promise<void> {
+    this.sql.exec(`UPDATE messages SET ai_summary = ? WHERE id = ?`, summary, id);
   }
 
   async setRead(id: string, isRead: boolean): Promise<void> {
@@ -324,6 +359,8 @@ interface MessageRow extends Record<string, SqlStorageValue> {
   status: string | null;
   provider: string | null;
   error: string | null;
+  category: string | null;
+  ai_summary: string | null;
   received_at: string;
   attachment_count: number;
 }
@@ -354,6 +391,7 @@ function toSummary(row: MessageRow): MessageSummary {
     hasAttachments: row.attachment_count > 0,
     status: row.status,
     provider: row.provider,
+    category: (row.category as MessageSummary["category"]) ?? null,
     receivedAt: row.received_at,
   };
 }

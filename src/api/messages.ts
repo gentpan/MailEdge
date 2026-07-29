@@ -31,7 +31,7 @@ async function resolveMailbox(
 async function listAcrossMailboxes(
   env: Env,
   mailboxes: MailboxRecord[],
-  params: { folder?: MailFolder; limit: number; before?: string; search?: string },
+  params: { folder?: MailFolder; category?: string; limit: number; before?: string; search?: string },
 ) {
   const pages = await Promise.all(
     mailboxes.map(async (mailbox) => {
@@ -111,6 +111,7 @@ messages.get("/messages", async (c) => {
   const requested = c.req.query("mailboxId");
   const params = {
     folder: (c.req.query("folder") as MailFolder | undefined) ?? "inbox",
+    category: c.req.query("category") || undefined,
     limit: Math.min(Number(c.req.query("limit") ?? 50), 200),
     before: c.req.query("before"),
     search: c.req.query("q"),

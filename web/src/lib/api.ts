@@ -66,6 +66,29 @@ export interface SendResponse {
   };
 }
 
+export interface AiConfigView {
+  enabled: boolean;
+  baseUrl?: string;
+  apiKey?: string;
+  hasKey?: boolean;
+  model?: string;
+  autoClassify?: boolean;
+}
+
+export interface TelegramView {
+  enabled: boolean;
+  botToken?: string;
+  hasToken?: boolean;
+  chatId?: string;
+  onlyCategories?: string[];
+}
+
+export interface AiConfigResponse {
+  ai: AiConfigView;
+  telegram: TelegramView;
+  categories: Record<string, string>;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -116,9 +139,16 @@ export const api = {
   stats: (mailboxId?: string) =>
     request<{ stats: FolderStats[] }>(`/api/stats${mailboxId ? `?mailboxId=${mailboxId}` : ""}`),
 
-  messages: (params: { mailboxId?: string; folder: MailFolder; q?: string; before?: string }) => {
+  messages: (params: {
+    mailboxId?: string;
+    folder: MailFolder;
+    category?: string;
+    q?: string;
+    before?: string;
+  }) => {
     const search = new URLSearchParams({ folder: params.folder });
     if (params.mailboxId) search.set("mailboxId", params.mailboxId);
+    if (params.category) search.set("category", params.category);
     if (params.q) search.set("q", params.q);
     if (params.before) search.set("before", params.before);
     return request<{ items: MessageSummary[]; nextCursor: string | null }>(`/api/messages?${search}`);
@@ -165,6 +195,30 @@ export const api = {
       `/api/providers/${id}/test`,
       { method: "POST", body: JSON.stringify(body) },
     ),
+
+  // AI 与通知
+  aiConfig: () => request<AiConfigResponse>("/api/ai/config"),
+  saveAiConfig: (body: Record<string, unknown>) =>
+    request<{ ai: AiConfigView }>("/api/ai/config", { method: "POST", body: JSON.stringify(body) }),
+  testAiConfig: () => request<{ ok: boolean; reply?: string; error?: string }>("/api/ai/config/test", { method: "POST" }),
+  saveTelegram: (body: Record<string, unknown>) =>
+    request<{ telegram: TelegramView }>("/api/ai/telegram", { method: "POST", body: JSON.stringify(body) }),
+  testTelegram: () => request<{ ok: boolean; error?: string }>("/api/ai/telegram/test", { method: "POST" }),
+
+  aiReply: (id: string, mailboxId: string, body: { instruction?: string; tone?: string }) =>
+    request<{ draft: string }>(`/api/ai/messages/${id}/reply?mailboxId=${mailboxId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  aiSummarize: (id: string, mailboxId: string, force?: boolean) =>
+    request<{ summary: string; cached: boolean }>(
+      `/api/ai/messages/${id}/summarize?mailboxId=${mailboxId}${force ? "&force=1" : ""}`,
+      { method: "POST" },
+    ),
+  aiClassify: (id: string, mailboxId: string) =>
+    request<{ category: string; label: string }>(`/api/ai/messages/${id}/classify?mailboxId=${mailboxId}`, {
+      method: "POST",
+    }),
 
   // 分享链接
   shares: () =>

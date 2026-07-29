@@ -1,5 +1,6 @@
 import { AtSign, Inbox, Loader2, Paperclip, Search, Star } from "lucide-react";
 import type { MailFolder, MessageSummary } from "../../../src/shared/message";
+import { CATEGORY_LABELS, MAIL_CATEGORIES } from "../../../src/ai/types";
 import { STATUS_LABELS, displayName, formatTime } from "../lib/format";
 
 interface Props {
@@ -11,6 +12,11 @@ interface Props {
   folder: MailFolder;
   /** 聚合视图下标出每封信属于哪个信箱 */
   showMailbox?: boolean;
+  /** 当前分类过滤（空 = 全部） */
+  category?: string;
+  /** 是否显示分类分栏（AI 开启且在收件箱/其他地址时） */
+  showCategories?: boolean;
+  onSelectCategory?: (category: string) => void;
   onSearch: (value: string) => void;
   onSelect: (message: MessageSummary) => void;
   onLoadMore: () => void;
@@ -33,6 +39,9 @@ export default function MessageList({
   search,
   folder,
   showMailbox,
+  category,
+  showCategories,
+  onSelectCategory,
   onSearch,
   onSelect,
   onLoadMore,
@@ -53,6 +62,28 @@ export default function MessageList({
           />
         </div>
       </div>
+
+      {showCategories && (
+        <div className="cat-tabs">
+          <button
+            type="button"
+            className={`cat-tab${!category ? " cat-tab--active" : ""}`}
+            onClick={() => onSelectCategory?.("")}
+          >
+            全部
+          </button>
+          {MAIL_CATEGORIES.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`cat-tab${category === key ? " cat-tab--active" : ""}`}
+              onClick={() => onSelectCategory?.(key)}
+            >
+              {CATEGORY_LABELS[key]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="list-pane__body">
         {loading && !items.length && (
@@ -104,10 +135,13 @@ export default function MessageList({
               </div>
             )}
             <div className="message-row__snippet">{item.snippet}</div>
-            {(item.hasAttachments || item.isStarred || item.status) && (
+            {(item.hasAttachments || item.isStarred || item.status || item.category) && (
               <div className="message-row__meta">
                 {item.isStarred && <Star size={12} />}
                 {item.hasAttachments && <Paperclip size={12} />}
+                {item.category && item.category in CATEGORY_LABELS && (
+                  <span className="badge">{CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS]}</span>
+                )}
                 {item.status && item.status !== "sent" && (
                   <span
                     className={`badge ${item.status === "failed" ? "badge--error" : "badge--warning"}`}

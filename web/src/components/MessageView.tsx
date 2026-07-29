@@ -1,17 +1,82 @@
-import { Archive, Loader2, Mail, Paperclip, Reply, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Archive, Loader2, Mail, Paperclip, Reply, Sparkles, Star, Trash2, WandSparkles } from "lucide-react";
 import type { MessageDetail } from "../../../src/shared/message";
+import type { ComposeDraft } from "./ComposeModal";
+import { api } from "../lib/api";
 import { PROVIDER_LABELS, STATUS_LABELS, displayName, formatDateTime, formatSize } from "../lib/format";
 
 interface Props {
   message: MessageDetail | null;
   loading: boolean;
+  /** 详情所属信箱，AI 操作要按它路由 */
+  mailboxId?: string;
+  aiEnabled?: boolean;
   onReply: (message: MessageDetail) => void;
+  onAiReply: (draft: ComposeDraft) => void;
   onArchive: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleStar: (message: MessageDetail) => void;
 }
 
-export default function MessageView({ message, loading, onReply, onArchive, onDelete, onToggleStar }: Props) {
+export default function MessageView({
+  message,
+  loading,
+  mailboxId,
+  aiEnabled,
+  onReply,
+  onAiReply,
+  onArchive,
+  onDelete,
+  onToggleStar,
+}: Props) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // 切换邮件时清空上一封的 AI 状态
+  const currentId = message?.id ?? null;
+  const [seenId, setSeenId] = useState<string | null>(null);
+  if (currentId !== seenId) {
+    setSeenId(currentId);
+    setSummary(message?.aiSummary ?? null);
+    setSummarizing(false);
+    setReplying(false);
+    setAiError(null);
+  }
+
+  async function summarize(target: MessageDetail) {
+    if (!mailboxId) return;
+    setSummarizing(true);
+    setAiError(null);
+    try {
+      const result = await api.aiSummarize(target.id, mailboxId);
+      setSummary(result.summary);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "总结失败");
+    } finally {
+      setSummarizing(false);
+    }
+  }
+
+  async function aiReply(target: MessageDetail) {
+    if (!mailboxId) return;
+    setReplying(true);
+    setAiError(null);
+    try {
+      const result = await api.aiReply(target.id, mailboxId, {});
+      onAiReply({
+        to: target.from.email,
+        subject: target.subject.startsWith("Re:") ? target.subject : `Re: ${target.subject}`,
+        text: result.draft,
+      });
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "生成失败");
+    } finally {
+      setReplying(false);
+    }
+  }
+
   if (loading) {
     return (
       <section className="detail-pane">
@@ -51,6 +116,30 @@ export default function MessageView({ message, loading, onReply, onArchive, onDe
         <button className="btn btn--icon" type="button" title="归档" onClick={() => onArchive(message.id)}>
           <Archive size={16} />
         </button>
+
+        {aiEnabled && mailboxId && message.direction === "inbound" && (
+          <>
+            <button
+              className="btn btn--ghost btn--sm"
+              type="button"
+              onClick={() => void aiReply(message)}
+              disabled={replying}
+            >
+              <WandSparkles size={14} />
+              {replying ? "生成中…" : "AI 回复"}
+            </button>
+            <button
+              className="btn btn--ghost btn--sm"
+              type="button"
+              onClick={() => void summarize(message)}
+              disabled={summarizing}
+            >
+              <Sparkles size={14} />
+              {summarizing ? "总结中…" : "AI 总结"}
+            </button>
+          </>
+        )}
+
         <div className="detail-pane__toolbar-spacer" />
         <button className="btn btn--icon" type="button" title="删除" onClick={() => onDelete(message.id)}>
           <Trash2 size={16} />
@@ -58,6 +147,18 @@ export default function MessageView({ message, loading, onReply, onArchive, onDe
       </div>
 
       <div className="detail-pane__body">
+        {aiError && <div className="alert alert--error">{aiError}</div>}
+
+        {summary && (
+          <div className="ai-summary">
+            <div className="ai-summary__head">
+              <Sparkles size={14} />
+              AI 摘要
+            </div>
+            <div className="ai-summary__body">{summary}</div>
+          </div>
+        )}
+
         <header className="detail-header">
           <h2 className="detail-header__subject">{message.subject || "(无主题)"}</h2>
 

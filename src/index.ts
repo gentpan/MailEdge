@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import ai from "./api/ai";
 import auth from "./api/auth";
 import type { AppContext } from "./api/context";
 import download from "./api/download";
@@ -21,6 +22,7 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "MailEdge" }));
 app.route("/api/auth", auth);
 app.route("/api/mail", send);
 app.route("/api/providers", providers);
+app.route("/api/ai", ai);
 app.route("/api", messages);
 app.route("/", download);
 

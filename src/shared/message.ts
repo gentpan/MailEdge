@@ -36,6 +36,8 @@ export interface MessageSummary {
   hasAttachments: boolean;
   status: string | null;
   provider: string | null;
+  /** AI 分类标签；未分类为 null */
+  category: string | null;
   receivedAt: string;
 }
 
@@ -50,6 +52,7 @@ export interface MessageDetail extends MessageSummary {
   messageId: string | null;
   inReplyTo: string | null;
   error: string | null;
+  aiSummary: string | null;
   attachments: MessageAttachmentView[];
 }
 

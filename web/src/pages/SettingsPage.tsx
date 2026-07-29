@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, AtSign, Loader2, Send, User as UserIcon } from "lucide-react";
+import { ArrowLeft, AtSign, Loader2, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useSession } from "../App";
 import AccountPanel from "../components/settings/AccountPanel";
+import AiPanel from "../components/settings/AiPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
 import ProvidersPanel from "../components/settings/ProvidersPanel";
 import { api } from "../lib/api";
 import type { Mailbox, ProviderView } from "../lib/api";
 
-type Category = "providers" | "mailboxes" | "account";
+type Category = "providers" | "ai" | "mailboxes" | "account";
 
 const CATEGORIES: Array<{ key: Category; label: string; icon: typeof Send; adminOnly?: boolean }> = [
   { key: "providers", label: "发信服务", icon: Send, adminOnly: true },
+  { key: "ai", label: "AI 助手", icon: Sparkles, adminOnly: true },
   { key: "mailboxes", label: "收件地址", icon: AtSign },
   { key: "account", label: "账户", icon: UserIcon },
 ];
@@ -81,6 +83,8 @@ export default function SettingsPage() {
           </div>
         ) : category === "providers" ? (
           <ProvidersPanel providers={providers} mailboxes={mailboxes} onChanged={() => void load()} />
+        ) : category === "ai" ? (
+          <AiPanel />
         ) : category === "mailboxes" ? (
           <MailboxesPanel mailboxes={mailboxes} onChanged={() => void reloadAll()} />
         ) : (

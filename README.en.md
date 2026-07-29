@@ -38,11 +38,23 @@ Cloudflare Email Routing can receive and forward mail, but it can't reply and ha
 ## Features
 
 - Inbox / Sent / Archive / Trash, with search, pagination, starring and unread counts
-- Compose with CC, BCC and multiple attachments; admins can pin a specific sending provider
+- Aggregated view across mailboxes; mail that only matched via catch-all lands in a separate "Other addresses" folder
+- Compose with Markdown (converted to email-safe HTML on send), CC, BCC and multiple attachments; admins can pin a specific sending provider
 - Configure all three providers from the settings page — test send, set as default, backup priority
 - Provider credentials are AES-GCM encrypted in D1; the API only ever returns masked values
 - Outbound records keep the full retry chain and can be retried by hand; `deferred` messages are retried automatically by a cron trigger with exponential backoff
 - HTML bodies render inside a `sandbox=""` iframe — scripts, forms and same-origin access are all disabled
+
+### AI assistant (optional)
+
+Goes through an OpenAI-compatible endpoint — OpenAI, a proxy, or a local model (base URL + key + model name). The key is AES-GCM encrypted in D1 like the provider secrets.
+
+- **AI reply**: drafts a reply to an inbound message, dropped straight into the composer
+- **AI summary**: one-click summary of a long email, cached in the Durable Object
+- **AI classify**: tags incoming mail (important / updates / promotions / social / other); the inbox splits into category tabs
+- **Telegram push**: pushes new mail to a Telegram bot, optionally only for chosen categories
+
+Classification and push run on the inbound Worker inside `waitUntil`, each wrapped in its own try/catch — an AI or push failure never affects mail storage.
 
 ## Stack
 

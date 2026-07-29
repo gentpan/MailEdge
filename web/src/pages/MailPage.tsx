@@ -20,7 +20,9 @@ export default function MailPage() {
   // 聚合视图下每封信可能来自不同信箱，操作要按邮件自身的信箱路由
   const [detailMailboxId, setDetailMailboxId] = useState<string | undefined>(undefined);
   const [folder, setFolder] = useState<MailFolder>("inbox");
+  const [category, setCategory] = useState<string>("");
   const [view, setView] = useState<MailView>("mail");
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [items, setItems] = useState<MessageSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(false);
@@ -42,6 +44,7 @@ export default function MailPage() {
         const result = await api.messages({
           mailboxId,
           folder,
+          category: category || undefined,
           q: search || undefined,
           before: options.before,
         });
@@ -51,7 +54,7 @@ export default function MailPage() {
         setListLoading(false);
       }
     },
-    [mailboxId, folder, search],
+    [mailboxId, folder, category, search],
   );
 
   const loadStats = useCallback(async () => {
@@ -74,6 +77,10 @@ export default function MailPage() {
       .providers()
       .then((result) => setProviders(result.providers))
       .catch(() => setProviders([]));
+    api
+      .aiConfig()
+      .then((result) => setAiEnabled(result.ai.enabled))
+      .catch(() => setAiEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -163,6 +170,7 @@ export default function MailPage() {
         onSelectFolder={(next) => {
           setView("mail");
           setFolder(next);
+          setCategory("");
         }}
         onSelectView={setView}
         onCompose={() => setComposeDraft({})}
@@ -182,6 +190,9 @@ export default function MailPage() {
             search={search}
             folder={folder}
             showMailbox={mailboxId === "all"}
+            category={category}
+            showCategories={aiEnabled && (folder === "inbox" || folder === "catchall")}
+            onSelectCategory={setCategory}
             onSearch={setSearch}
             onSelect={(message) => void openMessage(message)}
             onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}
@@ -191,7 +202,10 @@ export default function MailPage() {
           <MessageView
             message={detail}
             loading={detailLoading}
+            mailboxId={detailMailboxId}
+            aiEnabled={aiEnabled}
             onReply={replyTo}
+            onAiReply={(draft) => setComposeDraft(draft)}
             onArchive={(id) => void moveTo(id, "archive")}
             onDelete={(id) => void removeMessage(id)}
             onToggleStar={(message) => void toggleStar(message)}

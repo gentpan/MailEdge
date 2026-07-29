@@ -13,5 +13,5 @@
     "allowImportingTsExtensions": true,
     "composite": true
   },
-  "include": ["web/src/**/*.ts", "web/src/**/*.tsx", "src/mail/types.ts", "src/shared/**/*.ts"]
+  "include": ["web/src/**/*.ts", "web/src/**/*.tsx", "src/mail/types.ts", "src/ai/types.ts", "src/shared/**/*.ts"]
 }
