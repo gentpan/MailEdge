@@ -51,7 +51,7 @@ export default function SettingsPage() {
   return (
     <div className="settings-shell">
       <aside className="sidebar">
-        <Link className="nav-item" to="/">
+        <Link className="btn btn--secondary btn--block back-btn" to="/">
           <ArrowLeft size={16} />
           {t("settings.back")}
         </Link>

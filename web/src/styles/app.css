@@ -239,6 +239,17 @@
   overflow-y: auto;
 }
 
+/* 「返回邮箱」按钮：Link 渲染成 a，需去掉下划线并用常规文字色 */
+.back-btn {
+  margin-bottom: var(--space-2);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.back-btn:hover {
+  color: var(--color-text);
+}
+
 .sidebar__brand {
   display: flex;
   align-items: center;
