@@ -3,6 +3,7 @@ import { Paperclip, Send, X } from "lucide-react";
 import { api } from "../lib/api";
 import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
 import { PROVIDER_LABELS, formatSize } from "../lib/format";
+import { markdownToEmailHtml } from "../../../src/shared/markdown";
 
 export interface ComposeDraft {
   to?: string;
@@ -37,6 +38,7 @@ export default function ComposeModal({
   const [showExtra, setShowExtra] = useState(Boolean(draft?.cc));
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState(draft?.text ?? "");
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [files, setFiles] = useState<File[]>([]);
   const [providerId, setProviderId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +59,8 @@ export default function ComposeModal({
           cc: cc ? cc.split(/[,;]/) : undefined,
           bcc: bcc ? bcc.split(/[,;]/) : undefined,
           subject,
-          text,
-          html: textToHtml(text),
+          // 交给服务端转换：Markdown 原文作为纯文本版本，转换结果作为 HTML 版本
+          markdown: text,
           providerId: providerId || undefined,
         },
         files,
@@ -148,12 +150,45 @@ export default function ComposeModal({
             </div>
           )}
 
-          <textarea
-            className="compose-body"
-            value={text}
-            placeholder="写点什么…"
-            onChange={(event) => setText(event.target.value)}
-          />
+          <div className="compose-toolbar">
+            <div className="tabs">
+              <button
+                type="button"
+                className={`tab${mode === "edit" ? " tab--active" : ""}`}
+                onClick={() => setMode("edit")}
+              >
+                编辑
+              </button>
+              <button
+                type="button"
+                className={`tab${mode === "preview" ? " tab--active" : ""}`}
+                onClick={() => setMode("preview")}
+              >
+                预览
+              </button>
+            </div>
+            <span className="text-xs text-tertiary">
+              支持 Markdown：**粗体** *斜体* [链接](地址) - 列表 &gt; 引用 `代码`
+            </span>
+          </div>
+
+          {mode === "edit" ? (
+            <textarea
+              className="compose-body"
+              value={text}
+              placeholder="写点什么…支持 Markdown"
+              onChange={(event) => setText(event.target.value)}
+            />
+          ) : (
+            <div className="compose-preview">
+              {text.trim() ? (
+                // 预览用的正是发送时生成的那份 HTML，所见即所发
+                <div dangerouslySetInnerHTML={{ __html: markdownToEmailHtml(text) }} />
+              ) : (
+                <p className="text-xs text-tertiary">还没有内容</p>
+              )}
+            </div>
+          )}
 
           {files.length > 0 && (
             <div className="file-list">
@@ -213,11 +248,3 @@ export default function ComposeModal({
   );
 }
 
-function textToHtml(text: string): string {
-  const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br>");
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#111827;">${escaped}</div>`;
-}

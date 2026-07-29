@@ -7,6 +7,7 @@ import { appendShareSection, prepareAttachments } from "../mail/attachments";
 import type { IncomingAttachment } from "../mail/attachments";
 import { dispatch } from "../mail/dispatcher";
 import type { MailAddress, SendMailInput } from "../mail/types";
+import { markdownToEmailHtml } from "../shared/markdown";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -227,6 +228,8 @@ interface RawSendBody {
   subject?: string;
   html?: string;
   text?: string;
+  /** 传 markdown 时由服务端转成 HTML，同时把原文作为纯文本版本 */
+  markdown?: string;
   headers?: Record<string, string>;
   providerId?: string;
   attachments?: Array<{ filename: string; contentType: string; content: string; contentId?: string }>;
@@ -236,6 +239,11 @@ function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): Parse
   const from = normalizeAddress(body.from);
   if (!from) return { error: "缺少发件地址" };
 
+  // Markdown 原文本身就是可读的纯文本，正好作为 text/plain 版本
+  const markdown = body.markdown?.trim() ? body.markdown : undefined;
+  const html = markdown ? markdownToEmailHtml(markdown) : body.html;
+  const text = markdown ?? body.text;
+
   const to = normalizeList(body.to);
   const input: SendMailInput = {
     from,
@@ -244,8 +252,8 @@ function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): Parse
     bcc: normalizeList(body.bcc),
     replyTo: normalizeAddress(body.replyTo) ?? undefined,
     subject: body.subject?.trim() || "(无主题)",
-    html: body.html,
-    text: body.text,
+    html,
+    text,
     headers: body.headers,
   };
 
