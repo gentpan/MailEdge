@@ -59,6 +59,11 @@
   font-size: var(--text-xs);
 }
 
+/* 按钮文案不换行，避免在窄容器里被压成两行 */
+.btn {
+  white-space: nowrap;
+}
+
 .btn--block {
   width: 100%;
 }
@@ -801,6 +806,10 @@
 
 .text-xs {
   font-size: var(--text-xs);
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .mono {

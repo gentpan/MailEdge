@@ -205,7 +205,9 @@ export default function SettingsPage() {
                       >
                         {STATUS_LABELS[item.status] ?? item.status}
                       </span>
-                      {item.attempts > 1 && <span className="text-xs text-tertiary"> 第 {item.attempts} 次</span>}
+                      {item.attempts > 1 && (
+                        <span className="text-xs text-tertiary nowrap"> 第 {item.attempts} 次</span>
+                      )}
                     </td>
                     <td className="text-xs">
                       {item.providerType ? (PROVIDER_LABELS[item.providerType] ?? item.providerType) : "—"}

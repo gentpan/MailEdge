@@ -28,6 +28,11 @@ send.post("/send", async (c) => {
   if (!input.to.length) return c.json({ error: "收件人不能为空" }, 400);
   if (!input.html && !input.text) return c.json({ error: "邮件正文不能为空" }, 400);
 
+  // 未指定显示名时用信箱配置的名称，避免收件方只看到一串地址
+  if (!input.from.name && mailbox.displayName) {
+    input.from = { ...input.from, name: mailbox.displayName };
+  }
+
   const internalId = newMessageId();
   const bodySize = new TextEncoder().encode((input.html ?? "") + (input.text ?? "")).byteLength;
 

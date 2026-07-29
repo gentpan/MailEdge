@@ -18,6 +18,10 @@
 
 <p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
+<p align="center"><img src="docs/images/02-inbox.png" alt="MailEdge 收件箱" width="880"></p>
+
+> 完整的产品介绍、界面截图与图文部署教程见 [docs/blog.md](docs/blog.md)。
+
 ```
 收件：Email Routing → Email Worker → Durable Object (SQLite) + R2
 发件：统一 MailProvider 接口 → Cloudflare Email Service / Sendflare / Resend

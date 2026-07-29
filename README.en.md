@@ -18,6 +18,8 @@
 
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
+<p align="center"><img src="docs/images/02-inbox.png" alt="MailEdge inbox" width="880"></p>
+
 ```
 Receiving:  Email Routing → Email Worker → Durable Object (SQLite) + R2
 Sending:    Unified MailProvider interface → Cloudflare Email Service / Sendflare / Resend
