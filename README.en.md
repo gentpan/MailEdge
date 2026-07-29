@@ -92,6 +92,32 @@ attachment > 3 MB                                          → uploaded to R2 �
 
 Downloads go through `/d/:token`. The Worker validates the token, expiry and revocation status before streaming from R2, and tracks download counts, a 7-day expiry and manual revocation. Inline images (`cid:`) always stay in the message so the body never breaks. The threshold is controlled by `SMART_ATTACHMENT_THRESHOLD`.
 
+### R2 layout
+
+```
+inbound/{mailboxId}/{YYYY-MM}/{messageId}/{n}-{filename}
+inbound/{mailboxId}/{YYYY-MM}/{messageId}/raw.eml
+outbound/{mailboxId}/{YYYY-MM}/{internalId}/payload.json
+outbound/{mailboxId}/{YYYY-MM}/{internalId}/attachments/{n}-{filename}
+shares/{mailboxId}/{YYYY-MM}/{token}/{filename}
+```
+
+Partitioning by mailbox and month isn't cosmetic:
+
+- **Lifecycle rules are configured by prefix**, so R2 can expire old objects on its own instead of the app doing it
+- **`list()` scans by prefix** — a flat layout means scanning everything to enumerate one month
+- Per-mailbox storage usage falls out of a prefix query
+
+Full keys are persisted (the DO's `r2_key`, `attachment_links.r2_key`, `outbound_messages.payload_key`), so changing the key layout only affects new objects — existing ones stay readable and no migration is needed. Key construction lives in [src/lib/r2key.ts](src/lib/r2key.ts).
+
+Filenames keep non-ASCII characters: R2 keys are UTF-8 and keys never appear in a URL (downloads go through the token), so only control characters and characters that would affect the key hierarchy are stripped.
+
+Expire archived inbound mail after 90 days:
+
+```bash
+npx wrangler r2 bucket lifecycle add mailedge-attachments --prefix inbound/ --expire-days 90
+```
+
 ## Deployment
 
 ### 1. Create the resources

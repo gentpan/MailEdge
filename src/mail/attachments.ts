@@ -1,6 +1,7 @@
 import type { Env } from "../env";
 import { numberVar } from "../env";
 import { randomToken } from "../lib/id";
+import { r2Key } from "../lib/r2key";
 import type { MailAttachment, SendMailInput } from "./types";
 
 export interface IncomingAttachment {
@@ -37,6 +38,7 @@ export async function prepareAttachments(
   params: {
     messageId: string;
     userId: string | null;
+    mailboxId: string;
     attachments: IncomingAttachment[];
     bodySize: number;
   },
@@ -80,13 +82,14 @@ async function shareViaR2(
   params: {
     messageId: string;
     userId: string | null;
+    mailboxId: string;
     attachment: IncomingAttachment;
     ttlDays: number;
   },
 ): Promise<SharedAttachment> {
   const { attachment } = params;
   const token = randomToken(24);
-  const key = `shares/${token}/${attachment.filename.replace(/[^\w.\-]/g, "_").slice(0, 120)}`;
+  const key = r2Key.share(params.mailboxId, token, attachment.filename);
 
   await env.R2.put(key, attachment.content, {
     httpMetadata: {

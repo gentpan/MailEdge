@@ -41,13 +41,14 @@ send.post("/send", async (c) => {
   const prepared = await prepareAttachments(c.env, {
     messageId: internalId,
     userId: user.id,
+    mailboxId: mailbox.id,
     attachments,
     bodySize,
   });
 
   const finalInput = appendShareSection({ ...input, attachments: prepared.inline }, prepared.shared);
 
-  const payloadKey = await savePayload(c.env, internalId, finalInput);
+  const payloadKey = await savePayload(c.env, internalId, finalInput, mailbox.id);
   await createOutbound(c.env, {
     id: internalId,
     userId: user.id,

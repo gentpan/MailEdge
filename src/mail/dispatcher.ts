@@ -81,7 +81,7 @@ export async function dispatch(
         nextRetryAt: null,
         attemptLog: attempts,
       });
-      await deletePayload(env, internalId).catch(() => undefined);
+      await deletePayload(env, existing?.payloadKey ?? null).catch(() => undefined);
       return { ...result, internalId, status: "sent", attempts };
     }
 

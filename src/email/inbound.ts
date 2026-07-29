@@ -3,6 +3,7 @@ import { findByAddress, mailboxStub } from "../db/mailboxes";
 import type { StoreMessageInput } from "../do/mailbox";
 import type { Env } from "../env";
 import { newId } from "../lib/id";
+import { r2Key } from "../lib/r2key";
 import type { MessageAddress } from "../shared/message";
 
 /**
@@ -32,12 +33,13 @@ export async function handleInboundEmail(
   const parsed = await PostalMime.parse(rawBuffer);
 
   const messageId = newId("msg");
+  const receivedAt = parsed.date ? new Date(parsed.date) : new Date();
   const attachments: NonNullable<StoreMessageInput["attachments"]> = [];
 
   for (const [index, attachment] of (parsed.attachments ?? []).entries()) {
     const content = toArrayBuffer(attachment.content);
     const filename = attachment.filename || `attachment-${index + 1}`;
-    const key = `inbound/${mailbox.id}/${messageId}/${index}-${filename.replace(/[^\w.\-]/g, "_").slice(0, 100)}`;
+    const key = r2Key.inboundAttachment(mailbox.id, messageId, index, filename, receivedAt);
 
     await env.R2.put(key, content, {
       httpMetadata: { contentType: attachment.mimeType || "application/octet-stream" },
@@ -79,13 +81,13 @@ export async function handleInboundEmail(
     headers,
     size: rawBuffer.byteLength,
     isRead: false,
-    receivedAt: parsed.date ? new Date(parsed.date).toISOString() : new Date().toISOString(),
+    receivedAt: receivedAt.toISOString(),
     attachments,
   });
 
   // 原始报文留档，便于排查投递问题与后续导出
   ctx.waitUntil(
-    env.R2.put(`inbound/${mailbox.id}/${messageId}/raw.eml`, rawBuffer, {
+    env.R2.put(r2Key.inboundRaw(mailbox.id, messageId, receivedAt), rawBuffer, {
       httpMetadata: { contentType: "message/rfc822" },
     }).then(() => undefined),
   );

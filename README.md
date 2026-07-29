@@ -94,6 +94,32 @@ queued → sending → sent
 
 下载走 `/d/:token`，由 Worker 校验 token、有效期与撤销状态后从 R2 出流，支持统计下载次数、7 天过期、随时撤销。内嵌图片（`cid:`）始终留在邮件里，避免正文裂图。阈值由 `SMART_ATTACHMENT_THRESHOLD` 控制。
 
+### R2 目录结构
+
+```
+inbound/{信箱ID}/{年-月}/{邮件ID}/{序号}-{文件名}
+inbound/{信箱ID}/{年-月}/{邮件ID}/raw.eml
+outbound/{信箱ID}/{年-月}/{内部ID}/payload.json
+outbound/{信箱ID}/{年-月}/{内部ID}/attachments/{序号}-{文件名}
+shares/{信箱ID}/{年-月}/{token}/{文件名}
+```
+
+按信箱与年月分区不只是为了整齐：
+
+- **生命周期规则按前缀配置**，可以直接交给 R2 自动清理旧对象，不必在应用层写清理逻辑
+- **`list()` 按前缀扫描**，扁平结构下列举某个月的对象要扫全量
+- 按信箱前缀可直接统计各信箱占用的存储
+
+完整键落在库里（DO 的 `r2_key`、`attachment_links.r2_key`、`outbound_messages.payload_key`），因此调整键结构只影响新对象，存量对象照常可读，不需要迁移。键构造集中在 [src/lib/r2key.ts](src/lib/r2key.ts)。
+
+文件名保留中文——R2 键支持 UTF-8，且键从不直接进 URL（下载走 token），只剔除控制字符和影响键层级的字符。
+
+配置 R2 自动清理 90 天前的收件归档：
+
+```bash
+npx wrangler r2 bucket lifecycle add mailedge-attachments --prefix inbound/ --expire-days 90
+```
+
 ## 部署
 
 ### 1. 创建资源

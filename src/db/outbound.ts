@@ -1,4 +1,5 @@
 import type { Env } from "../env";
+import { dirPrefix, r2Key, safeName } from "../lib/r2key";
 import type { MailAddress, OutboundStatus, SendAttempt, SendMailInput } from "../mail/types";
 
 export interface OutboundRecord {
@@ -169,11 +170,17 @@ interface StoredPayload extends Omit<SendMailInput, "attachments"> {
   attachments?: StoredAttachment[];
 }
 
-export async function savePayload(env: Env, id: string, input: SendMailInput): Promise<string> {
+export async function savePayload(
+  env: Env,
+  id: string,
+  input: SendMailInput,
+  mailboxId: string,
+): Promise<string> {
+  const dir = r2Key.outboundDir(mailboxId, id);
   const attachments: StoredAttachment[] = [];
 
   for (const [index, attachment] of (input.attachments ?? []).entries()) {
-    const key = `outbound/${id}/attachments/${index}-${sanitize(attachment.filename)}`;
+    const key = `${dir}/attachments/${index}-${safeName(attachment.filename, 80)}`;
     await env.R2.put(key, attachment.content, {
       httpMetadata: { contentType: attachment.contentType },
     });
@@ -186,7 +193,7 @@ export async function savePayload(env: Env, id: string, input: SendMailInput): P
   }
 
   const payload: StoredPayload = { ...input, attachments: attachments.length ? attachments : undefined };
-  const key = `outbound/${id}/payload.json`;
+  const key = `${dir}/payload.json`;
   await env.R2.put(key, JSON.stringify(payload), { httpMetadata: { contentType: "application/json" } });
   return key;
 }
@@ -212,13 +219,14 @@ export async function loadPayload(env: Env, key: string): Promise<SendMailInput 
   return { ...payload, attachments: attachments.length ? attachments : undefined };
 }
 
-/** 邮件终态后清理 R2 中的发送载荷 */
-export async function deletePayload(env: Env, id: string): Promise<void> {
-  const listed = await env.R2.list({ prefix: `outbound/${id}/` });
+/**
+ * 邮件终态后清理 R2 中的发送载荷。
+ * 键里含年月分区，无法由 id 直接推出，所以从落库的 payloadKey 反推目录前缀；
+ * 旧结构（outbound/{id}/…）也能被同一段逻辑覆盖。
+ */
+export async function deletePayload(env: Env, payloadKey: string | null): Promise<void> {
+  if (!payloadKey) return;
+  const listed = await env.R2.list({ prefix: dirPrefix(payloadKey) });
   if (!listed.objects.length) return;
   await env.R2.delete(listed.objects.map((object) => object.key));
-}
-
-function sanitize(filename: string): string {
-  return filename.replace(/[^\w.\-]/g, "_").slice(0, 80);
 }
