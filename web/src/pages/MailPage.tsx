@@ -173,6 +173,7 @@ export default function MailPage() {
             loading={listLoading}
             activeId={activeId}
             search={search}
+            folder={folder}
             onSearch={setSearch}
             onSelect={(id) => void openMessage(id)}
             onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}

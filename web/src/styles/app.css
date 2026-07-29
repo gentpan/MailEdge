@@ -430,6 +430,14 @@
   white-space: nowrap;
 }
 
+.message-row__to {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
 .message-row__snippet {
   font-size: var(--text-xs);
   color: var(--color-text-tertiary);

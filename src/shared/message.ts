@@ -1,6 +1,7 @@
 /** 前后端共用的邮件视图模型 */
 
-export type MailFolder = "inbox" | "sent" | "drafts" | "archive" | "trash";
+/** catchall：没有精确登记、靠兜底信箱兜进来的邮件，与主收件箱分开存放 */
+export type MailFolder = "inbox" | "sent" | "drafts" | "archive" | "trash" | "catchall";
 export type MailDirection = "inbound" | "outbound";
 
 export interface MessageAddress {

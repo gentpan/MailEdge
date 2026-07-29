@@ -1,5 +1,5 @@
-import { Inbox, Loader2, Paperclip, Search, Star } from "lucide-react";
-import type { MessageSummary } from "../../../src/shared/message";
+import { AtSign, Inbox, Loader2, Paperclip, Search, Star } from "lucide-react";
+import type { MailFolder, MessageSummary } from "../../../src/shared/message";
 import { STATUS_LABELS, displayName, formatTime } from "../lib/format";
 
 interface Props {
@@ -7,22 +7,36 @@ interface Props {
   loading: boolean;
   activeId: string | null;
   search: string;
+  /** 当前文件夹，用于决定空态文案与是否显示原始收件人 */
+  folder: MailFolder;
   onSearch: (value: string) => void;
   onSelect: (id: string) => void;
   onLoadMore: () => void;
   hasMore: boolean;
 }
 
+const EMPTY_TEXT: Partial<Record<MailFolder, { title: string; hint?: string }>> = {
+  catchall: {
+    title: "还没有兜底邮件",
+    hint: "发到本域名但没有登记过的地址，会出现在这里",
+  },
+  trash: { title: "回收站是空的" },
+  archive: { title: "还没有归档的邮件" },
+};
+
 export default function MessageList({
   items,
   loading,
   activeId,
   search,
+  folder,
   onSearch,
   onSelect,
   onLoadMore,
   hasMore,
 }: Props) {
+  const empty = EMPTY_TEXT[folder] ?? { title: "这里还没有邮件" };
+  const showRecipient = folder === "catchall";
   return (
     <section className="list-pane">
       <div className="list-pane__header">
@@ -48,7 +62,8 @@ export default function MessageList({
         {!loading && !items.length && (
           <div className="empty">
             <Inbox size={32} />
-            <p>这里还没有邮件</p>
+            <p>{empty.title}</p>
+            {empty.hint && <p className="text-xs">{empty.hint}</p>}
           </div>
         )}
 
@@ -74,6 +89,12 @@ export default function MessageList({
               <span className="message-row__time">{formatTime(item.receivedAt)}</span>
             </div>
             <div className="message-row__subject">{item.subject || "(无主题)"}</div>
+            {showRecipient && (
+              <div className="message-row__to">
+                <AtSign size={11} />
+                发给 {item.to.map((address) => address.email).join("、")}
+              </div>
+            )}
             <div className="message-row__snippet">{item.snippet}</div>
             {(item.hasAttachments || item.isStarred || item.status) && (
               <div className="message-row__meta">

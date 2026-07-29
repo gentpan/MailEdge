@@ -15,13 +15,17 @@ export async function handleInboundEmail(
   ctx: ExecutionContext,
 ): Promise<void> {
   const recipient = message.to.toLowerCase();
-  const mailbox = await findByAddress(env, recipient);
+  const match = await findByAddress(env, recipient);
 
-  if (!mailbox) {
+  if (!match) {
     // 系统里没有这个地址：拒收，让发件方拿到明确回执，而不是静默丢弃
     message.setReject(`550 5.1.1 未知收件人：${recipient}`);
     return;
   }
+
+  const { mailbox } = match;
+  // 精确登记的地址进收件箱；靠兜底兜进来的单独归到「其他地址」，避免污染主收件箱
+  const folder = match.exact ? "inbox" : "catchall";
 
   const raw = new Response(message.raw);
   const rawBuffer = await raw.arrayBuffer();
@@ -60,7 +64,7 @@ export async function handleInboundEmail(
     id: messageId,
     internalId: headers["x-app-message-id"] ?? null,
     direction: "inbound",
-    folder: "inbox",
+    folder,
     messageId: parsed.messageId ?? null,
     inReplyTo: parsed.inReplyTo ?? null,
     threadId: parsed.inReplyTo ?? parsed.messageId ?? messageId,

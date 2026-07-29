@@ -41,12 +41,18 @@ export function mailboxStub(env: Env, mailbox: MailboxRecord): DurableObjectStub
   return env.MAILBOX.get(env.MAILBOX.idFromName(mailbox.doName));
 }
 
-export async function findByAddress(env: Env, address: string): Promise<MailboxRecord | null> {
+export interface AddressMatch {
+  mailbox: MailboxRecord;
+  /** true = 该地址被精确登记过；false = 靠域名的兜底信箱兜住的 */
+  exact: boolean;
+}
+
+export async function findByAddress(env: Env, address: string): Promise<AddressMatch | null> {
   const normalized = address.trim().toLowerCase();
   const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE address = ?`)
     .bind(normalized)
     .first<MailboxRow>();
-  if (row) return toRecord(row);
+  if (row) return { mailbox: toRecord(row), exact: true };
 
   // 未精确匹配时回落到该域名的 catch-all 信箱
   const domain = normalized.split("@")[1];
@@ -56,7 +62,7 @@ export async function findByAddress(env: Env, address: string): Promise<MailboxR
   )
     .bind(domain)
     .first<MailboxRow>();
-  return fallback ? toRecord(fallback) : null;
+  return fallback ? { mailbox: toRecord(fallback), exact: false } : null;
 }
 
 export async function getMailbox(env: Env, id: string): Promise<MailboxRecord | null> {

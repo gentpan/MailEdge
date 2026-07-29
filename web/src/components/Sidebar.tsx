@@ -1,5 +1,16 @@
 import { Link } from "react-router-dom";
-import { Archive, Inbox, Link2, Mails, PenSquare, Send, Settings, SendHorizontal, Trash2 } from "lucide-react";
+import {
+  Archive,
+  Inbox,
+  Link2,
+  MailQuestion,
+  Mails,
+  PenSquare,
+  Send,
+  SendHorizontal,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import type { FolderStats, MailFolder } from "../../../src/shared/message";
 import type { Mailbox, User } from "../lib/api";
 
@@ -7,6 +18,7 @@ export type MailView = "mail" | "outbox" | "shares";
 
 const FOLDERS: Array<{ key: MailFolder; label: string; icon: typeof Inbox }> = [
   { key: "inbox", label: "收件箱", icon: Inbox },
+  { key: "catchall", label: "其他地址", icon: MailQuestion },
   { key: "sent", label: "已发送", icon: Send },
   { key: "archive", label: "归档", icon: Archive },
   { key: "trash", label: "回收站", icon: Trash2 },
@@ -40,6 +52,12 @@ export default function Sidebar({
   onSignOut,
 }: Props) {
   const unreadOf = (folder: MailFolder) => stats.find((item) => item.folder === folder)?.unread ?? 0;
+  const totalOf = (folder: MailFolder) => stats.find((item) => item.folder === folder)?.total ?? 0;
+
+  // 「其他地址」只在当前信箱是兜底信箱、或已经兜到过邮件时才出现
+  const activeMailbox = mailboxes.find((item) => item.id === activeMailboxId) ?? mailboxes[0];
+  const showCatchall = Boolean(activeMailbox?.isCatchAll) || totalOf("catchall") > 0;
+  const folders = FOLDERS.filter((item) => item.key !== "catchall" || showCatchall);
 
   return (
     <aside className="sidebar">
@@ -54,7 +72,7 @@ export default function Sidebar({
       </button>
 
       <nav className="sidebar__section">
-        {FOLDERS.map((folder) => {
+        {folders.map((folder) => {
           const Icon = folder.icon;
           const unread = unreadOf(folder.key);
           const active = view === "mail" && activeFolder === folder.key;

@@ -160,8 +160,8 @@ send.post("/outbox/:id/retry", async (c) => {
 send.get("/resolve", async (c) => {
   const address = c.req.query("address");
   if (!address) return c.json({ error: "缺少 address" }, 400);
-  const mailbox = await findByAddress(c.env, address);
-  return c.json({ internal: Boolean(mailbox) });
+  const match = await findByAddress(c.env, address);
+  return c.json({ internal: Boolean(match), exact: match?.exact ?? false });
 });
 
 type ParsedSend =
