@@ -11,9 +11,11 @@ import type { MailView } from "../components/Sidebar";
 import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import { api } from "../lib/api";
 import type { ProviderView, SendResponse } from "../lib/api";
+import { useI18n } from "../i18n";
 
 export default function MailPage() {
   const { user, mailboxes, signOut } = useSession();
+  const { t } = useI18n();
 
   // 多个信箱时默认聚合视图，单个信箱就直接用它
   const [mailboxId, setMailboxId] = useState(mailboxes.length > 1 ? "all" : mailboxes[0]?.id);
@@ -139,7 +141,7 @@ export default function MailPage() {
     setComposeDraft({
       to: message.from.email,
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
-      text: `\n\n---- 原邮件 ----\n发件人：${message.from.email}\n${message.text ?? ""}`,
+      text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
     });
   }
 
@@ -147,11 +149,11 @@ export default function MailPage() {
     setComposeDraft(null);
     const shared = result.smartAttachments.shared.length;
     if (result.status === "sent") {
-      setToast(shared ? `已发送，其中 ${shared} 个大附件转为下载链接` : "已发送");
+      setToast(shared ? t("toast.sentShared", { n: shared }) : t("toast.sent"));
     } else if (result.status === "deferred") {
-      setToast("所有渠道暂时不可用，已加入重试队列");
+      setToast(t("toast.deferred"));
     } else {
-      setToast(`发送失败：${result.error ?? "未知错误"}`);
+      setToast(t("toast.sendFailed", { error: result.error ?? "unknown" }));
     }
     if (folder === "sent") void loadList();
     void loadStats();

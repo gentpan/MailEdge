@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import type { AiConfigView, TelegramView } from "../../lib/api";
-import { CATEGORY_LABELS, MAIL_CATEGORIES } from "../../../../src/ai/types";
+import { MAIL_CATEGORIES } from "../../../../src/ai/types";
+import { useI18n } from "../../i18n";
+import type { TranslationKey } from "../../i18n/dict";
 import FormRow from "./FormRow";
 
+/** 常见服务商预设：点一下填好 endpoint 与默认模型，仍可自由改。全部 OpenAI 兼容。 */
+const PRESETS: Array<{ name: string; baseUrl: string; model: string }> = [
+  { name: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+  { name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+  { name: "Kimi", baseUrl: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
+  { name: "智谱 GLM", baseUrl: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4-flash" },
+  { name: "硅基流动", baseUrl: "https://api.siliconflow.cn/v1", model: "Qwen/Qwen2.5-7B-Instruct" },
+  { name: "Ollama", baseUrl: "http://localhost:11434/v1", model: "llama3.1" },
+];
+
 export default function AiPanel() {
+  const { t } = useI18n();
   const [ai, setAi] = useState<AiConfigView | null>(null);
   const [tg, setTg] = useState<TelegramView | null>(null);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -43,9 +56,9 @@ export default function AiPanel() {
       const result = await api.saveAiConfig({ enabled, baseUrl, apiKey, model, autoClassify });
       setAi(result.ai);
       setApiKey("");
-      setMsg({ kind: "success", text: "已保存" });
+      setMsg({ kind: "success", text: t("common.saved") });
     } catch (error) {
-      setMsg({ kind: "error", text: error instanceof Error ? error.message : "保存失败" });
+      setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -56,9 +69,9 @@ export default function AiPanel() {
     setMsg(null);
     try {
       const r = await api.testAiConfig();
-      setMsg(r.ok ? { kind: "success", text: `连通：${r.reply ?? "OK"}` } : { kind: "error", text: r.error ?? "失败" });
+      setMsg(r.ok ? { kind: "success", text: r.reply ?? "OK" } : { kind: "error", text: r.error ?? "error" });
     } catch (error) {
-      setMsg({ kind: "error", text: error instanceof Error ? error.message : "失败" });
+      setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -71,9 +84,9 @@ export default function AiPanel() {
       const result = await api.saveTelegram({ enabled: tgEnabled, botToken, chatId, onlyCategories });
       setTg(result.telegram);
       setBotToken("");
-      setMsg({ kind: "success", text: "已保存" });
+      setMsg({ kind: "success", text: t("common.saved") });
     } catch (error) {
-      setMsg({ kind: "error", text: error instanceof Error ? error.message : "保存失败" });
+      setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -84,9 +97,9 @@ export default function AiPanel() {
     setMsg(null);
     try {
       const r = await api.testTelegram();
-      setMsg(r.ok ? { kind: "success", text: "已推送测试消息" } : { kind: "error", text: r.error ?? "失败" });
+      setMsg(r.ok ? { kind: "success", text: t("common.saved") } : { kind: "error", text: r.error ?? "error" });
     } catch (error) {
-      setMsg({ kind: "error", text: error instanceof Error ? error.message : "失败" });
+      setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -97,22 +110,38 @@ export default function AiPanel() {
   return (
     <div className="settings-panel">
       <header className="panel-head">
-        <h1 className="panel-head__title">AI 助手</h1>
-        <p className="panel-head__desc">
-          OpenAI 兼容接口，可接 OpenAI、转发站或本地模型。用于回复草稿、邮件总结与自动分类。
-        </p>
+        <h1 className="panel-head__title">{t("ai.title")}</h1>
+        <p className="panel-head__desc">{t("ai.desc")}</p>
       </header>
 
       {msg && <div className={`alert alert--${msg.kind}`}>{msg.text}</div>}
 
-      <FormRow label="启用 AI">
+      <FormRow label={t("ai.enable")}>
         <label className="switch">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          开启后写信与详情页出现 AI 按钮
+          {t("ai.enable.hint")}
         </label>
       </FormRow>
 
-      <FormRow label="接口地址">
+      <FormRow label={t("ai.preset")}>
+        <div className="row row--wrap">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => {
+                setBaseUrl(preset.baseUrl);
+                setModel(preset.model);
+              }}
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+      </FormRow>
+
+      <FormRow label={t("ai.baseUrl")}>
         <input
           className="input"
           value={baseUrl}
@@ -121,7 +150,7 @@ export default function AiPanel() {
         />
       </FormRow>
 
-      <FormRow label="API Key" hint={ai.hasKey ? "已保存，留空表示不修改" : undefined}>
+      <FormRow label={t("ai.apiKey")} hint={ai.hasKey ? t("providers.keepSecret") : undefined}>
         <input
           className="input"
           type="password"
@@ -131,7 +160,7 @@ export default function AiPanel() {
         />
       </FormRow>
 
-      <FormRow label="模型">
+      <FormRow label={t("ai.model")}>
         <input
           className="input"
           value={model}
@@ -140,35 +169,35 @@ export default function AiPanel() {
         />
       </FormRow>
 
-      <FormRow label="自动分类" hint="新信到达时自动打分类标签，收件箱按分类分栏">
+      <FormRow label={t("ai.autoClassify")} hint={t("ai.autoClassify.hint")}>
         <label className="switch">
           <input type="checkbox" checked={autoClassify} onChange={(e) => setAutoClassify(e.target.checked)} />
-          收信时自动分类
+          {t("ai.autoClassify.label")}
         </label>
       </FormRow>
 
       <div className="form-actions">
         <button className="btn" type="button" onClick={() => void saveAi()} disabled={busy}>
-          保存
+          {t("common.save")}
         </button>
         <button className="btn btn--secondary" type="button" onClick={() => void testAi()} disabled={busy || !ai.hasKey}>
-          测试连通
+          {t("ai.test")}
         </button>
       </div>
 
       <header className="panel-head" style={{ marginTop: "var(--space-12)" }}>
-        <h2 className="panel-head__title">Telegram 推送</h2>
-        <p className="panel-head__desc">新信到达时推送到 Telegram Bot。可只推送指定分类（需先开启自动分类）。</p>
+        <h2 className="panel-head__title">{t("ai.tg.title")}</h2>
+        <p className="panel-head__desc">{t("ai.tg.desc")}</p>
       </header>
 
-      <FormRow label="启用推送">
+      <FormRow label={t("ai.tg.enable")}>
         <label className="switch">
           <input type="checkbox" checked={tgEnabled} onChange={(e) => setTgEnabled(e.target.checked)} />
-          收到新信时推送
+          {t("ai.tg.enable.label")}
         </label>
       </FormRow>
 
-      <FormRow label="Bot Token" hint={tg.hasToken ? "已保存，留空表示不修改" : "从 @BotFather 获取"}>
+      <FormRow label={t("ai.tg.token")} hint={tg.hasToken ? t("providers.keepSecret") : t("ai.tg.token.hint")}>
         <input
           className="input"
           type="password"
@@ -178,11 +207,11 @@ export default function AiPanel() {
         />
       </FormRow>
 
-      <FormRow label="Chat ID" hint="给 Bot 发一条消息后，从 getUpdates 获取">
+      <FormRow label={t("ai.tg.chatId")} hint={t("ai.tg.chatId.hint")}>
         <input className="input" value={chatId} placeholder="123456789" onChange={(e) => setChatId(e.target.value)} />
       </FormRow>
 
-      <FormRow label="只推送分类" hint="不选表示全部推送">
+      <FormRow label={t("ai.tg.only")} hint={t("ai.tg.only.hint")}>
         <div className="check-group">
           {MAIL_CATEGORIES.map((key) => (
             <label className="switch" key={key}>
@@ -195,7 +224,7 @@ export default function AiPanel() {
                   )
                 }
               />
-              {CATEGORY_LABELS[key]}
+              {t(`cat.${key}` as TranslationKey)}
             </label>
           ))}
         </div>
@@ -203,7 +232,7 @@ export default function AiPanel() {
 
       <div className="form-actions">
         <button className="btn" type="button" onClick={() => void saveTg()} disabled={busy}>
-          保存
+          {t("common.save")}
         </button>
         <button
           className="btn btn--secondary"
@@ -211,7 +240,7 @@ export default function AiPanel() {
           onClick={() => void testTg()}
           disabled={busy || !tg.hasToken}
         >
-          测试推送
+          {t("ai.tg.test")}
         </button>
       </div>
     </div>

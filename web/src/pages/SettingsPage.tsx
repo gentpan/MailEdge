@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, AtSign, Loader2, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useSession } from "../App";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
+import LanguageToggle from "../components/LanguageToggle";
 import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
@@ -11,15 +14,16 @@ import type { Mailbox, ProviderView } from "../lib/api";
 
 type Category = "providers" | "ai" | "mailboxes" | "account";
 
-const CATEGORIES: Array<{ key: Category; label: string; icon: typeof Send; adminOnly?: boolean }> = [
-  { key: "providers", label: "发信服务", icon: Send, adminOnly: true },
-  { key: "ai", label: "AI 助手", icon: Sparkles, adminOnly: true },
-  { key: "mailboxes", label: "收件地址", icon: AtSign },
-  { key: "account", label: "账户", icon: UserIcon },
+const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> = [
+  { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
+  { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
+  { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
+  { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
 ];
 
 export default function SettingsPage() {
   const { user, refresh } = useSession();
+  const { t } = useI18n();
   const isAdmin = user.role === "admin";
 
   const visible = CATEGORIES.filter((item) => !item.adminOnly || isAdmin);
@@ -49,11 +53,11 @@ export default function SettingsPage() {
       <aside className="sidebar">
         <Link className="nav-item" to="/">
           <ArrowLeft size={16} />
-          返回邮箱
+          {t("settings.back")}
         </Link>
 
         <nav className="sidebar__section">
-          <span className="sidebar__label">设置</span>
+          <span className="sidebar__label">{t("settings.title")}</span>
           {visible.map((item) => {
             const Icon = item.icon;
             return (
@@ -64,14 +68,17 @@ export default function SettingsPage() {
                 onClick={() => setCategory(item.key)}
               >
                 <Icon size={16} />
-                {item.label}
+                {t(item.labelKey)}
               </button>
             );
           })}
         </nav>
 
         <div className="sidebar__footer">
-          <span className="sidebar__user">{user.name || user.email}</span>
+          <div className="sidebar__footer-row">
+            <span className="sidebar__user">{user.name || user.email}</span>
+            <LanguageToggle />
+          </div>
         </div>
       </aside>
 
@@ -79,7 +86,7 @@ export default function SettingsPage() {
         {loading ? (
           <div className="empty">
             <Loader2 size={20} className="spin" />
-            <p>加载中…</p>
+            <p>{t("list.loading")}</p>
           </div>
         ) : category === "providers" ? (
           <ProvidersPanel providers={providers} mailboxes={mailboxes} onChanged={() => void load()} />

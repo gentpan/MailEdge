@@ -44,10 +44,11 @@ Cloudflare Email Routing can receive and forward mail, but it can't reply and ha
 - Provider credentials are AES-GCM encrypted in D1; the API only ever returns masked values
 - Outbound records keep the full retry chain and can be retried by hand; `deferred` messages are retried automatically by a cron trigger with exponential backoff
 - HTML bodies render inside a `sandbox=""` iframe — scripts, forms and same-origin access are all disabled
+- Bilingual UI (English/Chinese), auto-detected from the browser and switchable anytime
 
 ### AI assistant (optional)
 
-Goes through an OpenAI-compatible endpoint — OpenAI, a proxy, or a local model (base URL + key + model name). The key is AES-GCM encrypted in D1 like the provider secrets.
+Goes through an OpenAI-compatible endpoint — OpenAI, DeepSeek, Kimi, Zhipu, SiliconFlow, Ollama, etc. (the settings page has one-click presets, or fill in base URL + model name yourself). The key is AES-GCM encrypted in D1 like the provider secrets.
 
 - **AI reply**: drafts a reply to an inbound message, dropped straight into the composer
 - **AI summary**: one-click summary of a long email, cached in the Durable Object

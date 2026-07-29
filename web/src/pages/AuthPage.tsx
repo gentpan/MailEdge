@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Mails } from "lucide-react";
 import { api } from "../lib/api";
+import { useI18n } from "../i18n";
+import LanguageToggle from "../components/LanguageToggle";
 
 interface Props {
   mode: "login" | "setup";
@@ -8,6 +10,7 @@ interface Props {
 }
 
 export default function AuthPage({ mode, onAuthenticated }: Props) {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -30,7 +33,7 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
       }
       await onAuthenticated();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "操作失败");
+      setError(caught instanceof Error ? caught.message : "error");
     } finally {
       setBusy(false);
     }
@@ -41,18 +44,19 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
       <form className="auth__card" onSubmit={submit}>
         <div className="auth__brand">
           <Mails size={20} />
-          <span>MailEdge</span>
+          <span>{t("app.name")}</span>
+          <span style={{ marginLeft: "auto" }}>
+            <LanguageToggle />
+          </span>
         </div>
-        <h1 className="auth__title">{isSetup ? "初始化系统" : "登录"}</h1>
-        <p className="auth__subtitle">
-          {isSetup ? "创建第一个管理员账户，并绑定一个收件地址。" : "使用你的 MailEdge 账户登录。"}
-        </p>
+        <h1 className="auth__title">{isSetup ? t("auth.setup.title") : t("auth.login.title")}</h1>
+        <p className="auth__subtitle">{isSetup ? t("auth.setup.subtitle") : t("auth.login.subtitle")}</p>
 
         {error && <div className="alert alert--error">{error}</div>}
 
         <div className="field">
           <label className="field__label" htmlFor="email">
-            账户邮箱
+            {t("auth.email")}
           </label>
           <input
             id="email"
@@ -69,19 +73,19 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
           <>
             <div className="field">
               <label className="field__label" htmlFor="name">
-                显示名称
+                {t("auth.name")}
               </label>
               <input
                 id="name"
                 className="input"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="选填"
+                placeholder={t("auth.name.optional")}
               />
             </div>
             <div className="field">
               <label className="field__label" htmlFor="mailbox">
-                收件地址
+                {t("auth.mailbox")}
               </label>
               <input
                 id="mailbox"
@@ -90,16 +94,14 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
                 onChange={(event) => setMailbox(event.target.value)}
                 placeholder={email || "you@yourdomain.com"}
               />
-              <span className="field__hint">
-                该地址会被设为域名的兜底信箱，需在 Cloudflare Email Routing 中指向本 Worker。
-              </span>
+              <span className="field__hint">{t("auth.mailbox.hint")}</span>
             </div>
           </>
         )}
 
         <div className="field">
           <label className="field__label" htmlFor="password">
-            密码
+            {t("auth.password")}
           </label>
           <input
             id="password"
@@ -110,11 +112,11 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
             onChange={(event) => setPassword(event.target.value)}
             required
           />
-          {isSetup && <span className="field__hint">至少 8 位</span>}
+          {isSetup && <span className="field__hint">{t("auth.password.min")}</span>}
         </div>
 
         <button className="btn btn--block" type="submit" disabled={busy}>
-          {busy ? "处理中…" : isSetup ? "创建管理员" : "登录"}
+          {busy ? t("auth.busy") : isSetup ? t("auth.submit.setup") : t("auth.submit.login")}
         </button>
       </form>
     </div>

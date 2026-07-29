@@ -1,7 +1,9 @@
 import { AtSign, Inbox, Loader2, Paperclip, Search, Star } from "lucide-react";
 import type { MailFolder, MessageSummary } from "../../../src/shared/message";
-import { CATEGORY_LABELS, MAIL_CATEGORIES } from "../../../src/ai/types";
-import { STATUS_LABELS, displayName, formatTime } from "../lib/format";
+import { MAIL_CATEGORIES } from "../../../src/ai/types";
+import { displayName, formatTime } from "../lib/format";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
 
 interface Props {
   items: MessageSummary[];
@@ -23,13 +25,10 @@ interface Props {
   hasMore: boolean;
 }
 
-const EMPTY_TEXT: Partial<Record<MailFolder, { title: string; hint?: string }>> = {
-  catchall: {
-    title: "还没有兜底邮件",
-    hint: "发到本域名但没有登记过的地址，会出现在这里",
-  },
-  trash: { title: "回收站是空的" },
-  archive: { title: "还没有归档的邮件" },
+const EMPTY_TEXT: Partial<Record<MailFolder, { title: TranslationKey; hint?: TranslationKey }>> = {
+  catchall: { title: "list.empty.catchall", hint: "list.empty.catchall.hint" },
+  trash: { title: "list.empty.trash" },
+  archive: { title: "list.empty.archive" },
 };
 
 export default function MessageList({
@@ -47,7 +46,8 @@ export default function MessageList({
   onLoadMore,
   hasMore,
 }: Props) {
-  const empty = EMPTY_TEXT[folder] ?? { title: "这里还没有邮件" };
+  const { t } = useI18n();
+  const empty = EMPTY_TEXT[folder] ?? { title: "list.empty.default" as TranslationKey };
   const showRecipient = folder === "catchall";
   return (
     <section className="list-pane">
@@ -57,7 +57,7 @@ export default function MessageList({
           <input
             className="input"
             value={search}
-            placeholder="搜索主题、发件人、正文"
+            placeholder={t("list.search")}
             onChange={(event) => onSearch(event.target.value)}
           />
         </div>
@@ -70,7 +70,7 @@ export default function MessageList({
             className={`cat-tab${!category ? " cat-tab--active" : ""}`}
             onClick={() => onSelectCategory?.("")}
           >
-            全部
+            {t("cat.all")}
           </button>
           {MAIL_CATEGORIES.map((key) => (
             <button
@@ -79,7 +79,7 @@ export default function MessageList({
               className={`cat-tab${category === key ? " cat-tab--active" : ""}`}
               onClick={() => onSelectCategory?.(key)}
             >
-              {CATEGORY_LABELS[key]}
+              {t(`cat.${key}`)}
             </button>
           ))}
         </div>
@@ -89,15 +89,15 @@ export default function MessageList({
         {loading && !items.length && (
           <div className="empty">
             <Loader2 size={20} className="spin" />
-            <p>加载中…</p>
+            <p>{t("list.loading")}</p>
           </div>
         )}
 
         {!loading && !items.length && (
           <div className="empty">
             <Inbox size={32} />
-            <p>{empty.title}</p>
-            {empty.hint && <p className="text-xs">{empty.hint}</p>}
+            <p>{t(empty.title)}</p>
+            {empty.hint && <p className="text-xs">{t(empty.hint)}</p>}
           </div>
         )}
 
@@ -122,16 +122,16 @@ export default function MessageList({
               )}
               <span className="message-row__from">
                 {item.direction === "outbound"
-                  ? `发往 ${item.to.map(displayName).join("、")}`
+                  ? `${t("list.sentTo")} ${item.to.map(displayName).join("、")}`
                   : displayName(item.from)}
               </span>
               <span className="message-row__time">{formatTime(item.receivedAt)}</span>
             </div>
-            <div className="message-row__subject">{item.subject || "(无主题)"}</div>
+            <div className="message-row__subject">{item.subject || t("detail.noSubject")}</div>
             {showRecipient && (
               <div className="message-row__to">
                 <AtSign size={11} />
-                发给 {item.to.map((address) => address.email).join("、")}
+                {t("list.to")} {item.to.map((address) => address.email).join("、")}
               </div>
             )}
             <div className="message-row__snippet">{item.snippet}</div>
@@ -139,14 +139,14 @@ export default function MessageList({
               <div className="message-row__meta">
                 {item.isStarred && <Star size={12} />}
                 {item.hasAttachments && <Paperclip size={12} />}
-                {item.category && item.category in CATEGORY_LABELS && (
-                  <span className="badge">{CATEGORY_LABELS[item.category as keyof typeof CATEGORY_LABELS]}</span>
+                {item.category && MAIL_CATEGORIES.includes(item.category as never) && (
+                  <span className="badge">{t(`cat.${item.category}` as TranslationKey)}</span>
                 )}
                 {item.status && item.status !== "sent" && (
                   <span
                     className={`badge ${item.status === "failed" ? "badge--error" : "badge--warning"}`}
                   >
-                    {STATUS_LABELS[item.status] ?? item.status}
+                    {t(`status.${item.status}` as TranslationKey)}
                   </span>
                 )}
               </div>
@@ -156,7 +156,7 @@ export default function MessageList({
 
         {hasMore && (
           <button className="btn btn--ghost btn--block" type="button" onClick={onLoadMore} disabled={loading}>
-            {loading ? "加载中…" : "加载更多"}
+            {loading ? t("list.loading") : t("list.loadMore")}
           </button>
         )}
       </div>

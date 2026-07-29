@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../../lib/api";
 import type { User } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
+import { useI18n } from "../../i18n";
 import FormRow from "./FormRow";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function AccountPanel({ user }: Props) {
+  const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -19,11 +21,11 @@ export default function AccountPanel({ user }: Props) {
     setMessage(null);
     try {
       await api.changePassword({ currentPassword, newPassword });
-      setMessage({ kind: "success", text: "密码已更新，所有会话已失效，请重新登录" });
+      setMessage({ kind: "success", text: t("account.newPassword.hint") });
       setCurrentPassword("");
       setNewPassword("");
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "修改失败" });
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -32,29 +34,29 @@ export default function AccountPanel({ user }: Props) {
   return (
     <div className="settings-panel">
       <header className="panel-head">
-        <h1 className="panel-head__title">账户</h1>
-        <p className="panel-head__desc">当前登录的账户信息与密码。</p>
+        <h1 className="panel-head__title">{t("account.title")}</h1>
+        <p className="panel-head__desc">{t("account.desc")}</p>
       </header>
 
-      <FormRow label="账户邮箱">
+      <FormRow label={t("account.email")}>
         <p className="text-sm">{user.email}</p>
       </FormRow>
 
-      <FormRow label="显示名称">
-        <p className="text-sm">{user.name || "未设置"}</p>
+      <FormRow label={t("account.name")}>
+        <p className="text-sm">{user.name || t("account.name.empty")}</p>
       </FormRow>
 
-      <FormRow label="角色">
-        <span className="badge">{user.role === "admin" ? "管理员" : "普通用户"}</span>
+      <FormRow label={t("account.role")}>
+        <span className="badge">{user.role === "admin" ? t("account.role.admin") : t("account.role.user")}</span>
       </FormRow>
 
-      <FormRow label="创建时间">
+      <FormRow label={t("account.createdAt")}>
         <p className="text-sm text-secondary">{formatDateTime(user.createdAt)}</p>
       </FormRow>
 
       {message && <div className={`alert alert--${message.kind}`}>{message.text}</div>}
 
-      <FormRow label="当前密码">
+      <FormRow label={t("account.currentPassword")}>
         <input
           className="input"
           type="password"
@@ -64,7 +66,7 @@ export default function AccountPanel({ user }: Props) {
         />
       </FormRow>
 
-      <FormRow label="新密码" hint="至少 8 位，修改后需重新登录">
+      <FormRow label={t("account.newPassword")} hint={t("account.newPassword.hint")}>
         <input
           className="input"
           type="password"
@@ -81,7 +83,7 @@ export default function AccountPanel({ user }: Props) {
           onClick={() => void update()}
           disabled={busy || !currentPassword || newPassword.length < 8}
         >
-          {busy ? "处理中…" : "更新密码"}
+          {busy ? t("common.saving") : t("account.updatePassword")}
         </button>
       </div>
     </div>

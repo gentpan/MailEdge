@@ -32,14 +32,7 @@ export function displayName(address: { email: string; name?: string }): string {
   return address.name?.trim() || address.email;
 }
 
-export const STATUS_LABELS: Record<string, string> = {
-  queued: "排队中",
-  sending: "发送中",
-  sent: "已发送",
-  deferred: "等待重试",
-  failed: "发送失败",
-};
-
+// 状态文案已改由 i18n 的 status.* 提供；Provider 是品牌名，无需翻译
 export const PROVIDER_LABELS: Record<string, string> = {
   cloudflare: "Cloudflare Email Service",
   resend: "Resend",

@@ -1,5 +1,6 @@
 import type { Mailbox, ProviderView } from "../../lib/api";
 import type { MailProviderType } from "../../../../src/mail/types";
+import { useI18n } from "../../i18n";
 import ProviderSection from "./ProviderSection";
 
 const ORDER: MailProviderType[] = ["cloudflare", "sendflare", "resend"];
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ProvidersPanel({ providers, mailboxes, onChanged }: Props) {
+  const { t } = useI18n();
   const enabled = providers.filter((item) => item.isEnabled);
   const fallbackChain = [...enabled].sort((a, b) => {
     if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
@@ -20,16 +22,13 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
   return (
     <div className="settings-panel">
       <header className="panel-head">
-        <h1 className="panel-head__title">发信服务</h1>
-        <p className="panel-head__desc">
-          默认渠道优先使用。只有网络故障、429、5xx 这类临时错误才会切换到备用渠道；
-          域名未验证、地址非法、内容被拒等永久性错误直接失败，不会重发。
-        </p>
+        <h1 className="panel-head__title">{t("providers.title")}</h1>
+        <p className="panel-head__desc">{t("providers.desc")}</p>
       </header>
 
       {fallbackChain.length > 1 && (
         <div className="chain">
-          <span className="chain__label">当前投递顺序</span>
+          <span className="chain__label">{t("providers.chain")}</span>
           <div className="chain__items">
             {fallbackChain.map((item, index) => (
               <span className="chain__item" key={item.id}>

@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
 import { PROVIDER_LABELS, formatSize } from "../lib/format";
 import { markdownToEmailHtml } from "../../../src/shared/markdown";
+import { useI18n } from "../i18n";
 
 export interface ComposeDraft {
   to?: string;
@@ -31,6 +32,7 @@ export default function ComposeModal({
   onClose,
   onSent,
 }: Props) {
+  const { t } = useI18n();
   const [from, setFrom] = useState(mailboxes[0]?.address ?? "");
   const [to, setTo] = useState(draft?.to ?? "");
   const [cc, setCc] = useState(draft?.cc ?? "");
@@ -67,7 +69,7 @@ export default function ComposeModal({
       );
       onSent(result);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "发送失败");
+      setError(caught instanceof Error ? caught.message : "error");
     } finally {
       setBusy(false);
     }
@@ -77,8 +79,8 @@ export default function ComposeModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
         <div className="modal__header">
-          <h3>写信</h3>
-          <button className="btn btn--icon" type="button" onClick={onClose} aria-label="关闭">
+          <h3>{t("compose.title")}</h3>
+          <button className="btn btn--icon" type="button" onClick={onClose} aria-label={t("compose.cancel")}>
             <X size={16} />
           </button>
         </div>
@@ -87,7 +89,7 @@ export default function ComposeModal({
           {error && <div className="alert alert--error">{error}</div>}
 
           <div className="compose-row">
-            <span className="compose-row__label">发件人</span>
+            <span className="compose-row__label">{t("compose.from")}</span>
             <select className="select" value={from} onChange={(event) => setFrom(event.target.value)}>
               {mailboxes.map((mailbox) => (
                 <option key={mailbox.id} value={mailbox.address}>
@@ -98,16 +100,16 @@ export default function ComposeModal({
           </div>
 
           <div className="compose-row">
-            <span className="compose-row__label">收件人</span>
+            <span className="compose-row__label">{t("compose.to")}</span>
             <input
               className="input"
               value={to}
-              placeholder="多个地址用逗号分隔"
+              placeholder={t("compose.to.hint")}
               onChange={(event) => setTo(event.target.value)}
             />
             {!showExtra && (
               <button className="btn btn--ghost btn--sm" type="button" onClick={() => setShowExtra(true)}>
-                抄送/密送
+                {t("compose.ccbcc")}
               </button>
             )}
           </div>
@@ -115,30 +117,30 @@ export default function ComposeModal({
           {showExtra && (
             <>
               <div className="compose-row">
-                <span className="compose-row__label">抄送</span>
+                <span className="compose-row__label">{t("compose.cc")}</span>
                 <input className="input" value={cc} onChange={(event) => setCc(event.target.value)} />
               </div>
               <div className="compose-row">
-                <span className="compose-row__label">密送</span>
+                <span className="compose-row__label">{t("compose.bcc")}</span>
                 <input className="input" value={bcc} onChange={(event) => setBcc(event.target.value)} />
               </div>
             </>
           )}
 
           <div className="compose-row">
-            <span className="compose-row__label">主题</span>
+            <span className="compose-row__label">{t("compose.subject")}</span>
             <input className="input" value={subject} onChange={(event) => setSubject(event.target.value)} />
           </div>
 
           {isAdmin && providers.length > 0 && (
             <div className="compose-row">
-              <span className="compose-row__label">发信渠道</span>
+              <span className="compose-row__label">{t("compose.channel")}</span>
               <select
                 className="select"
                 value={providerId}
                 onChange={(event) => setProviderId(event.target.value)}
               >
-                <option value="">默认渠道</option>
+                <option value="">{t("compose.channel.default")}</option>
                 {providers
                   .filter((provider) => provider.isEnabled !== false)
                   .map((provider) => (
@@ -157,26 +159,24 @@ export default function ComposeModal({
                 className={`tab${mode === "edit" ? " tab--active" : ""}`}
                 onClick={() => setMode("edit")}
               >
-                编辑
+                {t("compose.tab.edit")}
               </button>
               <button
                 type="button"
                 className={`tab${mode === "preview" ? " tab--active" : ""}`}
                 onClick={() => setMode("preview")}
               >
-                预览
+                {t("compose.tab.preview")}
               </button>
             </div>
-            <span className="text-xs text-tertiary">
-              支持 Markdown：**粗体** *斜体* [链接](地址) - 列表 &gt; 引用 `代码`
-            </span>
+            <span className="text-xs text-tertiary">{t("compose.md.hint")}</span>
           </div>
 
           {mode === "edit" ? (
             <textarea
               className="compose-body"
               value={text}
-              placeholder="写点什么…支持 Markdown"
+              placeholder={t("compose.body.placeholder")}
               onChange={(event) => setText(event.target.value)}
             />
           ) : (
@@ -185,7 +185,7 @@ export default function ComposeModal({
                 // 预览用的正是发送时生成的那份 HTML，所见即所发
                 <div dangerouslySetInnerHTML={{ __html: markdownToEmailHtml(text) }} />
               ) : (
-                <p className="text-xs text-tertiary">还没有内容</p>
+                <p className="text-xs text-tertiary">{t("compose.preview.empty")}</p>
               )}
             </div>
           )}
@@ -197,11 +197,11 @@ export default function ComposeModal({
                   <Paperclip size={14} />
                   <span className="file-item__name">{file.name}</span>
                   <span className="text-tertiary">{formatSize(file.size)}</span>
-                  {file.size > thresholdBytes && <span className="badge badge--primary">转下载链接</span>}
+                  {file.size > thresholdBytes && <span className="badge badge--primary">{t("compose.toLink")}</span>}
                   <button
                     className="btn btn--icon"
                     type="button"
-                    aria-label="移除附件"
+                    aria-label={t("common.delete")}
                     onClick={() => setFiles(files.filter((_, position) => position !== index))}
                   >
                     <X size={14} />
@@ -213,7 +213,7 @@ export default function ComposeModal({
 
           {largeFiles.length > 0 && (
             <div className="alert alert--warning">
-              有 {largeFiles.length} 个附件超过 {smartThresholdMb} MB，将自动上传到 R2 并在正文中插入下载链接。
+              {t("compose.largeHint", { n: largeFiles.length, mb: smartThresholdMb })}
             </div>
           )}
         </div>
@@ -221,12 +221,12 @@ export default function ComposeModal({
         <div className="modal__footer">
           <button className="btn" type="button" onClick={submit} disabled={busy || !from || !to}>
             <Send size={16} />
-            {busy ? "发送中…" : "发送"}
+            {busy ? t("compose.send.busy") : t("compose.send")}
           </button>
 
           <label className="btn btn--secondary">
             <Paperclip size={16} />
-            添加附件
+            {t("compose.addAttachment")}
             <input
               type="file"
               multiple
@@ -240,7 +240,7 @@ export default function ComposeModal({
 
           <div className="modal__footer-spacer" />
           <button className="btn btn--ghost" type="button" onClick={onClose}>
-            取消
+            {t("compose.cancel")}
           </button>
         </div>
       </div>

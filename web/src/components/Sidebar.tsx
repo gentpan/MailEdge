@@ -15,15 +15,18 @@ import {
 } from "lucide-react";
 import type { FolderStats, MailFolder } from "../../../src/shared/message";
 import type { Mailbox, User } from "../lib/api";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
+import LanguageToggle from "./LanguageToggle";
 
 export type MailView = "mail" | "outbox" | "shares";
 
-const FOLDERS: Array<{ key: MailFolder; label: string; icon: typeof Inbox }> = [
-  { key: "inbox", label: "收件箱", icon: Inbox },
-  { key: "catchall", label: "其他地址", icon: MailQuestion },
-  { key: "sent", label: "已发送", icon: Send },
-  { key: "archive", label: "归档", icon: Archive },
-  { key: "trash", label: "回收站", icon: Trash2 },
+const FOLDERS: Array<{ key: MailFolder; labelKey: TranslationKey; icon: typeof Inbox }> = [
+  { key: "inbox", labelKey: "folder.inbox", icon: Inbox },
+  { key: "catchall", labelKey: "folder.catchall", icon: MailQuestion },
+  { key: "sent", labelKey: "folder.sent", icon: Send },
+  { key: "archive", labelKey: "folder.archive", icon: Archive },
+  { key: "trash", labelKey: "folder.trash", icon: Trash2 },
 ];
 
 interface Props {
@@ -53,6 +56,7 @@ export default function Sidebar({
   onCompose,
   onSignOut,
 }: Props) {
+  const { t } = useI18n();
   const unreadOf = (folder: MailFolder) => stats.find((item) => item.folder === folder)?.unread ?? 0;
   const totalOf = (folder: MailFolder) => stats.find((item) => item.folder === folder)?.total ?? 0;
 
@@ -65,12 +69,12 @@ export default function Sidebar({
     <aside className="sidebar">
       <div className="sidebar__brand">
         <Mails size={20} />
-        <span>MailEdge</span>
+        <span>{t("app.name")}</span>
       </div>
 
       <button className="btn" type="button" onClick={onCompose}>
         <PenSquare size={16} />
-        写信
+        {t("nav.compose")}
       </button>
 
       <nav className="sidebar__section">
@@ -86,7 +90,7 @@ export default function Sidebar({
               onClick={() => onSelectFolder(folder.key)}
             >
               <Icon size={16} />
-              {folder.label}
+              {t(folder.labelKey)}
               {unread > 0 && <span className="nav-item__count">{unread}</span>}
             </button>
           );
@@ -94,14 +98,14 @@ export default function Sidebar({
       </nav>
 
       <nav className="sidebar__section">
-        <span className="sidebar__label">投递</span>
+        <span className="sidebar__label">{t("nav.delivery")}</span>
         <button
           type="button"
           className={`nav-item${view === "outbox" ? " nav-item--active" : ""}`}
           onClick={() => onSelectView("outbox")}
         >
           <SendHorizontal size={16} />
-          发信记录
+          {t("nav.outbox")}
         </button>
         <button
           type="button"
@@ -109,20 +113,20 @@ export default function Sidebar({
           onClick={() => onSelectView("shares")}
         >
           <Link2 size={16} />
-          附件链接
+          {t("nav.shares")}
         </button>
       </nav>
 
       {mailboxes.length > 1 && (
         <div className="sidebar__section">
-          <span className="sidebar__label">信箱</span>
+          <span className="sidebar__label">{t("nav.mailboxes")}</span>
           <button
             type="button"
             className={`nav-item${activeMailboxId === "all" ? " nav-item--active" : ""}`}
             onClick={() => onSelectMailbox("all")}
           >
             <Layers size={16} />
-            全部信箱
+            {t("nav.allMailboxes")}
           </button>
           {mailboxes.map((mailbox) => (
             <button
@@ -142,11 +146,14 @@ export default function Sidebar({
       <div className="sidebar__footer">
         <Link className="nav-item" to="/settings">
           <Settings size={16} />
-          设置
+          {t("nav.settings")}
         </Link>
-        <span className="sidebar__user">{user.name || user.email}</span>
+        <div className="sidebar__footer-row">
+          <span className="sidebar__user">{user.name || user.email}</span>
+          <LanguageToggle />
+        </div>
         <button className="btn btn--ghost btn--sm" type="button" onClick={onSignOut}>
-          退出登录
+          {t("nav.signOut")}
         </button>
       </div>
     </aside>

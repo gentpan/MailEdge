@@ -4,15 +4,14 @@ import { api } from "../../lib/api";
 import type { Mailbox, ProviderView } from "../../lib/api";
 import type { MailProviderType } from "../../../../src/mail/types";
 import { PROVIDER_LABELS, formatDateTime } from "../../lib/format";
+import { useI18n } from "../../i18n";
+import type { TranslationKey } from "../../i18n/dict";
 import FormRow from "./FormRow";
 
-const META: Record<MailProviderType, { icon: typeof Cloud; desc: string }> = {
-  cloudflare: {
-    icon: Cloud,
-    desc: "Workers 原生绑定，无额外 HTTP 请求。单封上限 5 MiB、最多 32 个附件；发往任意外部邮箱需要 Workers Paid。",
-  },
-  sendflare: { icon: Zap, desc: "REST API，Bearer Token 认证，可选 HMAC-SHA256 签名。" },
-  resend: { icon: Send, desc: "成熟的第三方发信服务，需要在 Resend 后台完成域名验证。" },
+const ICONS: Record<MailProviderType, typeof Cloud> = {
+  cloudflare: Cloud,
+  sendflare: Zap,
+  resend: Send,
 };
 
 interface Props {
@@ -23,6 +22,7 @@ interface Props {
 }
 
 export default function ProviderSection({ type, provider, mailboxes, onChanged }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(provider?.name ?? PROVIDER_LABELS[type] ?? type);
   const [apiKey, setApiKey] = useState("");
@@ -38,7 +38,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const Icon = META[type].icon;
+  const Icon = ICONS[type];
   const configured = Boolean(provider);
 
   async function save() {
@@ -58,13 +58,13 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
               ? { apiKey }
               : { token, secret, baseUrl },
       });
-      setMessage({ kind: "success", text: "已保存" });
+      setMessage({ kind: "success", text: t("common.saved") });
       setApiKey("");
       setToken("");
       setSecret("");
       onChanged();
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "保存失败" });
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -78,11 +78,11 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
       const { result } = await api.testProvider(provider.id, { from: testFrom, to: testTo });
       setMessage(
         result.success
-          ? { kind: "success", text: `测试邮件已提交（${result.providerMessageId ?? "无回执 ID"}）` }
-          : { kind: "error", text: result.error ?? "发送失败" },
+          ? { kind: "success", text: result.providerMessageId ?? "OK" }
+          : { kind: "error", text: result.error ?? "error" },
       );
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "发送失败" });
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -98,23 +98,23 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
         <span className="provider-block__title">
           <span className="provider-block__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
           <span className="provider-block__meta">
-            {configured ? `优先级 ${provider?.priority}` : "未配置"}
+            {configured ? `${t("providers.priority")} ${provider?.priority}` : t("providers.unconfigured")}
           </span>
         </span>
 
         <span className="provider-block__spacer" />
 
-        {provider?.isDefault && <span className="badge badge--primary">默认</span>}
+        {provider?.isDefault && <span className="badge badge--primary">{t("providers.default")}</span>}
         {configured &&
           (provider?.lastError ? (
             <span className="badge badge--error">
               <CircleAlert size={12} />
-              异常
+              {t("providers.error")}
             </span>
           ) : (
             <span className="badge badge--success">
               <Check size={12} />
-              已连接
+              {t("providers.connected")}
             </span>
           ))}
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -122,7 +122,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
 
       {open && (
         <div className="provider-block__body">
-          <p className="provider-block__desc">{META[type].desc}</p>
+          <p className="provider-block__desc">{t(`providers.desc.${type}` as TranslationKey)}</p>
 
           {message && (
             <div className={`alert alert--${message.kind}`} role="status">
@@ -132,17 +132,16 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
 
           {provider?.lastError && (
             <div className="alert alert--warning">
-              最近一次错误（{provider.lastCheckedAt ? formatDateTime(provider.lastCheckedAt) : "未知时间"}）：
-              {provider.lastError}
+              {provider.lastCheckedAt ? formatDateTime(provider.lastCheckedAt) : ""}：{provider.lastError}
             </div>
           )}
 
-          <FormRow label="显示名称">
+          <FormRow label={t("providers.displayName")}>
             <input className="input" value={name} onChange={(event) => setName(event.target.value)} />
           </FormRow>
 
           {type === "cloudflare" && (
-            <FormRow label="发信域名" hint="需已在 Cloudflare 完成验证">
+            <FormRow label={t("providers.cf.domain")} hint={t("providers.cf.domain.hint")}>
               <input
                 className="input"
                 value={defaultDomain}
@@ -153,7 +152,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
           )}
 
           {type === "resend" && (
-            <FormRow label="API Key" hint={configured ? "当前：已保存，留空表示不修改" : undefined}>
+            <FormRow label="API Key" hint={configured ? t("providers.keepSecret") : undefined}>
               <input
                 className="input"
                 type="password"
@@ -166,7 +165,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
 
           {type === "sendflare" && (
             <>
-              <FormRow label="API Token" hint={configured ? "留空表示不修改" : undefined}>
+              <FormRow label="API Token" hint={configured ? t("providers.keepSecret") : undefined}>
                 <input
                   className="input"
                   type="password"
@@ -175,16 +174,16 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                   onChange={(event) => setToken(event.target.value)}
                 />
               </FormRow>
-              <FormRow label="API Secret" hint="可选，用于 HMAC 签名">
+              <FormRow label="API Secret" hint={t("providers.secret.hint")}>
                 <input
                   className="input"
                   type="password"
                   value={secret}
-                  placeholder={configured ? "••••••••" : "选填"}
+                  placeholder={configured ? "••••••••" : t("common.optional")}
                   onChange={(event) => setSecret(event.target.value)}
                 />
               </FormRow>
-              <FormRow label="API 地址">
+              <FormRow label={t("providers.baseUrl")}>
                 <input
                   className="input"
                   value={baseUrl}
@@ -195,7 +194,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
             </>
           )}
 
-          <FormRow label="备用优先级" hint="数值越小越先被选中">
+          <FormRow label={t("providers.priority")} hint={t("providers.priority.hint")}>
             <input
               className="input"
               type="number"
@@ -204,15 +203,15 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
             />
           </FormRow>
 
-          <FormRow label="启用">
+          <FormRow label={t("common.enabled")}>
             <label className="switch">
               <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-              参与发信与备用切换
+              {t("providers.enable.hint")}
             </label>
           </FormRow>
 
           {provider && (
-            <FormRow label="测试发送" hint="不经过状态机，直接用该渠道发一封">
+            <FormRow label={t("providers.test")} hint={t("providers.test.hint")}>
               <div className="stack">
                 <select className="select" value={testFrom} onChange={(event) => setTestFrom(event.target.value)}>
                   {mailboxes.map((mailbox) => (
@@ -225,7 +224,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                   <input
                     className="input"
                     value={testTo}
-                    placeholder="收件地址"
+                    placeholder={t("providers.test.to")}
                     onChange={(event) => setTestTo(event.target.value)}
                   />
                   <button
@@ -234,7 +233,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                     onClick={() => void test()}
                     disabled={busy || !testTo || !testFrom}
                   >
-                    发送
+                    {t("compose.send")}
                   </button>
                 </div>
               </div>
@@ -243,7 +242,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
 
           <div className="form-actions">
             <button className="btn" type="button" onClick={() => void save()} disabled={busy}>
-              {busy ? "处理中…" : "保存"}
+              {busy ? t("common.saving") : t("common.save")}
             </button>
 
             {provider && !provider.isDefault && (
@@ -255,7 +254,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                   onChanged();
                 }}
               >
-                设为默认
+                {t("providers.setDefault")}
               </button>
             )}
 
@@ -271,7 +270,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
                 }}
               >
                 <Trash2 size={14} />
-                删除
+                {t("common.delete")}
               </button>
             )}
           </div>

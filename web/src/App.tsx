@@ -58,7 +58,7 @@ export default function App() {
     return (
       <div className="empty">
         <Loader2 size={20} className="spin" />
-        <p>正在加载…</p>
+        <p>MailEdge</p>
       </div>
     );
   }

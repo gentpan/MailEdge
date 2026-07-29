@@ -46,10 +46,11 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 - 渠道密钥 AES-GCM 加密后存 D1，接口只返回脱敏值
 - 发信记录带完整重试链路，可手动重试；`deferred` 状态由 Cron 指数退避自动重试
 - HTML 正文在 `sandbox=""` 的 iframe 中渲染，脚本、表单、同源访问全部禁用
+- 界面中/英双语，跟随浏览器语言自动选择，可随时切换
 
 ### AI 助手（可选）
 
-统一走 OpenAI 兼容接口，可接 OpenAI、转发站或本地模型（配 baseURL + Key + 模型名）。Key 同样 AES-GCM 加密存 D1。
+统一走 OpenAI 兼容接口，可接 OpenAI、DeepSeek、Kimi、智谱、硅基流动、Ollama 等（设置页有一键预设，也可自填 baseURL + 模型名）。Key 同样 AES-GCM 加密存 D1。
 
 - **AI 回复**：针对来信生成回复草稿，直接填入写信框
 - **AI 总结**：长邮件一键摘要，结果缓存进 Durable Object

@@ -3,6 +3,7 @@ import { Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
 import type { Mailbox } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
+import { useI18n } from "../../i18n";
 import FormRow from "./FormRow";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
+  const { t } = useI18n();
   const [address, setAddress] = useState("");
   const [isCatchAll, setIsCatchAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
       setIsCatchAll(false);
       onChanged();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "添加失败");
+      setError(caught instanceof Error ? caught.message : "error");
     } finally {
       setBusy(false);
     }
@@ -34,11 +36,8 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
   return (
     <div className="settings-panel">
       <header className="panel-head">
-        <h1 className="panel-head__title">收件地址</h1>
-        <p className="panel-head__desc">
-          收件依赖 Cloudflare Email Routing。这里添加的地址，需要在面板的
-          Compute → Email Service → Email Routing 中把投递目标设为本 Worker。
-        </p>
+        <h1 className="panel-head__title">{t("mb.title")}</h1>
+        <p className="panel-head__desc">{t("mb.desc")}</p>
       </header>
 
       <div className="list-block">
@@ -46,13 +45,15 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
           <div className="list-block__row" key={mailbox.id}>
             <div className="list-block__main">
               <span className="list-block__title">{mailbox.address}</span>
-              <span className="list-block__sub">创建于 {formatDateTime(mailbox.createdAt)}</span>
+              <span className="list-block__sub">
+                {t("mb.createdAt")} {formatDateTime(mailbox.createdAt)}
+              </span>
             </div>
-            {mailbox.isCatchAll && <span className="badge">兜底信箱</span>}
+            {mailbox.isCatchAll && <span className="badge">{t("mb.catchAll")}</span>}
             <button
               className="btn btn--icon"
               type="button"
-              aria-label={`删除 ${mailbox.address}`}
+              aria-label={`${t("common.delete")} ${mailbox.address}`}
               onClick={async () => {
                 await api.deleteMailbox(mailbox.id);
                 onChanged();
@@ -62,12 +63,12 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
             </button>
           </div>
         ))}
-        {!mailboxes.length && <div className="list-block__empty">还没有收件地址</div>}
+        {!mailboxes.length && <div className="list-block__empty">{t("mb.empty")}</div>}
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
 
-      <FormRow label="添加地址">
+      <FormRow label={t("mb.add")}>
         <input
           className="input"
           value={address}
@@ -76,14 +77,14 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
         />
       </FormRow>
 
-      <FormRow label="兜底信箱" hint="接收该域名下所有未匹配的地址">
+      <FormRow label={t("mb.catchAll.field")} hint={t("mb.catchAll.hint")}>
         <label className="switch">
           <input
             type="checkbox"
             checked={isCatchAll}
             onChange={(event) => setIsCatchAll(event.target.checked)}
           />
-          设为 catch-all
+          {t("mb.catchAll.label")}
         </label>
       </FormRow>
 
@@ -94,7 +95,7 @@ export default function MailboxesPanel({ mailboxes, onChanged }: Props) {
           onClick={() => void add()}
           disabled={busy || !address.includes("@")}
         >
-          {busy ? "处理中…" : "添加"}
+          {busy ? t("common.saving") : t("mb.addBtn")}
         </button>
       </div>
     </div>

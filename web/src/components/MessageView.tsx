@@ -3,7 +3,9 @@ import { Archive, Loader2, Mail, Paperclip, Reply, Sparkles, Star, Trash2, WandS
 import type { MessageDetail } from "../../../src/shared/message";
 import type { ComposeDraft } from "./ComposeModal";
 import { api } from "../lib/api";
-import { PROVIDER_LABELS, STATUS_LABELS, displayName, formatDateTime, formatSize } from "../lib/format";
+import { PROVIDER_LABELS, displayName, formatDateTime, formatSize } from "../lib/format";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
 
 interface Props {
   message: MessageDetail | null;
@@ -29,6 +31,7 @@ export default function MessageView({
   onDelete,
   onToggleStar,
 }: Props) {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -53,7 +56,7 @@ export default function MessageView({
       const result = await api.aiSummarize(target.id, mailboxId);
       setSummary(result.summary);
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "总结失败");
+      setAiError(error instanceof Error ? error.message : "error");
     } finally {
       setSummarizing(false);
     }
@@ -71,7 +74,7 @@ export default function MessageView({
         text: result.draft,
       });
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "生成失败");
+      setAiError(error instanceof Error ? error.message : "error");
     } finally {
       setReplying(false);
     }
@@ -82,7 +85,7 @@ export default function MessageView({
       <section className="detail-pane">
         <div className="empty">
           <Loader2 size={20} className="spin" />
-          <p>加载中…</p>
+          <p>{t("list.loading")}</p>
         </div>
       </section>
     );
@@ -93,7 +96,7 @@ export default function MessageView({
       <section className="detail-pane">
         <div className="empty">
           <Mail size={32} />
-          <p>选择一封邮件查看内容</p>
+          <p>{t("detail.empty")}</p>
         </div>
       </section>
     );
@@ -102,18 +105,18 @@ export default function MessageView({
   return (
     <section className="detail-pane">
       <div className="detail-pane__toolbar">
-        <button className="btn btn--icon" type="button" title="回复" onClick={() => onReply(message)}>
+        <button className="btn btn--icon" type="button" title={t("detail.reply")} onClick={() => onReply(message)}>
           <Reply size={16} />
         </button>
         <button
           className="btn btn--icon"
           type="button"
-          title={message.isStarred ? "取消星标" : "加星标"}
+          title={message.isStarred ? t("detail.unstar") : t("detail.star")}
           onClick={() => onToggleStar(message)}
         >
           <Star size={16} />
         </button>
-        <button className="btn btn--icon" type="button" title="归档" onClick={() => onArchive(message.id)}>
+        <button className="btn btn--icon" type="button" title={t("detail.archive")} onClick={() => onArchive(message.id)}>
           <Archive size={16} />
         </button>
 
@@ -126,7 +129,7 @@ export default function MessageView({
               disabled={replying}
             >
               <WandSparkles size={14} />
-              {replying ? "生成中…" : "AI 回复"}
+              {replying ? t("detail.aiReply.busy") : t("detail.aiReply")}
             </button>
             <button
               className="btn btn--ghost btn--sm"
@@ -135,13 +138,13 @@ export default function MessageView({
               disabled={summarizing}
             >
               <Sparkles size={14} />
-              {summarizing ? "总结中…" : "AI 总结"}
+              {summarizing ? t("detail.aiSummary.busy") : t("detail.aiSummary")}
             </button>
           </>
         )}
 
         <div className="detail-pane__toolbar-spacer" />
-        <button className="btn btn--icon" type="button" title="删除" onClick={() => onDelete(message.id)}>
+        <button className="btn btn--icon" type="button" title={t("detail.delete")} onClick={() => onDelete(message.id)}>
           <Trash2 size={16} />
         </button>
       </div>
@@ -153,14 +156,14 @@ export default function MessageView({
           <div className="ai-summary">
             <div className="ai-summary__head">
               <Sparkles size={14} />
-              AI 摘要
+              {t("detail.summaryTitle")}
             </div>
             <div className="ai-summary__body">{summary}</div>
           </div>
         )}
 
         <header className="detail-header">
-          <h2 className="detail-header__subject">{message.subject || "(无主题)"}</h2>
+          <h2 className="detail-header__subject">{message.subject || t("detail.noSubject")}</h2>
 
           <div className="detail-header__row">
             <span className="detail-header__name">{displayName(message.from)}</span>
@@ -168,9 +171,13 @@ export default function MessageView({
             <span className="text-tertiary text-xs">{formatDateTime(message.receivedAt)}</span>
           </div>
 
-          <div className="detail-header__row text-xs">收件人：{message.to.map(displayName).join("、")}</div>
+          <div className="detail-header__row text-xs">
+            {t("detail.to")}：{message.to.map(displayName).join("、")}
+          </div>
           {message.cc.length > 0 && (
-            <div className="detail-header__row text-xs">抄送：{message.cc.map(displayName).join("、")}</div>
+            <div className="detail-header__row text-xs">
+              {t("detail.cc")}：{message.cc.map(displayName).join("、")}
+            </div>
           )}
 
           {message.direction === "outbound" && message.status && (
@@ -184,7 +191,7 @@ export default function MessageView({
                       : "badge--warning"
                 }`}
               >
-                {STATUS_LABELS[message.status] ?? message.status}
+                {t(`status.${message.status}` as TranslationKey)}
               </span>
               {message.provider && (
                 <span className="text-xs text-tertiary">
@@ -203,13 +210,13 @@ export default function MessageView({
             // 用沙箱 iframe 渲染 HTML 正文：禁用脚本、表单与同源访问
             <iframe
               className="detail-frame"
-              title="邮件正文"
+              title={t("detail.summaryTitle")}
               sandbox=""
               srcDoc={message.html}
               referrerPolicy="no-referrer"
             />
           ) : (
-            <pre>{message.text ?? "(无正文)"}</pre>
+            <pre>{message.text ?? t("detail.noBody")}</pre>
           )}
         </div>
 
@@ -226,7 +233,7 @@ export default function MessageView({
                 <Paperclip size={14} />
                 {attachment.filename}
                 <span className="attachment-chip__size">{formatSize(attachment.size)}</span>
-                {attachment.mode === "link" && <span className="badge badge--primary">下载链接</span>}
+                {attachment.mode === "link" && <span className="badge badge--primary">{t("detail.linkBadge")}</span>}
               </a>
             ))}
           </div>
