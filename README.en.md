@@ -1,0 +1,215 @@
+<h1 align="center">MailEdge</h1>
+
+<p align="center">A serverless webmail with pluggable sending providers. Runs entirely on Cloudflare — no server of your own.</p>
+
+<p align="center">
+  <a href="https://workers.cloudflare.com/"><img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white"></a>
+  <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white"></a>
+  <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black"></a>
+  <a href="https://hono.dev/"><img alt="Hono" src="https://img.shields.io/badge/Hono-4-E36002?logo=hono&logoColor=white"></a>
+  <a href="https://developers.cloudflare.com/d1/"><img alt="D1" src="https://img.shields.io/badge/D1-SQLite-003B57?logo=sqlite&logoColor=white"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/gentpan/MailEdge/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/gentpan/MailEdge?color=555555"></a>
+  <a href="https://github.com/gentpan/MailEdge/issues"><img alt="Issues" src="https://img.shields.io/github/issues/gentpan/MailEdge?color=555555"></a>
+  <a href="https://github.com/gentpan/MailEdge/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/gentpan/MailEdge?color=555555"></a>
+</p>
+
+<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
+
+```
+Receiving:  Email Routing → Email Worker → Durable Object (SQLite) + R2
+Sending:    Unified MailProvider interface → Cloudflare Email Service / Sendflare / Resend
+Config:     D1 (accounts, provider config, outbound state machine)
+```
+
+## What it solves
+
+Cloudflare Email Routing can receive and forward mail, but it can't reply and has no UI. Most Cloudflare mail projects stop at "display the messages you received". MailEdge fills in the missing half:
+
+- **Sending isn't locked to one vendor.** `MailProvider` is an abstraction. Cloudflare Email Service, Sendflare and Resend work out of the box; adding SES / Mailgun / Postmark / SMTP means writing one more class.
+- **Failover never duplicates a message.** Only transient errors — network failures, 429, 5xx — trigger a switch to a backup provider. Unverified domains, malformed addresses and rejected content fail immediately. Otherwise a single rejected message would go out once per platform.
+- **The 5 MiB attachment ceiling is worked around.** Small files are sent as real attachments; large ones are uploaded to R2 and become download links in the body, with download counts, expiry and revocation. Recipients can't tell the difference.
+- **Mail is sharded by address.** Each address gets its own Durable Object with its own SQLite instance, so there's no single-database bottleneck.
+
+## Features
+
+- Inbox / Sent / Archive / Trash, with search, pagination, starring and unread counts
+- Compose with CC, BCC and multiple attachments; admins can pin a specific sending provider
+- Configure all three providers from the settings page — test send, set as default, backup priority
+- Provider credentials are AES-GCM encrypted in D1; the API only ever returns masked values
+- Outbound records keep the full retry chain and can be retried by hand; `deferred` messages are retried automatically by a cron trigger with exponential backoff
+- HTML bodies render inside a `sandbox=""` iframe — scripts, forms and same-origin access are all disabled
+
+## Stack
+
+Cloudflare Workers · D1 · R2 · Durable Objects (SQLite) · Email Routing · Hono · React · Vite · TypeScript
+
+## Architecture
+
+| Capability | Implementation |
+| --- | --- |
+| Receiving | Cloudflare Email Routing → `email()` handler → parsed with `postal-mime` |
+| Mail storage | One Durable Object per address, each with built-in SQLite |
+| Attachments | R2; the raw `.eml` is archived alongside |
+| Accounts / provider config / outbound state machine | D1 |
+| Sending | `MailProvider` abstraction, three implementations plus failover |
+| Frontend | React + Vite, served through Workers Assets |
+
+### Sending providers
+
+| Provider | Role | Notes |
+| --- | --- | --- |
+| Cloudflare Email Service | Default, native | Workers binding, no extra HTTP request; ≤ 5 MiB per message, ≤ 32 attachments; sending to arbitrary external addresses requires Workers Paid |
+| Sendflare | Backup or primary | REST API, bearer token, optional HMAC-SHA256 signing |
+| Resend | Mature backup | REST API, requires domain verification in their dashboard |
+
+To add SES / Mailgun / Postmark / SMTP, drop a class into [src/mail/providers/](src/mail/providers/) and add one branch to [factory.ts](src/mail/factory.ts).
+
+### State machine and failover rules
+
+```
+queued → sending → sent
+                 ├── deferred → retried by cron (5 min, exponential backoff, capped at 6 h, max 5 attempts)
+                 └── failed
+```
+
+Every message gets a stable internal ID (`mail_01J...`) carried in the `X-App-Message-ID` header. Switching providers reuses the same ID, which keeps deduplication and tracing intact.
+
+**Only transient errors fall through to a backup provider**: network failures, 429, 5xx, 408.
+**Permanent errors fail immediately**: unverified domain, malformed address, rejected content, spam complaint, suspended account, sender not permitted.
+Otherwise one rejected message would be sent once on each of the three platforms. The classification rules live in [src/mail/errors.ts](src/mail/errors.ts).
+
+### Smart attachments
+
+```
+attachment ≤ 3 MB (and the message stays under the limit) → real email attachment
+attachment > 3 MB                                          → uploaded to R2 → download link in the body
+```
+
+Downloads go through `/d/:token`. The Worker validates the token, expiry and revocation status before streaming from R2, and tracks download counts, a 7-day expiry and manual revocation. Inline images (`cid:`) always stay in the message so the body never breaks. The threshold is controlled by `SMART_ATTACHMENT_THRESHOLD`.
+
+## Deployment
+
+### 1. Create the resources
+
+```bash
+npx wrangler d1 create mailedge
+```
+
+```bash
+npx wrangler r2 bucket create mailedge-attachments
+```
+
+Put the `database_id` printed by `d1 create` into [wrangler.jsonc](wrangler.jsonc), and change `APP_URL` to your production domain (download links are built from it).
+
+### 2. Set the secrets
+
+```bash
+openssl rand -base64 32
+```
+
+```bash
+npx wrangler secret put ENCRYPTION_KEY
+```
+
+```bash
+npx wrangler secret put SESSION_SECRET
+```
+
+`ENCRYPTION_KEY` encrypts `mail_providers.config_encrypted` (AES-GCM). Rotating it invalidates every stored provider credential.
+
+### 3. Migrate and deploy
+
+```bash
+npx wrangler d1 migrations apply mailedge --remote
+```
+
+```bash
+npm run deploy
+```
+
+### 4. Wire up receiving
+
+In the Cloudflare dashboard → your domain → Email Routing: set the destination of a specific address, or of the catch-all, to **Send to a Worker → mailedge**.
+
+### 5. Initialize
+
+Open the deployed domain. On first visit you get a setup page: create the admin account and bind the first receiving address. Then head to Settings → Sending providers to configure a provider and mark it as default.
+
+Sending to arbitrary external addresses requires Workers Paid (3,000 messages/month included, $0.35 per 1,000 after that). Receiving works on both free and paid plans.
+
+## Local development
+
+```bash
+npm install
+```
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+Fill in two values generated with `openssl rand -base64 32`, then:
+
+```bash
+npx wrangler d1 migrations apply mailedge --local
+```
+
+```bash
+npm run dev
+```
+
+`npm run dev` builds the frontend and starts `wrangler dev` (http://127.0.0.1:8787). While working on the UI, run `npm run dev:web` in a second terminal for incremental builds.
+
+Simulate an inbound message locally (wrangler's built-in endpoint):
+
+```bash
+curl -X POST 'http://127.0.0.1:8787/cdn-cgi/handler/email?from=alice@outside.com&to=you@yourdomain.com' --data-binary @test.eml -H 'Content-Type: message/rfc822'
+```
+
+All local state lives in `.wrangler/state/` — delete it to reset.
+
+## API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/health` | Health check |
+| `GET/POST` | `/api/auth/setup` | First-run setup (closes itself once a user exists) |
+| `POST` | `/api/auth/login` `/logout` `/password` | Session |
+| `GET` | `/api/auth/me` | Current user and mailboxes |
+| `GET/POST/DELETE` | `/api/mailboxes` | Receiving addresses |
+| `GET` | `/api/messages` | List, supports `folder` `q` `before` |
+| `GET/PATCH/DELETE` | `/api/messages/:id` | Detail; read/star/move; delete (trash first) |
+| `GET` | `/api/messages/:id/attachments/:attachmentId` | Download an inbound attachment |
+| `GET` | `/api/stats` | Unread counts per folder |
+| `POST` | `/api/mail/send` | Send (JSON or multipart) |
+| `GET` | `/api/mail/outbox` `/outbox/:id` | Outbound records |
+| `POST` | `/api/mail/outbox/:id/retry` | Manual retry (reuses the same internal ID) |
+| `GET/POST/DELETE` | `/api/providers` | Provider management (admin) |
+| `POST` | `/api/providers/:id/default` `/test` | Set default, test send |
+| `GET/POST` | `/api/shares` `/shares/:token/revoke` | Attachment share links |
+| `GET` | `/d/:token` | Public download for large attachments |
+
+### Sending examples
+
+JSON (attachments as base64):
+
+```bash
+curl -X POST https://your-domain/api/mail/send -H 'Content-Type: application/json' -b cookie.txt -d '{"from":"you@yourdomain.com","to":"someone@example.com","subject":"Hello","text":"Body","html":"<p>Body</p>"}'
+```
+
+multipart (what the UI uses — `payload` holds the JSON, files go in `attachments`):
+
+```bash
+curl -X POST https://your-domain/api/mail/send -b cookie.txt -F 'payload={"from":"you@yourdomain.com","to":"someone@example.com","subject":"Quote","text":"See attached"}' -F 'attachments=@quote.pdf'
+```
+
+The `smartAttachments` field in the response tells you which files were sent inline and which became download links.
+
+## Known trade-offs
+
+- The Cloudflare Workers binding takes raw MIME, so the message is assembled by [src/mail/mime.ts](src/mail/mime.ts) (CC, BCC, reply-to, custom headers, attachments and inline images are all covered). The binding delivers per envelope recipient, so `send()` is called once per address; a failure partway through can leave a partial delivery.
+- Sendflare's field names and signing headers follow their current API reference. If those change, only [src/mail/providers/sendflare.ts](src/mail/providers/sendflare.ts) needs editing — the abstraction above it is unaffected.
+- HTML bodies render in a `sandbox=""` iframe on the frontend, with scripts, forms and same-origin access disabled.
+- Mail is sharded across Durable Objects by address, so cross-mailbox global search would need a separate index.
