@@ -47,6 +47,7 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 - 发信记录带完整重试链路，可手动重试；`deferred` 状态由 Cron 指数退避自动重试
 - HTML 正文在 `sandbox=""` 的 iframe 中渲染，脚本、表单、同源访问全部禁用
 - 界面中/英双语，跟随浏览器语言自动选择，可随时切换
+- 新信实时推送：每个信箱 Durable Object 持有前端 WebSocket（Hibernation，空闲不计费），收信秒级到达；断线自动重连，另有 60 秒轮询兜底
 
 ### AI 助手（可选）
 

@@ -11,6 +11,7 @@ import type { MailView } from "../components/Sidebar";
 import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import { api } from "../lib/api";
 import type { ProviderView, SendResponse } from "../lib/api";
+import { useMailStream } from "../lib/useMailStream";
 import { useI18n } from "../i18n";
 
 export default function MailPage() {
@@ -91,8 +92,15 @@ export default function MailPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  // 轮询：每 30 秒查一次未读数，变化了才静默刷新当前列表；标签页隐藏时跳过。
-  // 不会打断阅读——刷新只替换列表，已打开的邮件详情不受影响。
+  // 实时推送：连到当前视图涉及的信箱 DO，收信/变动秒级到达。
+  const streamIds = mailboxId === "all" ? mailboxes.map((m) => m.id) : mailboxId ? [mailboxId] : [];
+  useMailStream(view === "mail" ? streamIds : [], () => {
+    void loadStats();
+    void loadList();
+  });
+
+  // 轮询兜底：WebSocket 断线期间每 60 秒查一次未读数，变化了才静默刷新；
+  // 标签页隐藏时跳过。不会打断阅读——刷新只替换列表，已打开的邮件详情不受影响。
   const statsSigRef = useRef("");
   useEffect(() => {
     if (view !== "mail") return;
@@ -110,7 +118,7 @@ export default function MailPage() {
         // 忽略轮询期间的偶发失败
       }
     };
-    const id = window.setInterval(tick, 30000);
+    const id = window.setInterval(tick, 60000);
     return () => window.clearInterval(id);
   }, [view, mailboxId, loadList]);
 

@@ -61,6 +61,51 @@ export class MailboxDO extends DurableObject<Env> {
     return this.ctx.storage.sql;
   }
 
+  // ---------------------------------------------------------------------------
+  // 实时推送：前端通过 WebSocket 连到本信箱 DO，收信/变动时直接广播。
+  // 用 Hibernation API，连接空闲时不占内存、不计费。
+  // ---------------------------------------------------------------------------
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("Upgrade") !== "websocket") {
+      return new Response("expected websocket", { status: 426 });
+    }
+    const pair = new WebSocketPair();
+    const client = pair[0]!;
+    const server = pair[1]!;
+    this.ctx.acceptWebSocket(server);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // 仅用于保活心跳
+    if (message === "ping") ws.send("pong");
+  }
+
+  async webSocketClose(ws: WebSocket, code: number, _reason: string, _wasClean: boolean): Promise<void> {
+    try {
+      ws.close(code >= 1000 && code < 5000 ? code : 1000);
+    } catch {
+      // 已关闭
+    }
+  }
+
+  async webSocketError(): Promise<void> {
+    // 连接层错误由运行时处理，无需额外动作
+  }
+
+  /** 向所有在线连接推送一个事件 */
+  private broadcast(payload: unknown): void {
+    const text = JSON.stringify(payload);
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.send(text);
+      } catch {
+        // 单个连接发送失败不影响其他
+      }
+    }
+  }
+
   private migrate(): void {
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -181,6 +226,9 @@ export class MailboxDO extends DurableObject<Env> {
         attachment.token,
       );
     }
+
+    // 新信/更新入库后立即推送给在线前端
+    this.broadcast({ type: "mail", folder: input.folder, direction: input.direction });
   }
 
   async list(params: {
@@ -261,6 +309,8 @@ export class MailboxDO extends DurableObject<Env> {
 
   async setCategory(id: string, category: string): Promise<void> {
     this.sql.exec(`UPDATE messages SET category = ? WHERE id = ?`, category, id);
+    // 分类是异步跑的，完成后推送让前端刷新分类标签
+    this.broadcast({ type: "mail", folder: "inbox", direction: "inbound" });
   }
 
   async setSummary(id: string, summary: string): Promise<void> {

@@ -55,6 +55,14 @@ messages.get("/mailboxes", async (c) => {
   return c.json({ mailboxes: await listMailboxes(c.env, c.get("user").id) });
 });
 
+/** 实时推送：把 WebSocket 升级请求转发给对应信箱的 Durable Object */
+messages.get("/mailboxes/:id/stream", async (c) => {
+  if (c.req.header("Upgrade") !== "websocket") return c.json({ error: "expected websocket" }, 426);
+  const mailbox = await resolveMailbox(c.env, c.get("user").id, c.req.param("id"));
+  if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
+  return mailboxStub(c.env, mailbox).fetch(c.req.raw);
+});
+
 messages.post("/mailboxes", async (c) => {
   const body = await c.req.json<{ address: string; displayName?: string; isCatchAll?: boolean }>();
   if (!body.address?.includes("@")) return c.json({ error: "邮箱地址格式不正确" }, 400);

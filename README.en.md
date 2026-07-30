@@ -45,6 +45,7 @@ Cloudflare Email Routing can receive and forward mail, but it can't reply and ha
 - Outbound records keep the full retry chain and can be retried by hand; `deferred` messages are retried automatically by a cron trigger with exponential backoff
 - HTML bodies render inside a `sandbox=""` iframe — scripts, forms and same-origin access are all disabled
 - Bilingual UI (English/Chinese), auto-detected from the browser and switchable anytime
+- Real-time push for new mail: each mailbox Durable Object holds the frontend WebSocket (hibernation — no idle cost) and pushes on arrival within seconds; auto-reconnects, with a 60s polling fallback
 
 ### AI assistant (optional)
 
