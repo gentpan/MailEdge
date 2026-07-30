@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { findByAddress, listMailboxes, mailboxStub } from "../db/mailboxes";
 import { createOutbound, getOutbound, listOutbound, loadPayload, savePayload } from "../db/outbound";
+import { getSendChain } from "../db/providers";
+import type { Env } from "../env";
 import { base64ToBytes } from "../lib/crypto";
 import { newId, newMessageId } from "../lib/id";
 import { appendShareSection, prepareAttachments } from "../mail/attachments";
@@ -29,9 +31,11 @@ send.post("/send", async (c) => {
   if (!input.to.length) return c.json({ error: "收件人不能为空" }, 400);
   if (!input.html && !input.text) return c.json({ error: "邮件正文不能为空" }, 400);
 
-  // 未指定显示名时用信箱配置的名称，避免收件方只看到一串地址
-  if (!input.from.name && mailbox.displayName) {
-    input.from = { ...input.from, name: mailbox.displayName };
+  // 未指定显示名时的兜底：优先信箱名称，其次所选渠道配置的发件人名称，
+  // 避免收件方只看到一串裸地址
+  if (!input.from.name) {
+    const name = mailbox.displayName || (await providerFromName(c.env, providerId));
+    if (name) input.from = { ...input.from, name };
   }
 
   const internalId = newMessageId();
@@ -259,6 +263,14 @@ function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): Parse
   };
 
   return { input, attachments, providerId: body.providerId };
+}
+
+/** 取所选渠道（或默认渠道）配置里的发件人名称 */
+async function providerFromName(env: Env, preferredId?: string): Promise<string | undefined> {
+  const chain = await getSendChain(env, preferredId);
+  const config = chain[0]?.config;
+  if (config && (config.type === "resend" || config.type === "sendflare")) return config.fromName;
+  return undefined;
 }
 
 function normalizeAddress(value: MailAddress | string | undefined): MailAddress | null {

@@ -165,7 +165,10 @@ export const DICT = {
     "providers.domains.fetch": "拉取域名",
     "providers.domains.fetching": "拉取中…",
     "providers.domains.empty": "尚未拉取，先保存 Key 再点拉取",
-    "providers.domains.hint": "从服务商同步已验证域名；写信时发件人只能用这些域名",
+    "providers.domains.hint": "手动填写或点「拉取域名」自动同步；写信时发件人只能用这些域名。多个用逗号分隔",
+    "providers.domains.placeholder": "mail.example.com, send.example.com",
+    "providers.fromName": "发件人名称",
+    "providers.fromName.hint": "默认显示名，如「MailEdge 客服」；收件方看到 名称 <地址>",
 
     // 设置 - AI
     "ai.title": "AI 助手",
@@ -413,7 +416,10 @@ export const DICT = {
     "providers.domains.fetch": "Fetch domains",
     "providers.domains.fetching": "Fetching…",
     "providers.domains.empty": "Not fetched yet — save the key first, then fetch",
-    "providers.domains.hint": "Syncs verified domains from the provider; the composer only allows senders on these domains",
+    "providers.domains.hint": "Type them or click Fetch to sync; the composer only allows senders on these domains. Comma-separated",
+    "providers.domains.placeholder": "mail.example.com, send.example.com",
+    "providers.fromName": "Sender name",
+    "providers.fromName.hint": "Default display name, e.g. \"MailEdge Support\"; recipients see name <address>",
 
     "ai.title": "AI assistant",
     "ai.desc": "OpenAI-compatible endpoint — OpenAI, a proxy, or a local model. Powers reply drafts, summaries and auto-classification.",

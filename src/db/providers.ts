@@ -146,11 +146,13 @@ export function redactProvider(record: MailProviderRecord) {
   } else if (config.type === "resend") {
     redacted.apiKey = maskSecret(config.apiKey);
     redacted.verifiedDomains = config.verifiedDomains ?? [];
+    redacted.fromName = config.fromName ?? "";
   } else if (config.type === "sendflare") {
     redacted.token = maskSecret(config.token);
     redacted.secret = config.secret ? maskSecret(config.secret) : null;
     redacted.baseUrl = config.baseUrl ?? null;
     redacted.verifiedDomains = config.verifiedDomains ?? [];
+    redacted.fromName = config.fromName ?? "";
   } else {
     redacted.host = config.host;
     redacted.port = config.port;

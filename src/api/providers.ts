@@ -146,7 +146,14 @@ async function normalizeConfig(
     const previous = existing?.config.type === "resend" ? existing.config.apiKey : undefined;
     const apiKey = keep(raw.apiKey, previous);
     if (!apiKey) return { error: "请填写 Resend API Key" };
-    return { value: { type: "resend", apiKey, verifiedDomains: toStringArray(raw.verifiedDomains) } };
+    return {
+      value: {
+        type: "resend",
+        apiKey,
+        verifiedDomains: domainList(raw.verifiedDomains),
+        fromName: cleanName(raw.fromName),
+      },
+    };
   }
 
   if (type === "sendflare") {
@@ -160,7 +167,8 @@ async function normalizeConfig(
         token,
         secret: keep(raw.secret, previousSecret),
         baseUrl: typeof raw.baseUrl === "string" && raw.baseUrl.trim() ? raw.baseUrl.trim() : undefined,
-        verifiedDomains: toStringArray(raw.verifiedDomains),
+        verifiedDomains: domainList(raw.verifiedDomains),
+        fromName: cleanName(raw.fromName),
       },
     };
   }
@@ -182,9 +190,18 @@ async function normalizeConfig(
   return { error: `不支持的邮件服务：${type}` };
 }
 
-function toStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter((item): item is string => typeof item === "string");
+/** 域名列表：接受数组或逗号/换行分隔的字符串，去空去重、小写 */
+function domainList(value: unknown): string[] | undefined {
+  let items: string[];
+  if (Array.isArray(value)) items = value.filter((x): x is string => typeof x === "string");
+  else if (typeof value === "string") items = value.split(/[\s,;]+/);
+  else return undefined;
+  const cleaned = [...new Set(items.map((s) => s.trim().toLowerCase()).filter(Boolean))];
+  return cleaned;
+}
+
+function cleanName(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export default providers;
