@@ -20,9 +20,11 @@ interface Props {
   provider?: ProviderView;
   mailboxes: Mailbox[];
   onChanged: () => void;
+  /** 内嵌到主从布局的右侧面板：不折叠，直接展开配置，头部由左侧列表承担 */
+  embedded?: boolean;
 }
 
-export default function ProviderSection({ type, provider, mailboxes, onChanged }: Props) {
+export default function ProviderSection({ type, provider, mailboxes, onChanged, embedded }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(provider?.name ?? PROVIDER_LABELS[type] ?? type);
@@ -127,39 +129,45 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
     }
   }
 
+  const showBody = open || embedded;
+
   return (
-    <div className={`provider-block${provider?.isDefault ? " provider-block--default" : ""}`}>
-      <button className="provider-block__head" type="button" onClick={() => setOpen(!open)}>
-        <span className="provider-block__mark">
-          <Icon size={16} />
-        </span>
-
-        <span className="provider-block__title">
-          <span className="provider-block__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
-          <span className="provider-block__meta">
-            {configured ? `${t("providers.priority")} ${provider?.priority}` : t("providers.unconfigured")}
+    <div
+      className={`provider-block${provider?.isDefault ? " provider-block--default" : ""}${embedded ? " provider-block--embedded" : ""}`}
+    >
+      {!embedded && (
+        <button className="provider-block__head" type="button" onClick={() => setOpen(!open)}>
+          <span className="provider-block__mark">
+            <Icon size={16} />
           </span>
-        </span>
 
-        <span className="provider-block__spacer" />
-
-        {provider?.isDefault && <span className="badge badge--primary">{t("providers.default")}</span>}
-        {configured &&
-          (provider?.lastError ? (
-            <span className="badge badge--error">
-              <CircleAlert size={12} />
-              {t("providers.error")}
+          <span className="provider-block__title">
+            <span className="provider-block__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
+            <span className="provider-block__meta">
+              {configured ? `${t("providers.priority")} ${provider?.priority}` : t("providers.unconfigured")}
             </span>
-          ) : (
-            <span className="badge badge--success">
-              <Check size={12} />
-              {t("providers.connected")}
-            </span>
-          ))}
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-      </button>
+          </span>
 
-      {open && (
+          <span className="provider-block__spacer" />
+
+          {provider?.isDefault && <span className="badge badge--primary">{t("providers.default")}</span>}
+          {configured &&
+            (provider?.lastError ? (
+              <span className="badge badge--error">
+                <CircleAlert size={12} />
+                {t("providers.error")}
+              </span>
+            ) : (
+              <span className="badge badge--success">
+                <Check size={12} />
+                {t("providers.connected")}
+              </span>
+            ))}
+          {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        </button>
+      )}
+
+      {showBody && (
         <div className="provider-block__body">
           <p className="provider-block__desc">{t(`providers.desc.${type}` as TranslationKey)}</p>
 

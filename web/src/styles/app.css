@@ -924,6 +924,110 @@
   padding: var(--space-8) var(--space-8) var(--space-16);
 }
 
+/* 发信服务用主从布局，需要更宽 */
+.settings-panel--wide {
+  max-width: 960px;
+}
+
+.master-detail {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.master-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.master-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.master-row:hover {
+  background: var(--color-bg-subtle);
+}
+
+.master-row--active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+.master-row__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-100);
+  color: var(--color-text-secondary);
+}
+
+.master-row--active .master-row__mark {
+  background: var(--color-neutral-0);
+  color: var(--color-primary);
+}
+
+.master-row__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.master-row__name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.master-row__meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.master-row__status--ok {
+  color: var(--color-success);
+}
+
+.master-row__status--error {
+  color: var(--color-error);
+}
+
+.master-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* 内嵌到主从右侧的配置：无折叠头、无外层边框 */
+.provider-block--embedded {
+  border: none;
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .master-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
 .panel-head {
   margin-bottom: var(--space-6);
 }
