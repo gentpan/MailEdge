@@ -921,6 +921,7 @@
 
 .settings-panel {
   max-width: 680px;
+  margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-16);
 }
 
