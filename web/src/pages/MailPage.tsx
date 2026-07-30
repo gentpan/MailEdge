@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "../App";
 import ComposeModal from "../components/ComposeModal";
 import type { ComposeDraft } from "../components/ComposeModal";
@@ -90,6 +90,29 @@ export default function MailPage() {
     const timer = window.setTimeout(() => setToast(null), 5000);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  // 轮询：每 30 秒查一次未读数，变化了才静默刷新当前列表；标签页隐藏时跳过。
+  // 不会打断阅读——刷新只替换列表，已打开的邮件详情不受影响。
+  const statsSigRef = useRef("");
+  useEffect(() => {
+    if (view !== "mail") return;
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const result = await api.stats(mailboxId);
+        const sig = JSON.stringify(result.stats);
+        setStats(result.stats);
+        if (statsSigRef.current && sig !== statsSigRef.current) {
+          await loadList();
+        }
+        statsSigRef.current = sig;
+      } catch {
+        // 忽略轮询期间的偶发失败
+      }
+    };
+    const id = window.setInterval(tick, 30000);
+    return () => window.clearInterval(id);
+  }, [view, mailboxId, loadList]);
 
   async function openMessage(message: MessageSummary) {
     const owner = message.mailboxId ?? mailboxId;
