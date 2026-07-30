@@ -7,6 +7,7 @@ import { PROVIDER_LABELS, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
 import FormRow from "./FormRow";
+import ProviderLogo from "./ProviderLogo";
 
 const ICONS: Record<MailProviderType, typeof Cloud> = {
   cloudflare: Cloud,
@@ -169,6 +170,13 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
 
       {showBody && (
         <div className="provider-block__body">
+          {embedded && (
+            <div className="provider-panel-head">
+              <ProviderLogo type={type} />
+              <span className="provider-panel-head__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
+              {provider?.isDefault && <span className="badge badge--primary">{t("providers.default")}</span>}
+            </div>
+          )}
           <p className="provider-block__desc">{t(`providers.desc.${type}` as TranslationKey)}</p>
 
           {message && (

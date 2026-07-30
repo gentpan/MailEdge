@@ -965,21 +965,32 @@
   border-color: var(--color-primary);
 }
 
-.master-row__mark {
+/* 服务商 logo 容器：白底留白，SVG 自带配色 */
+.provider-logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--space-8);
-  height: var(--space-8);
+  width: 36px;
+  height: 36px;
   flex: none;
+  padding: 7px;
   border-radius: var(--radius-sm);
-  background: var(--color-neutral-100);
-  color: var(--color-text-secondary);
+  background: var(--color-neutral-0);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
 }
 
-.master-row--active .master-row__mark {
-  background: var(--color-neutral-0);
-  color: var(--color-primary);
+.provider-logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.provider-logo--fallback {
+  padding: 0;
+  background: var(--color-neutral-100);
+  border-color: transparent;
+  color: var(--color-text-secondary);
 }
 
 .master-row__title {
@@ -1021,6 +1032,20 @@
 .provider-block--embedded {
   border: none;
   margin-bottom: 0;
+}
+
+.provider-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.provider-panel-head__name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
 }
 
 @media (max-width: 900px) {

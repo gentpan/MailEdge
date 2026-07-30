@@ -1,18 +1,13 @@
 import { useState } from "react";
-import { Check, CircleAlert, Cloud, Send, Server, Zap } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import type { Mailbox, ProviderView } from "../../lib/api";
 import type { MailProviderType } from "../../../../src/mail/types";
 import { PROVIDER_LABELS } from "../../lib/format";
 import { useI18n } from "../../i18n";
+import ProviderLogo from "./ProviderLogo";
 import ProviderSection from "./ProviderSection";
 
 const ORDER: MailProviderType[] = ["cloudflare", "sendflare", "resend", "smtp"];
-const ICONS: Record<MailProviderType, typeof Cloud> = {
-  cloudflare: Cloud,
-  sendflare: Zap,
-  resend: Send,
-  smtp: Server,
-};
 
 interface Props {
   providers: ProviderView[];
@@ -60,7 +55,6 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
         <div className="master-list">
           {ORDER.map((type) => {
             const provider = providers.find((item) => item.type === type);
-            const Icon = ICONS[type];
             const configured = Boolean(provider);
             return (
               <button
@@ -69,9 +63,7 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
                 className={`master-row${selected === type ? " master-row--active" : ""}`}
                 onClick={() => setSelected(type)}
               >
-                <span className="master-row__mark">
-                  <Icon size={16} />
-                </span>
+                <ProviderLogo type={type} />
                 <span className="master-row__title">
                   <span className="master-row__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
                   <span className="master-row__meta">
