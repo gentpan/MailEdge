@@ -45,6 +45,8 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
   const [testFrom, setTestFrom] = useState(mailboxes[0]?.address ?? "");
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [domains, setDomains] = useState<string[]>((provider?.config.verifiedDomains as string[]) ?? []);
+  const [fetchingDomains, setFetchingDomains] = useState(false);
 
   const Icon = ICONS[type];
   const configured = Boolean(provider);
@@ -84,6 +86,25 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
       setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function fetchDomains() {
+    if (!provider) return;
+    setFetchingDomains(true);
+    setMessage(null);
+    try {
+      const result = await api.fetchProviderDomains(provider.id);
+      setDomains(result.domains);
+      setMessage({
+        kind: "success",
+        text: result.domains.length ? result.domains.join("、") : t("providers.domains.empty"),
+      });
+      onChanged();
+    } catch (error) {
+      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
+    } finally {
+      setFetchingDomains(false);
     }
   }
 
@@ -290,6 +311,32 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged }
               {t("providers.enable.hint")}
             </label>
           </FormRow>
+
+          {provider && (type === "resend" || type === "sendflare") && (
+            <FormRow label={t("providers.domains")} hint={t("providers.domains.hint")}>
+              <div className="stack">
+                {domains.length > 0 ? (
+                  <div className="chip-list">
+                    {domains.map((domain) => (
+                      <span className="chip" key={domain}>
+                        {domain}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-tertiary">{t("providers.domains.empty")}</span>
+                )}
+                <button
+                  className="btn btn--secondary btn--sm"
+                  type="button"
+                  onClick={() => void fetchDomains()}
+                  disabled={fetchingDomains}
+                >
+                  {fetchingDomains ? t("providers.domains.fetching") : t("providers.domains.fetch")}
+                </button>
+              </div>
+            </FormRow>
+          )}
 
           {provider && (
             <FormRow label={t("providers.test")} hint={t("providers.test.hint")}>

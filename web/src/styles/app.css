@@ -1374,6 +1374,21 @@
   gap: var(--space-4);
 }
 
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
 .radio-option {
   display: flex;
   align-items: center;

@@ -113,6 +113,23 @@ export async function deleteProvider(env: Env, id: string): Promise<void> {
   await env.DB.prepare(`DELETE FROM mail_providers WHERE id = ?`).bind(id).run();
 }
 
+/** 把自动拉取到的已验证域名写回渠道配置 */
+export async function setVerifiedDomains(env: Env, id: string, domains: string[]): Promise<MailProviderRecord> {
+  const record = await getProvider(env, id);
+  if (!record) throw new Error("渠道不存在");
+  if (record.config.type !== "resend" && record.config.type !== "sendflare") {
+    throw new Error("该渠道不支持验证域名");
+  }
+
+  const nextConfig = { ...record.config, verifiedDomains: domains };
+  const encrypted = await encryptJson(env.ENCRYPTION_KEY, nextConfig);
+  await env.DB.prepare(`UPDATE mail_providers SET config_encrypted = ?, updated_at = ? WHERE id = ?`)
+    .bind(encrypted, new Date().toISOString(), id)
+    .run();
+
+  return { ...record, config: nextConfig };
+}
+
 export async function recordProviderHealth(env: Env, id: string, error: string | null): Promise<void> {
   await env.DB.prepare(`UPDATE mail_providers SET last_error = ?, last_checked_at = ? WHERE id = ?`)
     .bind(error, new Date().toISOString(), id)

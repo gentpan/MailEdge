@@ -5,8 +5,10 @@ import {
   listProviders,
   redactProvider,
   setDefaultProvider,
+  setVerifiedDomains,
   upsertProvider,
 } from "../db/providers";
+import { DomainFetchError, fetchVerifiedDomains } from "../mail/domains";
 import { createMailProvider } from "../mail/factory";
 import { newMessageId } from "../lib/id";
 import type { MailProviderConfig, MailProviderType } from "../mail/types";
@@ -63,6 +65,21 @@ providers.post("/", requireAdmin, async (c) => {
 providers.post("/:id/default", requireAdmin, async (c) => {
   await setDefaultProvider(c.env, c.req.param("id"));
   return c.json({ ok: true });
+});
+
+/** 贴完 Key 后自动拉取已验证域名并存入配置 */
+providers.post("/:id/domains", requireAdmin, async (c) => {
+  const record = await getProvider(c.env, c.req.param("id"));
+  if (!record) return c.json({ error: "渠道不存在" }, 404);
+
+  try {
+    const domains = await fetchVerifiedDomains(record.config);
+    const updated = await setVerifiedDomains(c.env, record.id, domains);
+    return c.json({ domains, provider: redactProvider(updated) });
+  } catch (error) {
+    const message = error instanceof DomainFetchError ? error.message : "拉取失败";
+    return c.json({ error: message }, 502);
+  }
 });
 
 providers.delete("/:id", requireAdmin, async (c) => {

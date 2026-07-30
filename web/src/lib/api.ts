@@ -189,6 +189,8 @@ export const api = {
   saveProvider: (body: Record<string, unknown>) =>
     request<{ provider: ProviderView }>("/api/providers", { method: "POST", body: JSON.stringify(body) }),
   setDefaultProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}/default`, { method: "POST" }),
+  fetchProviderDomains: (id: string) =>
+    request<{ domains: string[]; provider: ProviderView }>(`/api/providers/${id}/domains`, { method: "POST" }),
   deleteProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}`, { method: "DELETE" }),
   testProvider: (id: string, body: { from: string; to: string }) =>
     request<{ result: { success: boolean; error?: string; providerMessageId?: string } }>(

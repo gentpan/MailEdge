@@ -101,6 +101,8 @@ Everything runs on Cloudflare — frontend and backend ship in a single deploy, 
 
 To add SES / Mailgun / Postmark, drop a class into [src/mail/providers/](src/mail/providers/) and add one branch to [factory.ts](src/mail/factory.ts).
 
+> **Senders and verified domains**: when sending via Resend/Sendflare, the sending domain must be verified in their dashboard first. Click "Fetch domains" in the channel config and MailEdge syncs your verified domains from the provider's API; the composer's "From" dropdown is then constrained to them, blocking unverified senders before send rather than after a rejection.
+>
 > **SMTP via Gmail**: host `smtp.gmail.com`, port 587, STARTTLS, username = full email, password = an *app password* (2FA required — not your login password). The settings page has a one-click Gmail preset.
 >
 > Workers **block outbound port 25**, so SMTP only uses 587/465 — sending never needs 25 anyway. IMAP polling is likewise a poor fit for a Worker; receive via Email Routing forwarding instead.

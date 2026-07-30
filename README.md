@@ -103,6 +103,8 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 
 新增 SES / Mailgun / Postmark 只需要在 [src/mail/providers/](src/mail/providers/) 加一个类，并在 [factory.ts](src/mail/factory.ts) 加一个分支。
 
+> **发件人与已验证域名**：用 Resend/Sendflare 发信时，发件域名必须先在其后台验证。在渠道配置里点「拉取域名」，MailEdge 会调用服务商接口同步你已验证的域名；写信时「发件人」下拉据此约束，发出前就拦住未验证的地址，而不是被拒后才知道。
+>
 > **SMTP 用 Gmail 代发**：主机 `smtp.gmail.com`、端口 587、加密 STARTTLS、用户名填完整邮箱、密码填「应用专用密码」（需先开两步验证，不能用登录密码）。设置页有 Gmail 一键预设。
 >
 > Workers **禁止 25 端口**出站，所以 SMTP 只能走 587/465——发信本来也不需要 25。IMAP 代收同理不适合 Worker，收信请用 Email Routing 转发。

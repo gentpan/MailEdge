@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Paperclip, Send, X } from "lucide-react";
 import { api } from "../lib/api";
 import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
@@ -49,6 +49,28 @@ export default function ComposeModal({
   const thresholdBytes = smartThresholdMb * 1024 * 1024;
   const largeFiles = useMemo(() => files.filter((file) => file.size > thresholdBytes), [files, thresholdBytes]);
 
+  // 按所选渠道的「已验证域名」约束发件人：只有该域名的信箱才能选。
+  // 渠道没配已验证域名（或用 Cloudflare/SMTP）时不限制。
+  const effectiveProvider = providerId
+    ? providers.find((p) => p.id === providerId)
+    : providers.find((p) => p.isDefault);
+  const verifiedDomains = (effectiveProvider?.config?.verifiedDomains as string[] | undefined) ?? [];
+  const allowedMailboxes = useMemo(
+    () =>
+      verifiedDomains.length
+        ? mailboxes.filter((m) => verifiedDomains.includes(m.address.split("@")[1] ?? ""))
+        : mailboxes,
+    [mailboxes, verifiedDomains],
+  );
+  const senderLimited = verifiedDomains.length > 0 && allowedMailboxes.length < mailboxes.length;
+
+  // 切换渠道后若当前发件人不再允许，回退到第一个可用地址
+  useEffect(() => {
+    if (allowedMailboxes.length && !allowedMailboxes.some((m) => m.address === from)) {
+      setFrom(allowedMailboxes[0]!.address);
+    }
+  }, [allowedMailboxes, from]);
+
   async function submit() {
     setBusy(true);
     setError(null);
@@ -91,13 +113,19 @@ export default function ComposeModal({
           <div className="compose-row">
             <span className="compose-row__label">{t("compose.from")}</span>
             <select className="select" value={from} onChange={(event) => setFrom(event.target.value)}>
-              {mailboxes.map((mailbox) => (
+              {allowedMailboxes.map((mailbox) => (
                 <option key={mailbox.id} value={mailbox.address}>
                   {mailbox.displayName ? `${mailbox.displayName} <${mailbox.address}>` : mailbox.address}
                 </option>
               ))}
             </select>
           </div>
+
+          {senderLimited && (
+            <p className="text-xs text-tertiary" style={{ marginTop: "var(--space-1)" }}>
+              {t("compose.senderLimited", { domains: verifiedDomains.join("、") })}
+            </p>
+          )}
 
           <div className="compose-row">
             <span className="compose-row__label">{t("compose.to")}</span>

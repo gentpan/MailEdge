@@ -102,6 +102,7 @@ export const DICT = {
     "compose.cancel": "取消",
     "compose.largeHint": "有 {n} 个附件超过 {mb} MB，将自动上传到 R2 并在正文中插入下载链接。",
     "compose.toLink": "转下载链接",
+    "compose.senderLimited": "当前渠道仅验证了 {domains}，发件人已限定在这些域名",
 
     // toast
     "toast.sent": "已发送",
@@ -160,6 +161,11 @@ export const DICT = {
     "providers.cf.domain.hint": "需已在 Cloudflare 完成验证",
     "providers.secret.hint": "可选，用于 HMAC 签名",
     "providers.baseUrl": "API 地址",
+    "providers.domains": "已验证发信域名",
+    "providers.domains.fetch": "拉取域名",
+    "providers.domains.fetching": "拉取中…",
+    "providers.domains.empty": "尚未拉取，先保存 Key 再点拉取",
+    "providers.domains.hint": "从服务商同步已验证域名；写信时发件人只能用这些域名",
 
     // 设置 - AI
     "ai.title": "AI 助手",
@@ -347,6 +353,7 @@ export const DICT = {
     "compose.cancel": "Cancel",
     "compose.largeHint": "{n} attachment(s) exceed {mb} MB and will be uploaded to R2 with a download link inserted into the body.",
     "compose.toLink": "as link",
+    "compose.senderLimited": "This channel only verified {domains}; senders are limited to these domains",
 
     "toast.sent": "Sent",
     "toast.sentShared": "Sent, {n} large attachment(s) turned into download links",
@@ -402,6 +409,11 @@ export const DICT = {
     "providers.cf.domain.hint": "Must be verified in Cloudflare",
     "providers.secret.hint": "Optional, for HMAC signing",
     "providers.baseUrl": "API URL",
+    "providers.domains": "Verified sending domains",
+    "providers.domains.fetch": "Fetch domains",
+    "providers.domains.fetching": "Fetching…",
+    "providers.domains.empty": "Not fetched yet — save the key first, then fetch",
+    "providers.domains.hint": "Syncs verified domains from the provider; the composer only allows senders on these domains",
 
     "ai.title": "AI assistant",
     "ai.desc": "OpenAI-compatible endpoint — OpenAI, a proxy, or a local model. Powers reply drafts, summaries and auto-classification.",
