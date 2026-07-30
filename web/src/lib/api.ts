@@ -191,6 +191,7 @@ export const api = {
   setDefaultProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}/default`, { method: "POST" }),
   fetchProviderDomains: (id: string) =>
     request<{ domains: string[]; provider: ProviderView }>(`/api/providers/${id}/domains`, { method: "POST" }),
+  cloudflareStatus: () => request<{ available: boolean }>("/api/providers/cloudflare/status"),
   deleteProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}`, { method: "DELETE" }),
   testProvider: (id: string, body: { from: string; to: string }) =>
     request<{ result: { success: boolean; error?: string; providerMessageId?: string } }>(

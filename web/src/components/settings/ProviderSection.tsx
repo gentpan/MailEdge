@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronDown, ChevronRight, CircleAlert, Cloud, Send, Server, Trash2, Zap } from "lucide-react";
 import { api } from "../../lib/api";
 import type { Mailbox, ProviderView } from "../../lib/api";
@@ -51,6 +51,16 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
   const [domains, setDomains] = useState(((provider?.config.verifiedDomains as string[]) ?? []).join(", "));
   const [fromName, setFromName] = useState((provider?.config.fromName as string) ?? "");
   const [fetchingDomains, setFetchingDomains] = useState(false);
+  const [cfBinding, setCfBinding] = useState<boolean | null>(null);
+
+  // Cloudflare：检测 send_email 绑定是否就绪（决定能否一键连接）
+  useEffect(() => {
+    if (type !== "cloudflare") return;
+    api
+      .cloudflareStatus()
+      .then((r) => setCfBinding(r.available))
+      .catch(() => setCfBinding(false));
+  }, [type]);
 
   const Icon = ICONS[type];
   const configured = Boolean(provider);
@@ -188,6 +198,25 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
           {provider?.lastError && (
             <div className="alert alert--warning">
               {provider.lastCheckedAt ? formatDateTime(provider.lastCheckedAt) : ""}：{provider.lastError}
+            </div>
+          )}
+
+          {/* Cloudflare 一键连接：绑定就绪即可，无需任何密钥 */}
+          {type === "cloudflare" && cfBinding !== null && (
+            <div className={`alert alert--${cfBinding ? "success" : "warning"}`}>
+              {cfBinding ? t("providers.cf.ready") : t("providers.cf.unavailable")}
+            </div>
+          )}
+          {type === "cloudflare" && !configured && (
+            <div className="form-actions" style={{ paddingTop: 0 }}>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => void save()}
+                disabled={busy || cfBinding === false}
+              >
+                {busy ? t("providers.cf.connecting") : t("providers.cf.connect")}
+              </button>
             </div>
           )}
 

@@ -19,6 +19,15 @@ const providers = new Hono<AppContext>();
 
 providers.use("*", requireAuth);
 
+/**
+ * Cloudflare Email Service 是否就绪。
+ * MailEdge 跑在用户自己的 Worker 上，send_email 绑定部署即生效、无需任何密钥，
+ * 所以只要绑定存在就等于"已授权"。此接口用于一键连接前的检测。
+ */
+providers.get("/cloudflare/status", (c) => {
+  return c.json({ available: Boolean(c.env.EMAIL) });
+});
+
 /** 普通用户只需要知道有哪些渠道可选；密钥一律不下发 */
 providers.get("/", async (c) => {
   const all = await listProviders(c.env);
