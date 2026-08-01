@@ -97,11 +97,11 @@ code, pre, .mono {
 }
 .logo:hover { text-decoration: none; }
 .logo-mark { width: 26px; height: 26px; margin-right: 8px; display: block; }
-.logo-mail { margin-right: 4px; letter-spacing: -0.5px; }
+.logo-mail { letter-spacing: -0.5px; }
 .logo-edge {
   background: var(--color-primary); color: var(--color-on-primary);
-  padding: 3px 10px 3px 8px;
-  border-radius: 6px;
+  padding: 2px 7px 2px 6px;
+  border-radius: 4px;
   letter-spacing: -0.5px;
 }
 .logo-sub { margin-left: 8px; font-size: 14px; color: var(--color-text-secondary); font-weight: 400; }
