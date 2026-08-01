@@ -1,5 +1,5 @@
-import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import type { MailProviderType } from "../../../src/mail/types";
+import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 
 export interface User {
   id: string;
@@ -155,11 +155,13 @@ export const api = {
   },
 
   message: (id: string, mailboxId?: string) =>
-    request<{ message: MessageDetail }>(
-      `/api/messages/${id}${mailboxId ? `?mailboxId=${mailboxId}` : ""}`,
-    ),
+    request<{ message: MessageDetail }>(`/api/messages/${id}${mailboxId ? `?mailboxId=${mailboxId}` : ""}`),
 
-  patchMessage: (id: string, body: { isRead?: boolean; isStarred?: boolean; folder?: MailFolder }, mailboxId?: string) =>
+  patchMessage: (
+    id: string,
+    body: { isRead?: boolean; isStarred?: boolean; folder?: MailFolder },
+    mailboxId?: string,
+  ) =>
     request<{ ok: true }>(`/api/messages/${id}${mailboxId ? `?mailboxId=${mailboxId}` : ""}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -182,15 +184,19 @@ export const api = {
   },
 
   outbox: () => request<{ messages: OutboundView[] }>("/api/mail/outbox"),
-  retry: (id: string) => request<{ result: SendResponse }>(`/api/mail/outbox/${id}/retry`, { method: "POST" }),
+  retry: (id: string) =>
+    request<{ result: SendResponse }>(`/api/mail/outbox/${id}/retry`, { method: "POST" }),
 
   // 渠道
   providers: () => request<{ providers: ProviderView[] }>("/api/providers"),
   saveProvider: (body: Record<string, unknown>) =>
     request<{ provider: ProviderView }>("/api/providers", { method: "POST", body: JSON.stringify(body) }),
-  setDefaultProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}/default`, { method: "POST" }),
+  setDefaultProvider: (id: string) =>
+    request<{ ok: true }>(`/api/providers/${id}/default`, { method: "POST" }),
   fetchProviderDomains: (id: string) =>
-    request<{ domains: string[]; provider: ProviderView }>(`/api/providers/${id}/domains`, { method: "POST" }),
+    request<{ domains: string[]; provider: ProviderView }>(`/api/providers/${id}/domains`, {
+      method: "POST",
+    }),
   cloudflareStatus: () => request<{ available: boolean }>("/api/providers/cloudflare/status"),
   deleteProvider: (id: string) => request<{ ok: true }>(`/api/providers/${id}`, { method: "DELETE" }),
   testProvider: (id: string, body: { from: string; to: string }) =>
@@ -203,7 +209,8 @@ export const api = {
   aiConfig: () => request<AiConfigResponse>("/api/ai/config"),
   saveAiConfig: (body: Record<string, unknown>) =>
     request<{ ai: AiConfigView }>("/api/ai/config", { method: "POST", body: JSON.stringify(body) }),
-  testAiConfig: () => request<{ ok: boolean; reply?: string; error?: string }>("/api/ai/config/test", { method: "POST" }),
+  testAiConfig: () =>
+    request<{ ok: boolean; reply?: string; error?: string }>("/api/ai/config/test", { method: "POST" }),
   saveTelegram: (body: Record<string, unknown>) =>
     request<{ telegram: TelegramView }>("/api/ai/telegram", { method: "POST", body: JSON.stringify(body) }),
   testTelegram: () => request<{ ok: boolean; error?: string }>("/api/ai/telegram/test", { method: "POST" }),

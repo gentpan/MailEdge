@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { api } from "../../lib/api";
-import type { User } from "../../lib/api";
-import { formatDateTime } from "../../lib/format";
 import { useI18n } from "../../i18n";
+import type { User } from "../../lib/api";
+import { api } from "../../lib/api";
+import { formatDateTime } from "../../lib/format";
 import FormRow from "./FormRow";
 
 interface Props {
@@ -47,7 +47,9 @@ export default function AccountPanel({ user }: Props) {
       </FormRow>
 
       <FormRow label={t("account.role")}>
-        <span className="badge">{user.role === "admin" ? t("account.role.admin") : t("account.role.user")}</span>
+        <span className="badge">
+          {user.role === "admin" ? t("account.role.admin") : t("account.role.user")}
+        </span>
       </FormRow>
 
       <FormRow label={t("account.createdAt")}>

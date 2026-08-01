@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
 import { Paperclip, Send, X } from "lucide-react";
-import { api } from "../lib/api";
-import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
-import { PROVIDER_LABELS, formatSize } from "../lib/format";
+import { useEffect, useMemo, useState } from "react";
 import { markdownToEmailHtml } from "../../../src/shared/markdown";
 import { useI18n } from "../i18n";
+import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
+import { api } from "../lib/api";
+import { formatSize, PROVIDER_LABELS } from "../lib/format";
 
 export interface ComposeDraft {
   to?: string;
@@ -47,7 +47,10 @@ export default function ComposeModal({
   const [busy, setBusy] = useState(false);
 
   const thresholdBytes = smartThresholdMb * 1024 * 1024;
-  const largeFiles = useMemo(() => files.filter((file) => file.size > thresholdBytes), [files, thresholdBytes]);
+  const largeFiles = useMemo(
+    () => files.filter((file) => file.size > thresholdBytes),
+    [files, thresholdBytes],
+  );
 
   // 按所选渠道的「已验证域名」约束发件人：只有该域名的信箱才能选。
   // 渠道没配已验证域名（或用 Cloudflare/SMTP）时不限制。
@@ -210,7 +213,9 @@ export default function ComposeModal({
           ) : (
             <div className="compose-preview">
               {text.trim() ? (
-                // 预览用的正是发送时生成的那份 HTML，所见即所发
+                // 预览用的正是发送时生成的那份 HTML，所见即所发。
+                // markdownToEmailHtml 内部对输入做了转义，用户写的原始 HTML 不会被执行。
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: 内容由 markdownToEmailHtml 转义后生成
                 <div dangerouslySetInnerHTML={{ __html: markdownToEmailHtml(text) }} />
               ) : (
                 <p className="text-xs text-tertiary">{t("compose.preview.empty")}</p>
@@ -221,11 +226,14 @@ export default function ComposeModal({
           {files.length > 0 && (
             <div className="file-list">
               {files.map((file, index) => (
-                <div className="file-item" key={`${file.name}-${index}`}>
+                // 附件可以删中间那个，用 index 当 key 会让后面的行错位
+                <div className="file-item" key={`${file.name}-${file.size}-${file.lastModified}`}>
                   <Paperclip size={14} />
                   <span className="file-item__name">{file.name}</span>
                   <span className="text-tertiary">{formatSize(file.size)}</span>
-                  {file.size > thresholdBytes && <span className="badge badge--primary">{t("compose.toLink")}</span>}
+                  {file.size > thresholdBytes && (
+                    <span className="badge badge--primary">{t("compose.toLink")}</span>
+                  )}
                   <button
                     className="btn btn--icon"
                     type="button"
@@ -275,4 +283,3 @@ export default function ComposeModal({
     </div>
   );
 }
-

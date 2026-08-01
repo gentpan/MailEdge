@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.worker.json",
+  "compilerOptions": {
+    "composite": false,
+    // 两者都要：workers-types 提供运行时全局与 cloudflare:* 模块，
+    // vitest-pool-workers/types 提供 cloudflare:test
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": ["./**/*.ts", "../src/**/*.ts"]
+}

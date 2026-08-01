@@ -355,9 +355,19 @@ export class MailboxDO extends DurableObject<Env> {
   async getAttachment(
     messageId: string,
     attachmentId: string,
-  ): Promise<{ filename: string; contentType: string; size: number; r2Key: string | null; token: string | null } | null> {
+  ): Promise<{
+    filename: string;
+    contentType: string;
+    size: number;
+    r2Key: string | null;
+    token: string | null;
+  } | null> {
     const row = this.sql
-      .exec<AttachmentRow>(`SELECT * FROM attachments WHERE message_id = ? AND id = ?`, messageId, attachmentId)
+      .exec<AttachmentRow>(
+        `SELECT * FROM attachments WHERE message_id = ? AND id = ?`,
+        messageId,
+        attachmentId,
+      )
       .toArray()[0];
     if (!row) return null;
     return {

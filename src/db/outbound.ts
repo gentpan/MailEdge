@@ -130,7 +130,9 @@ export async function updateOutbound(
 }
 
 export async function getOutbound(env: Env, id: string): Promise<OutboundRecord | null> {
-  const row = await env.DB.prepare(`SELECT * FROM outbound_messages WHERE id = ?`).bind(id).first<OutboundRow>();
+  const row = await env.DB.prepare(`SELECT * FROM outbound_messages WHERE id = ?`)
+    .bind(id)
+    .first<OutboundRow>();
   return row ? toRecord(row) : null;
 }
 

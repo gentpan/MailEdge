@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { api } from "../../lib/api";
-import type { Mailbox } from "../../lib/api";
-import { formatDateTime } from "../../lib/format";
+import { useState } from "react";
 import { useI18n } from "../../i18n";
+import type { Mailbox } from "../../lib/api";
+import { api } from "../../lib/api";
+import { formatDateTime } from "../../lib/format";
 import FormRow from "./FormRow";
 
 interface Props {

@@ -40,7 +40,13 @@ export function partition(date = new Date()): string {
 
 export const r2Key = {
   /** 收到的附件 */
-  inboundAttachment(mailboxId: string, messageId: string, index: number, filename: string, at?: Date): string {
+  inboundAttachment(
+    mailboxId: string,
+    messageId: string,
+    index: number,
+    filename: string,
+    at?: Date,
+  ): string {
     return `inbound/${mailboxId}/${partition(at)}/${messageId}/${index}-${safeName(filename)}`;
   },
 

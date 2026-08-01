@@ -98,7 +98,8 @@ async function shareViaR2(
     },
   });
 
-  const expiresAt = params.ttlDays > 0 ? new Date(Date.now() + params.ttlDays * 86_400_000).toISOString() : null;
+  const expiresAt =
+    params.ttlDays > 0 ? new Date(Date.now() + params.ttlDays * 86_400_000).toISOString() : null;
 
   await env.DB.prepare(
     `INSERT INTO attachment_links (token, r2_key, filename, content_type, size, message_id, user_id, expires_at)
@@ -167,9 +168,5 @@ export function formatSize(bytes: number): string {
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { createMailbox, deleteMailbox, listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { MailboxRecord } from "../db/mailboxes";
+import { createMailbox, deleteMailbox, listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { Env } from "../env";
 import type { MailFolder } from "../shared/message";
 import { requireAuth } from "./auth";

@@ -161,7 +161,31 @@ npx wrangler r2 bucket lifecycle add mailedge-attachments --prefix inbound/ --ex
 
 ## 部署
 
-### 1. 创建资源
+### 一键部署
+
+先做一次 OAuth 授权（凭据由 wrangler 自己保管，不需要你复制粘贴任何 API Key）：
+
+```bash
+npx wrangler login
+```
+
+然后：
+
+```bash
+npm run setup
+```
+
+脚本会列出计划、等你确认，再依次完成：建 D1 → 把 `database_id` 回填进 wrangler.jsonc（保留注释）→ 建 R2 → 建表 → 部署 → 生成并写入两个机密 → 把 `APP_URL` 回填成实际地址。
+
+全程幂等，中途失败修好后重跑即可，已完成的步骤自动跳过。**已存在的 `ENCRYPTION_KEY` 绝不会被覆盖**——它是渠道密钥的主密钥，换掉等于作废所有已保存的发信配置。
+
+> 首次运行时 Worker 尚未部署，机密可能写不进去，脚本会提示你再跑一次 `npm run setup` 补上。
+
+跑完后还剩两步必须在面板操作，见下面的「配置收件」和「初始化」。
+
+### 手动部署
+
+不想用脚本的话，等价的手工步骤：
 
 ```bash
 npx wrangler d1 create mailedge
@@ -172,8 +196,6 @@ npx wrangler r2 bucket create mailedge-attachments
 ```
 
 把 `d1 create` 输出的 `database_id` 填进 [wrangler.jsonc](wrangler.jsonc)，同时把 `APP_URL` 改成你的正式域名（下载链接会用它拼绝对地址）。
-
-### 2. 写入机密
 
 ```bash
 openssl rand -base64 32
@@ -187,10 +209,6 @@ npx wrangler secret put ENCRYPTION_KEY
 npx wrangler secret put SESSION_SECRET
 ```
 
-`ENCRYPTION_KEY` 用于加密 `mail_providers.config_encrypted`（AES-GCM），换掉它等于作废所有已保存的渠道密钥。
-
-### 3. 建表并部署
-
 ```bash
 npx wrangler d1 migrations apply mailedge --remote
 ```
@@ -199,9 +217,9 @@ npx wrangler d1 migrations apply mailedge --remote
 npm run deploy
 ```
 
-### 4. 配置收件
+### 配置收件
 
-**必须先完成上一步的部署**，Worker 才会出现在 Email Routing 的下拉列表里。
+**必须先完成部署**，Worker 才会出现在 Email Routing 的下拉列表里。
 
 Cloudflare 面板 → **Compute** → **Email Service** → **Email Routing** → 选择域名（首次进入需先启用，它会自动写入 MX 与 SPF 记录）。
 
@@ -217,7 +235,7 @@ Cloudflare 面板 → **Compute** → **Email Service** → **Email Routing** �
 
 > 投递给 Worker 只在新版 Email Routing 界面提供。若面板提示需要切换到新界面，按提示切换即可。
 
-### 5. 初始化
+### 初始化
 
 打开部署后的域名，首次访问会进入初始化页，创建管理员并绑定第一个收件地址。**这里填写的地址必须与上一步的路由规则一致**，否则 Worker 收到邮件时找不到对应信箱，会直接退信（`550 未知收件人`）。
 
@@ -254,6 +272,24 @@ curl -X POST 'http://127.0.0.1:8787/cdn-cgi/handler/email?from=alice@outside.com
 ```
 
 本地状态都在 `.wrangler/state/`，删掉即可重置。
+
+### 测试与代码检查
+
+```bash
+npm run verify
+```
+
+一条命令跑完 lint、三套 typecheck（Worker / 前端 / 测试）和全部测试。也可以分开跑：
+
+| 命令 | 作用 |
+| --- | --- |
+| `npm test` | Vitest，跑在真实 workerd 里（`@cloudflare/vitest-pool-workers`） |
+| `npm run test:watch` | 监听模式 |
+| `npm run typecheck` | Worker、前端、测试三套 tsconfig |
+| `npm run lint` | Biome，检查格式 + lint + import 顺序 |
+| `npm run lint:fix` | 自动修可修的部分 |
+
+测试不是在 Node 里模拟 Workers，而是真的跑在 workerd 中：`crypto.subtle`、D1、Durable Object、`cloudflare:sockets` 的行为与线上一致。`test/dispatcher.test.ts` 用真实 D1 建表（直接读 `migrations/`），验证发信状态机不会把一封被拒的邮件在多个渠道重发。
 
 ## 接口
 

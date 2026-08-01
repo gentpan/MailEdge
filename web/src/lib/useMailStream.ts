@@ -24,7 +24,7 @@ export function useMailStream(mailboxIds: string[], onEvent: () => void): void {
     const conns = ids.map((id) => new StreamConn(id, proto, emit));
     return () => {
       window.clearTimeout(debounce);
-      conns.forEach((conn) => conn.close());
+      for (const conn of conns) conn.close();
     };
   }, [key]);
 }

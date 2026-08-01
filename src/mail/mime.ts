@@ -1,5 +1,6 @@
 import { arrayBufferToBase64 } from "../lib/crypto";
 import { randomToken } from "../lib/id";
+import { assertValidEmail, isValidHeaderName } from "./address";
 import type { MailAddress, MailAttachment, SendMailInput } from "./types";
 
 /**
@@ -24,6 +25,9 @@ export function buildMimeMessage(input: SendMailInput, options: BuildMimeOptions
 
   if (input.cc?.length) headers.push(`Cc: ${input.cc.map(formatAddress).join(", ")}`);
   // Bcc 不写入报文，避免暴露密送人；投递由信封收件人（Provider 层）负责。
+  // 但地址仍要在这里校验一遍——它会进 SMTP 的 RCPT TO，
+  // 不校验就等于给密送留了一个绕过头注入防护的口子。
+  for (const address of input.bcc ?? []) assertValidEmail(address.email);
   if (input.replyTo) headers.push(`Reply-To: ${formatAddress(input.replyTo)}`);
 
   headers.push(`Subject: ${encodeHeaderValue(input.subject)}`);
@@ -34,6 +38,8 @@ export function buildMimeMessage(input: SendMailInput, options: BuildMimeOptions
 
   for (const [name, value] of Object.entries(input.headers ?? {})) {
     if (RESERVED_HEADERS.has(name.toLowerCase())) continue;
+    // 字段名不经过编码就进报文，非法名（含 CRLF、冒号）一律丢弃
+    if (!isValidHeaderName(name)) continue;
     headers.push(`${name}: ${encodeHeaderValue(value)}`);
   }
 
@@ -54,7 +60,11 @@ function buildBody(input: SendMailInput): MimePart {
   let part = buildAlternativePart(input);
 
   if (inlineAttachments.length) {
-    part = wrapMultipart("related", [part, ...inlineAttachments.map(buildAttachmentPart)], 'type="multipart/alternative"');
+    part = wrapMultipart(
+      "related",
+      [part, ...inlineAttachments.map(buildAttachmentPart)],
+      'type="multipart/alternative"',
+    );
   }
   if (fileAttachments.length) {
     part = wrapMultipart("mixed", [part, ...fileAttachments.map(buildAttachmentPart)]);
@@ -108,8 +118,11 @@ function wrapMultipart(subtype: string, parts: MimePart[], extraParams = ""): Mi
 }
 
 export function formatAddress(address: MailAddress): string {
-  if (!address.name) return address.email;
-  return `${encodeHeaderValue(address.name, true)} <${address.email}>`;
+  // 地址直接进头部，不能编码（编码了收件方就投不出去），
+  // 所以只能拒绝——这是防头注入的最后一道闸
+  const email = assertValidEmail(address.email);
+  if (!address.name) return email;
+  return `${encodeHeaderValue(address.name, true)} <${email}>`;
 }
 
 /** 非 ASCII 头部按 RFC 2047 编码；纯 ASCII 的显示名只做引号包裹。 */

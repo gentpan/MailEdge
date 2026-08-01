@@ -1,7 +1,6 @@
 import { chat } from "./client";
-import type { AiConfig } from "./types";
-import { CATEGORY_LABELS, MAIL_CATEGORIES, isMailCategory } from "./types";
-import type { MailCategory } from "./types";
+import type { AiConfig, MailCategory } from "./types";
+import { CATEGORY_LABELS, isMailCategory, MAIL_CATEGORIES } from "./types";
 
 /** 把正文压到合理长度，避免超长邮件撑爆上下文与费用 */
 function clip(text: string, max = 6000): string {
@@ -76,8 +75,15 @@ const TONE_HINT: Record<NonNullable<ReplyOptions["tone"]>, string> = {
 };
 
 /** 回复草稿：返回可直接放进写信框的正文（Markdown） */
-export async function draftReply(config: AiConfig, email: EmailContext, options: ReplyOptions = {}): Promise<string> {
-  const hints = [TONE_HINT[options.tone ?? "friendly"], options.instruction ? `要求：${options.instruction}` : ""]
+export async function draftReply(
+  config: AiConfig,
+  email: EmailContext,
+  options: ReplyOptions = {},
+): Promise<string> {
+  const hints = [
+    TONE_HINT[options.tone ?? "friendly"],
+    options.instruction ? `要求：${options.instruction}` : "",
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -91,7 +97,10 @@ export async function draftReply(config: AiConfig, email: EmailContext, options:
           "只输出邮件正文，不要主题行、不要额外解释、不要代写签名占位符。" +
           hints,
       },
-      { role: "user", content: `来信主题：${email.subject}\n来信人：${email.from}\n来信正文：\n${clip(email.text)}` },
+      {
+        role: "user",
+        content: `来信主题：${email.subject}\n来信人：${email.from}\n来信正文：\n${clip(email.text)}`,
+      },
     ],
     { temperature: 0.6, maxTokens: 800 },
   );

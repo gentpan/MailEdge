@@ -1,11 +1,11 @@
-import { useState } from "react";
 import { Archive, Loader2, Mail, Paperclip, Reply, Sparkles, Star, Trash2, WandSparkles } from "lucide-react";
+import { useState } from "react";
 import type { MessageDetail } from "../../../src/shared/message";
-import type { ComposeDraft } from "./ComposeModal";
-import { api } from "../lib/api";
-import { PROVIDER_LABELS, displayName, formatDateTime, formatSize } from "../lib/format";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
+import { api } from "../lib/api";
+import { displayName, formatDateTime, formatSize, PROVIDER_LABELS } from "../lib/format";
+import type { ComposeDraft } from "./ComposeModal";
 
 interface Props {
   message: MessageDetail | null;
@@ -105,7 +105,12 @@ export default function MessageView({
   return (
     <section className="detail-pane">
       <div className="detail-pane__toolbar">
-        <button className="btn btn--icon" type="button" title={t("detail.reply")} onClick={() => onReply(message)}>
+        <button
+          className="btn btn--icon"
+          type="button"
+          title={t("detail.reply")}
+          onClick={() => onReply(message)}
+        >
           <Reply size={16} />
         </button>
         <button
@@ -116,7 +121,12 @@ export default function MessageView({
         >
           <Star size={16} />
         </button>
-        <button className="btn btn--icon" type="button" title={t("detail.archive")} onClick={() => onArchive(message.id)}>
+        <button
+          className="btn btn--icon"
+          type="button"
+          title={t("detail.archive")}
+          onClick={() => onArchive(message.id)}
+        >
           <Archive size={16} />
         </button>
 
@@ -144,7 +154,12 @@ export default function MessageView({
         )}
 
         <div className="detail-pane__toolbar-spacer" />
-        <button className="btn btn--icon" type="button" title={t("detail.delete")} onClick={() => onDelete(message.id)}>
+        <button
+          className="btn btn--icon"
+          type="button"
+          title={t("detail.delete")}
+          onClick={() => onDelete(message.id)}
+        >
           <Trash2 size={16} />
         </button>
       </div>
@@ -233,7 +248,9 @@ export default function MessageView({
                 <Paperclip size={14} />
                 {attachment.filename}
                 <span className="attachment-chip__size">{formatSize(attachment.size)}</span>
-                {attachment.mode === "link" && <span className="badge badge--primary">{t("detail.linkBadge")}</span>}
+                {attachment.mode === "link" && (
+                  <span className="badge badge--primary">{t("detail.linkBadge")}</span>
+                )}
               </a>
             ))}
           </div>

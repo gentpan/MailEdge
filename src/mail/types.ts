@@ -50,7 +50,14 @@ export type FailureKind = "transient" | "permanent";
 export type MailProviderConfig =
   | { type: "cloudflare"; defaultDomain?: string }
   | { type: "resend"; apiKey: string; verifiedDomains?: string[]; fromName?: string }
-  | { type: "sendflare"; token: string; secret?: string; baseUrl?: string; verifiedDomains?: string[]; fromName?: string }
+  | {
+      type: "sendflare";
+      token: string;
+      secret?: string;
+      baseUrl?: string;
+      verifiedDomains?: string[];
+      fromName?: string;
+    }
   | {
       type: "smtp";
       host: string;

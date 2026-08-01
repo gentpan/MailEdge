@@ -4,12 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "npm run build:web && wrangler dev",
     "dev:web": "vite build --watch",
     "dev:worker": "wrangler dev",
     "build:web": "vite build",
     "build": "npm run build:web && tsc --noEmit -p tsconfig.worker.json",
-    "typecheck": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p test/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write",
+    "verify": "npm run lint && npm run typecheck && npm run test",
     "deploy": "npm run build:web && wrangler deploy",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply mailedge --local",
@@ -24,12 +31,15 @@
     "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
     "@cloudflare/workers-types": "^5.20260722.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "^7.0.2",
     "vite": "^7.1.9",
+    "vitest": "^4.1.10",
     "wrangler": "^4.115.0"
   }
 }

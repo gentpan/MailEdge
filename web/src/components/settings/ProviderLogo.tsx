@@ -23,7 +23,7 @@ export default function ProviderLogo({ type }: Props) {
     return (
       <span
         className="provider-logo"
-        // SVG 由管理员在源码中提供，属可信内容
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG 是本文件里的常量，不含任何外部输入
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     );

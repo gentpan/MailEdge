@@ -513,12 +513,6 @@
   border-left-color: var(--color-primary);
 }
 
-.message-row--unread .message-row__from,
-.message-row--unread .message-row__subject {
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
-}
-
 .message-row__top {
   display: flex;
   align-items: center;
@@ -546,6 +540,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 未读加粗。放在基础样式之后，让级联顺序与特异性一致 */
+.message-row--unread .message-row__from,
+.message-row--unread .message-row__subject {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
 }
 
 .message-row__mailbox {

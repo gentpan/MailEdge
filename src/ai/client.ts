@@ -36,9 +36,10 @@ export async function chat(
     }),
   });
 
-  const data = (await response.json().catch(() => null)) as
-    | { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } }
-    | null;
+  const data = (await response.json().catch(() => null)) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    error?: { message?: string };
+  } | null;
 
   if (!response.ok) {
     const message =

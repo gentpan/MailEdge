@@ -1,25 +1,26 @@
+import { ArrowLeft, AtSign, Loader2, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, AtSign, Loader2, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useSession } from "../App";
-import { useI18n } from "../i18n";
-import type { TranslationKey } from "../i18n/dict";
 import LanguageToggle from "../components/LanguageToggle";
 import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
 import ProvidersPanel from "../components/settings/ProvidersPanel";
-import { api } from "../lib/api";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
 import type { Mailbox, ProviderView } from "../lib/api";
+import { api } from "../lib/api";
 
 type Category = "providers" | "ai" | "mailboxes" | "account";
 
-const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> = [
-  { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
-  { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
-  { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
-  { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
-];
+const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> =
+  [
+    { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
+    { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
+    { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
+    { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
+  ];
 
 export default function SettingsPage() {
   const { user, refresh } = useSession();
@@ -76,7 +77,9 @@ export default function SettingsPage() {
 
         <div className="sidebar__footer">
           <div className="user-card">
-            <span className="user-card__avatar">{(user.name || user.email).trim()[0]?.toUpperCase() ?? "?"}</span>
+            <span className="user-card__avatar">
+              {(user.name || user.email).trim()[0]?.toUpperCase() ?? "?"}
+            </span>
             <div className="user-card__meta">
               <span className="user-card__name">{user.name || user.email}</span>
               {user.name && <span className="user-card__email">{user.email}</span>}

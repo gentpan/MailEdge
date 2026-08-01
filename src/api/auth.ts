@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 import { createMailbox, listMailboxes } from "../db/mailboxes";
 import {
   authenticate,
@@ -11,7 +11,7 @@ import {
   resolveSession,
 } from "../db/users";
 import type { AppContext } from "./context";
-import { SESSION_COOKIE, clearCookie, readCookie, sessionCookie } from "./context";
+import { clearCookie, readCookie, SESSION_COOKIE, sessionCookie } from "./context";
 
 export const requireAuth: MiddlewareHandler<AppContext> = async (c, next) => {
   const token = readCookie(c.req.header("Cookie"), SESSION_COOKIE);

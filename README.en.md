@@ -159,7 +159,31 @@ npx wrangler r2 bucket lifecycle add mailedge-attachments --prefix inbound/ --ex
 
 ## Deployment
 
-### 1. Create the resources
+### One-command setup
+
+Authorize once via OAuth — wrangler keeps the credentials, so you never copy an API key anywhere:
+
+```bash
+npx wrangler login
+```
+
+Then:
+
+```bash
+npm run setup
+```
+
+The script prints its plan, waits for confirmation, and then: creates the D1 database → writes `database_id` back into wrangler.jsonc (comments preserved) → creates the R2 bucket → applies migrations → deploys → generates and stores both secrets → writes the real `APP_URL` back.
+
+It is idempotent: if a step fails, fix the cause and re-run — completed steps are skipped. **An existing `ENCRYPTION_KEY` is never overwritten** — it is the master key for provider credentials, and rotating it invalidates every stored sending configuration.
+
+> On the very first run the Worker does not exist yet, so secrets may not be writable. The script tells you to re-run `npm run setup` once deployment finishes.
+
+Two steps still have to happen in the dashboard — see "Wire up receiving" and "Initialize" below.
+
+### Manual deployment
+
+If you would rather not use the script, the equivalent steps are:
 
 ```bash
 npx wrangler d1 create mailedge
@@ -170,8 +194,6 @@ npx wrangler r2 bucket create mailedge-attachments
 ```
 
 Put the `database_id` printed by `d1 create` into [wrangler.jsonc](wrangler.jsonc), and change `APP_URL` to your production domain (download links are built from it).
-
-### 2. Set the secrets
 
 ```bash
 openssl rand -base64 32
@@ -185,10 +207,6 @@ npx wrangler secret put ENCRYPTION_KEY
 npx wrangler secret put SESSION_SECRET
 ```
 
-`ENCRYPTION_KEY` encrypts `mail_providers.config_encrypted` (AES-GCM). Rotating it invalidates every stored provider credential.
-
-### 3. Migrate and deploy
-
 ```bash
 npx wrangler d1 migrations apply mailedge --remote
 ```
@@ -197,7 +215,7 @@ npx wrangler d1 migrations apply mailedge --remote
 npm run deploy
 ```
 
-### 4. Wire up receiving
+### Wire up receiving
 
 **Deploy first.** The Worker only appears in the Email Routing dropdown once it has been deployed.
 
@@ -215,7 +233,7 @@ To receive mail for the whole domain, use **Catch-all address** instead, with th
 
 > Delivering to a Worker is only available in the new Email Routing interface. If the dashboard prompts you to switch, do so.
 
-### 5. Initialize
+### Initialize
 
 Open the deployed domain. On first visit you get a setup page: create the admin account and bind the first receiving address. **That address must match the routing rule from the previous step** — otherwise the Worker won't find a mailbox for incoming mail and will reject it (`550 unknown recipient`).
 
@@ -252,6 +270,24 @@ curl -X POST 'http://127.0.0.1:8787/cdn-cgi/handler/email?from=alice@outside.com
 ```
 
 All local state lives in `.wrangler/state/` — delete it to reset.
+
+### Tests and code checks
+
+```bash
+npm run verify
+```
+
+Runs lint, all three typecheck projects (Worker / frontend / tests) and the full test suite in one go. Individually:
+
+| Command | What it does |
+| --- | --- |
+| `npm test` | Vitest, running inside the real workerd runtime (`@cloudflare/vitest-pool-workers`) |
+| `npm run test:watch` | Watch mode |
+| `npm run typecheck` | Worker, frontend and test tsconfigs |
+| `npm run lint` | Biome — formatting, lint rules and import order |
+| `npm run lint:fix` | Auto-fix what can be fixed |
+
+Tests don't simulate Workers in Node — they run in workerd, so `crypto.subtle`, D1, Durable Objects and `cloudflare:sockets` behave exactly as they do in production. `test/dispatcher.test.ts` builds a real D1 database straight from `migrations/` and asserts that a rejected message is never re-sent through a second provider.
 
 ## API
 

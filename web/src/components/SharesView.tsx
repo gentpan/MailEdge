@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { Link2, Loader2, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "../i18n";
 import { api } from "../lib/api";
 import { formatDateTime, formatSize, formatTime } from "../lib/format";
-import { useI18n } from "../i18n";
 
 type Share = Awaited<ReturnType<typeof api.shares>>["shares"][number];
 
@@ -13,15 +13,16 @@ export default function SharesView() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function load() {
+  // 同 OutboxView：固定引用，让依赖数组如实反映用到的东西
+  const load = useCallback(async () => {
     const result = await api.shares();
     setItems(result.shares);
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const active = items.find((item) => item.token === activeToken) ?? null;
   const expired = (share: Share) =>
@@ -32,7 +33,12 @@ export default function SharesView() {
       <section className="list-pane">
         <div className="list-pane__header">
           <h3 className="list-pane__heading">{t("shares.title")}</h3>
-          <button className="btn btn--icon" type="button" aria-label={t("common.test")} onClick={() => void load()}>
+          <button
+            className="btn btn--icon"
+            type="button"
+            aria-label={t("common.test")}
+            onClick={() => void load()}
+          >
             <RefreshCw size={16} />
           </button>
         </div>

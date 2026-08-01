@@ -1,13 +1,13 @@
 import PostalMime from "postal-mime";
 import { classifyEmail } from "../ai/tasks";
 import { getAiConfig, getTelegramConfig } from "../db/appSettings";
-import { findByAddress, mailboxStub } from "../db/mailboxes";
 import type { MailboxRecord } from "../db/mailboxes";
-import { sendTelegram, shouldNotify } from "../notify/telegram";
+import { findByAddress, mailboxStub } from "../db/mailboxes";
 import type { StoreMessageInput } from "../do/mailbox";
 import type { Env } from "../env";
 import { newId } from "../lib/id";
 import { r2Key } from "../lib/r2key";
+import { sendTelegram, shouldNotify } from "../notify/telegram";
 import type { MessageAddress } from "../shared/message";
 
 /**
@@ -115,7 +115,14 @@ export async function handleInboundEmail(
  */
 async function postProcess(
   env: Env,
-  ctx: { mailbox: MailboxRecord; messageId: string; from: string; subject: string; text: string; snippet: string },
+  ctx: {
+    mailbox: MailboxRecord;
+    messageId: string;
+    from: string;
+    subject: string;
+    text: string;
+    snippet: string;
+  },
 ): Promise<void> {
   let category: string | null = null;
 
@@ -155,7 +162,9 @@ function toArrayBuffer(content: string | ArrayBuffer | Uint8Array): ArrayBuffer 
   return content;
 }
 
-function toAddress(value: { address?: string | null; name?: string | null } | undefined | null): MessageAddress | null {
+function toAddress(
+  value: { address?: string | null; name?: string | null } | undefined | null,
+): MessageAddress | null {
   if (!value?.address) return null;
   return { email: value.address.toLowerCase(), name: value.name || undefined };
 }

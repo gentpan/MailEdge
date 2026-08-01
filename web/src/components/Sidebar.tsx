@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   Archive,
   AtSign,
@@ -14,10 +13,11 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { FolderStats, MailFolder } from "../../../src/shared/message";
-import type { Mailbox, User } from "../lib/api";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
+import type { Mailbox, User } from "../lib/api";
 import LanguageToggle from "./LanguageToggle";
 
 export type MailView = "mail" | "outbox" | "shares";
@@ -165,7 +165,12 @@ export default function Sidebar({
 
         <div className="sidebar__footer-row">
           <LanguageToggle />
-          <button className="btn btn--secondary btn--sm" type="button" onClick={onSignOut} title={t("nav.signOut")}>
+          <button
+            className="btn btn--secondary btn--sm"
+            type="button"
+            onClick={onSignOut}
+            title={t("nav.signOut")}
+          >
             <LogOut size={14} />
             {t("nav.signOut")}
           </button>

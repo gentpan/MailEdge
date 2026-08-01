@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 export default function LanguageToggle() {
   const { lang, setLang } = useI18n();
   return (
+    // biome-ignore lint/a11y/useSemanticElements: fieldset 带默认边框与表单语义，这里只是两个并排按钮
     <div className="lang-toggle" role="group" aria-label="Language">
       <button
         type="button"

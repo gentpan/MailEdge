@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import { useSession } from "../App";
-import ComposeModal from "../components/ComposeModal";
 import type { ComposeDraft } from "../components/ComposeModal";
+import ComposeModal from "../components/ComposeModal";
 import MessageList from "../components/MessageList";
 import MessageView from "../components/MessageView";
 import OutboxView from "../components/OutboxView";
 import SharesView from "../components/SharesView";
-import Sidebar from "../components/Sidebar";
 import type { MailView } from "../components/Sidebar";
-import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
-import { api } from "../lib/api";
-import type { ProviderView, SendResponse } from "../lib/api";
-import { useMailStream } from "../lib/useMailStream";
+import Sidebar from "../components/Sidebar";
 import { useI18n } from "../i18n";
+import type { ProviderView, SendResponse } from "../lib/api";
+import { api } from "../lib/api";
+import { useMailStream } from "../lib/useMailStream";
 
 export default function MailPage() {
   const { user, mailboxes, signOut } = useSession();

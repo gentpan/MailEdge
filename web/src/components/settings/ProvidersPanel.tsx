@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Check, CircleAlert } from "lucide-react";
-import type { Mailbox, ProviderView } from "../../lib/api";
+import { useState } from "react";
 import type { MailProviderType } from "../../../../src/mail/types";
-import { PROVIDER_LABELS } from "../../lib/format";
 import { useI18n } from "../../i18n";
+import type { Mailbox, ProviderView } from "../../lib/api";
+import { PROVIDER_LABELS } from "../../lib/format";
 import ProviderLogo from "./ProviderLogo";
 import ProviderSection from "./ProviderSection";
 
@@ -67,10 +67,14 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
                 <span className="master-row__title">
                   <span className="master-row__name">{provider?.name ?? PROVIDER_LABELS[type]}</span>
                   <span className="master-row__meta">
-                    {configured ? `${t("providers.priority")} ${provider?.priority}` : t("providers.unconfigured")}
+                    {configured
+                      ? `${t("providers.priority")} ${provider?.priority}`
+                      : t("providers.unconfigured")}
                   </span>
                 </span>
-                {provider?.isDefault && <span className="badge badge--primary">{t("providers.default")}</span>}
+                {provider?.isDefault && (
+                  <span className="badge badge--primary">{t("providers.default")}</span>
+                )}
                 {configured &&
                   (provider?.lastError ? (
                     <CircleAlert size={14} className="master-row__status master-row__status--error" />

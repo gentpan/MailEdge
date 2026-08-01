@@ -145,10 +145,12 @@ export const DICT = {
     "providers.test.hint": "不经过状态机，直接用该渠道发一封",
     "providers.test.to": "收件地址",
     "providers.keepSecret": "留空表示不修改",
-    "providers.desc.cloudflare": "Workers 原生绑定，无额外 HTTP 请求。单封上限 5 MiB、最多 32 个附件；发往任意外部邮箱需要 Workers Paid。",
+    "providers.desc.cloudflare":
+      "Workers 原生绑定，无额外 HTTP 请求。单封上限 5 MiB、最多 32 个附件；发往任意外部邮箱需要 Workers Paid。",
     "providers.desc.sendflare": "REST API，Bearer Token 认证，可选 HMAC-SHA256 签名。",
     "providers.desc.resend": "成熟的第三方发信服务，需要在 Resend 后台完成域名验证。",
-    "providers.desc.smtp": "任意 SMTP 服务器代发，走 587 STARTTLS 或 465 TLS。用 Gmail：主机 smtp.gmail.com、端口 587、密码填应用专用密码（需先开两步验证）。Workers 禁止 25 端口。",
+    "providers.desc.smtp":
+      "任意 SMTP 服务器代发，走 587 STARTTLS 或 465 TLS。用 Gmail：主机 smtp.gmail.com、端口 587、密码填应用专用密码（需先开两步验证）。Workers 禁止 25 端口。",
     "providers.smtp.host": "服务器",
     "providers.smtp.port": "端口",
     "providers.smtp.security": "加密方式",
@@ -278,7 +280,8 @@ export const DICT = {
     "auth.name": "Display name",
     "auth.name.optional": "Optional",
     "auth.mailbox": "Receiving address",
-    "auth.mailbox.hint": "This becomes the domain's catch-all mailbox; point it to this Worker in Cloudflare Email Routing.",
+    "auth.mailbox.hint":
+      "This becomes the domain's catch-all mailbox; point it to this Worker in Cloudflare Email Routing.",
     "auth.password": "Password",
     "auth.password.min": "At least 8 characters",
     "auth.submit.login": "Sign in",
@@ -358,7 +361,8 @@ export const DICT = {
     "compose.send.busy": "Sending…",
     "compose.addAttachment": "Attach",
     "compose.cancel": "Cancel",
-    "compose.largeHint": "{n} attachment(s) exceed {mb} MB and will be uploaded to R2 with a download link inserted into the body.",
+    "compose.largeHint":
+      "{n} attachment(s) exceed {mb} MB and will be uploaded to R2 with a download link inserted into the body.",
     "compose.toLink": "as link",
     "compose.senderLimited": "This channel only verified {domains}; senders are limited to these domains",
 
@@ -400,10 +404,13 @@ export const DICT = {
     "providers.test.hint": "Bypasses the state machine, sends directly via this channel",
     "providers.test.to": "Recipient",
     "providers.keepSecret": "Leave blank to keep unchanged",
-    "providers.desc.cloudflare": "Native Workers binding, no extra HTTP request. ≤5 MiB per message, ≤32 attachments; sending to external addresses needs Workers Paid.",
+    "providers.desc.cloudflare":
+      "Native Workers binding, no extra HTTP request. ≤5 MiB per message, ≤32 attachments; sending to external addresses needs Workers Paid.",
     "providers.desc.sendflare": "REST API, bearer-token auth, optional HMAC-SHA256 signing.",
-    "providers.desc.resend": "A mature third-party sending service; verify your domain in the Resend dashboard.",
-    "providers.desc.smtp": "Relay through any SMTP server over 587 STARTTLS or 465 TLS. For Gmail: host smtp.gmail.com, port 587, and an app password (2FA required). Port 25 is blocked on Workers.",
+    "providers.desc.resend":
+      "A mature third-party sending service; verify your domain in the Resend dashboard.",
+    "providers.desc.smtp":
+      "Relay through any SMTP server over 587 STARTTLS or 465 TLS. For Gmail: host smtp.gmail.com, port 587, and an app password (2FA required). Port 25 is blocked on Workers.",
     "providers.smtp.host": "Host",
     "providers.smtp.port": "Port",
     "providers.smtp.security": "Encryption",
@@ -415,7 +422,8 @@ export const DICT = {
     "providers.cf.domain": "Sending domain",
     "providers.cf.domain.hint": "Must be verified in Cloudflare",
     "providers.cf.ready": "Workers binding ready — no key needed (authorized by deployment)",
-    "providers.cf.unavailable": "No send_email binding detected — needs Workers Paid and send_email in wrangler.jsonc",
+    "providers.cf.unavailable":
+      "No send_email binding detected — needs Workers Paid and send_email in wrangler.jsonc",
     "providers.cf.connect": "Connect in one click",
     "providers.cf.connecting": "Connecting…",
     "providers.secret.hint": "Optional, for HMAC signing",
@@ -424,13 +432,15 @@ export const DICT = {
     "providers.domains.fetch": "Fetch domains",
     "providers.domains.fetching": "Fetching…",
     "providers.domains.empty": "Not fetched yet — save the key first, then fetch",
-    "providers.domains.hint": "Type them or click Fetch to sync; the composer only allows senders on these domains. Comma-separated",
+    "providers.domains.hint":
+      "Type them or click Fetch to sync; the composer only allows senders on these domains. Comma-separated",
     "providers.domains.placeholder": "mail.example.com, send.example.com",
     "providers.fromName": "Sender name",
-    "providers.fromName.hint": "Default display name, e.g. \"MailEdge Support\"; recipients see name <address>",
+    "providers.fromName.hint": 'Default display name, e.g. "MailEdge Support"; recipients see name <address>',
 
     "ai.title": "AI assistant",
-    "ai.desc": "OpenAI-compatible endpoint — OpenAI, a proxy, or a local model. Powers reply drafts, summaries and auto-classification.",
+    "ai.desc":
+      "OpenAI-compatible endpoint — OpenAI, a proxy, or a local model. Powers reply drafts, summaries and auto-classification.",
     "ai.enable": "Enable AI",
     "ai.enable.hint": "Shows AI buttons in the composer and message view",
     "ai.preset": "Quick preset",
@@ -442,7 +452,8 @@ export const DICT = {
     "ai.autoClassify.hint": "Tags new mail on arrival; the inbox splits into category tabs",
     "ai.test": "Test connection",
     "ai.tg.title": "Telegram push",
-    "ai.tg.desc": "Push new mail to a Telegram bot. Can be limited to chosen categories (needs auto-classify on).",
+    "ai.tg.desc":
+      "Push new mail to a Telegram bot. Can be limited to chosen categories (needs auto-classify on).",
     "ai.tg.enable": "Enable push",
     "ai.tg.enable.label": "Push on new mail",
     "ai.tg.token": "Bot token",
@@ -490,7 +501,8 @@ export const DICT = {
     "outbox.createdAt": "Created",
     "outbox.nextRetry": "Next retry",
     "outbox.chain": "Delivery trail",
-    "outbox.chain.desc": "The internal ID stays the same across channel switches, so recipients and logs can dedupe on it.",
+    "outbox.chain.desc":
+      "The internal ID stays the same across channel switches, so recipients and logs can dedupe on it.",
     "outbox.success": "Success",
     "outbox.permanent": "Permanent failure",
     "outbox.transient": "Transient failure",

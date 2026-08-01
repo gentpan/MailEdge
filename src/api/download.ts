@@ -62,7 +62,9 @@ download.get("/api/shares", requireAuth, async (c) => {
 });
 
 download.post("/api/shares/:token/revoke", requireAuth, async (c) => {
-  const result = await c.env.DB.prepare(`UPDATE attachment_links SET is_revoked = 1 WHERE token = ? AND user_id = ?`)
+  const result = await c.env.DB.prepare(
+    `UPDATE attachment_links SET is_revoked = 1 WHERE token = ? AND user_id = ?`,
+  )
     .bind(c.req.param("token"), c.get("user").id)
     .run();
   if (!result.meta.changes) return c.json({ error: "链接不存在" }, 404);

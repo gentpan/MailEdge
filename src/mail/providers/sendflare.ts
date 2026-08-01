@@ -91,10 +91,13 @@ export class SendflareMailProvider implements MailProvider {
 }
 
 async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
-  const keyBytes = /^[A-Za-z0-9+/=_-]+$/.test(secret) && secret.length % 4 === 0
-    ? base64ToBytes(secret)
-    : new TextEncoder().encode(secret);
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const keyBytes =
+    /^[A-Za-z0-9+/=_-]+$/.test(secret) && secret.length % 4 === 0
+      ? base64ToBytes(secret)
+      : new TextEncoder().encode(secret);
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+  ]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

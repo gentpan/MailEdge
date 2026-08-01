@@ -1,5 +1,5 @@
-import { getSendChain, recordProviderHealth } from "../db/providers";
 import { deletePayload, getOutbound, updateOutbound } from "../db/outbound";
+import { getSendChain, recordProviderHealth } from "../db/providers";
 import type { Env } from "../env";
 import { createMailProvider } from "./factory";
 import type { MailProviderRecord, SendAttempt, SendMailInput, SendMailResult } from "./types";

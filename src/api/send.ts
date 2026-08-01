@@ -5,8 +5,9 @@ import { getSendChain } from "../db/providers";
 import type { Env } from "../env";
 import { base64ToBytes } from "../lib/crypto";
 import { newId, newMessageId } from "../lib/id";
-import { appendShareSection, prepareAttachments } from "../mail/attachments";
+import { isValidEmail } from "../mail/address";
 import type { IncomingAttachment } from "../mail/attachments";
+import { appendShareSection, prepareAttachments } from "../mail/attachments";
 import { dispatch } from "../mail/dispatcher";
 import type { MailAddress, SendMailInput } from "../mail/types";
 import { markdownToEmailHtml } from "../shared/markdown";
@@ -149,7 +150,9 @@ send.post("/outbox/:id/retry", async (c) => {
   const result = await dispatch(c.env, { internalId: record.id, input });
 
   if (record.mailboxId) {
-    const mailbox = (await listMailboxes(c.env, c.get("user").id)).find((item) => item.id === record.mailboxId);
+    const mailbox = (await listMailboxes(c.env, c.get("user").id)).find(
+      (item) => item.id === record.mailboxId,
+    );
     if (mailbox) {
       await mailboxStub(c.env, mailbox).updateOutboundStatus(record.id, {
         status: result.status,
@@ -249,10 +252,9 @@ function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): Parse
   const html = markdown ? markdownToEmailHtml(markdown) : body.html;
   const text = markdown ?? body.text;
 
-  const to = normalizeList(body.to);
   const input: SendMailInput = {
     from,
-    to,
+    to: normalizeList(body.to),
     cc: normalizeList(body.cc),
     bcc: normalizeList(body.bcc),
     replyTo: normalizeAddress(body.replyTo) ?? undefined,
@@ -261,6 +263,13 @@ function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): Parse
     text,
     headers: body.headers,
   };
+
+  // 地址会被拼进 MIME 头与 SMTP 命令，非法地址在入口挡掉，
+  // 用户拿到的是 400 和具体哪个地址有问题，而不是发送阶段的 500
+  const invalid = [input.from, ...input.to, ...(input.cc ?? []), ...(input.bcc ?? []), input.replyTo]
+    .filter((item): item is MailAddress => Boolean(item))
+    .find((item) => !isValidEmail(item.email));
+  if (invalid) return { error: `地址不合法：${invalid.email.replace(/\p{C}/gu, "␡").slice(0, 80)}` };
 
   return { input, attachments, providerId: body.providerId };
 }

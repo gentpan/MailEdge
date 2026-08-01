@@ -1,7 +1,7 @@
+import type { AiConfig, TelegramConfig } from "../ai/types";
+import { AI_DEFAULTS, TELEGRAM_DEFAULTS } from "../ai/types";
 import type { Env } from "../env";
 import { decryptJson, encryptJson } from "../lib/crypto";
-import { AI_DEFAULTS, TELEGRAM_DEFAULTS } from "../ai/types";
-import type { AiConfig, TelegramConfig } from "../ai/types";
 
 /**
  * settings 表存加密后的应用级配置。AI Key、Telegram Token 都是机密，
@@ -9,7 +9,9 @@ import type { AiConfig, TelegramConfig } from "../ai/types";
  */
 
 async function readEncrypted<T>(env: Env, key: string, fallback: T): Promise<T> {
-  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`).bind(key).first<{ value: string }>();
+  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`)
+    .bind(key)
+    .first<{ value: string }>();
   if (!row) return fallback;
   try {
     return { ...fallback, ...(await decryptJson<Partial<T>>(env.ENCRYPTION_KEY, row.value)) };
@@ -31,8 +33,10 @@ async function writeEncrypted(env: Env, key: string, value: unknown): Promise<vo
 export const getAiConfig = (env: Env) => readEncrypted<AiConfig>(env, "ai_config", AI_DEFAULTS);
 export const saveAiConfig = (env: Env, value: AiConfig) => writeEncrypted(env, "ai_config", value);
 
-export const getTelegramConfig = (env: Env) => readEncrypted<TelegramConfig>(env, "telegram_config", TELEGRAM_DEFAULTS);
-export const saveTelegramConfig = (env: Env, value: TelegramConfig) => writeEncrypted(env, "telegram_config", value);
+export const getTelegramConfig = (env: Env) =>
+  readEncrypted<TelegramConfig>(env, "telegram_config", TELEGRAM_DEFAULTS);
+export const saveTelegramConfig = (env: Env, value: TelegramConfig) =>
+  writeEncrypted(env, "telegram_config", value);
 
 function mask(value: string): string {
   if (!value) return "";

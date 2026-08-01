@@ -1,9 +1,9 @@
 import { AtSign, Inbox, Loader2, Paperclip, Search, Star } from "lucide-react";
-import type { MailFolder, MessageSummary } from "../../../src/shared/message";
 import { MAIL_CATEGORIES } from "../../../src/ai/types";
-import { displayName, formatTime } from "../lib/format";
+import type { MailFolder, MessageSummary } from "../../../src/shared/message";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
+import { displayName, formatTime } from "../lib/format";
 
 interface Props {
   items: MessageSummary[];
@@ -143,9 +143,7 @@ export default function MessageList({
                   <span className="badge">{t(`cat.${item.category}` as TranslationKey)}</span>
                 )}
                 {item.status && item.status !== "sent" && (
-                  <span
-                    className={`badge ${item.status === "failed" ? "badge--error" : "badge--warning"}`}
-                  >
+                  <span className={`badge ${item.status === "failed" ? "badge--error" : "badge--warning"}`}>
                     {t(`status.${item.status}` as TranslationKey)}
                   </span>
                 )}

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import { Loader2, RefreshCw, Send } from "lucide-react";
-import { api } from "../lib/api";
-import type { OutboundView } from "../lib/api";
-import { PROVIDER_LABELS, formatDateTime, formatTime } from "../lib/format";
+import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
+import type { OutboundView } from "../lib/api";
+import { api } from "../lib/api";
+import { formatDateTime, formatTime, PROVIDER_LABELS } from "../lib/format";
 
 const BADGE: Record<string, string> = {
   sent: "badge--success",
@@ -22,15 +22,17 @@ export default function OutboxView() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function load() {
+  // 不依赖任何 props/state，用 useCallback 固定引用，
+  // 这样 useEffect 能如实声明依赖而不会反复触发
+  const load = useCallback(async () => {
     const result = await api.outbox();
     setItems(result.messages);
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const active = items.find((item) => item.id === activeId) ?? null;
 
@@ -53,7 +55,12 @@ export default function OutboxView() {
       <section className="list-pane">
         <div className="list-pane__header">
           <h3 className="list-pane__heading">{t("outbox.title")}</h3>
-          <button className="btn btn--icon" type="button" aria-label={t("common.test")} onClick={() => void load()}>
+          <button
+            className="btn btn--icon"
+            type="button"
+            aria-label={t("common.test")}
+            onClick={() => void load()}
+          >
             <RefreshCw size={16} />
           </button>
         </div>
@@ -151,7 +158,9 @@ export default function OutboxView() {
                 )}
                 <div className="detail-list__row">
                   <span className="detail-list__key">{t("outbox.createdAt")}</span>
-                  <span className="detail-list__value text-secondary">{formatDateTime(active.createdAt)}</span>
+                  <span className="detail-list__value text-secondary">
+                    {formatDateTime(active.createdAt)}
+                  </span>
                 </div>
                 {active.nextRetryAt && (
                   <div className="detail-list__row">
@@ -168,6 +177,7 @@ export default function OutboxView() {
 
               <div className="timeline">
                 {active.attemptLog.map((attempt, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 尝试日志只追加不重排，同一毫秒的两条靠序号区分
                   <div className="timeline__item" key={`${attempt.at}-${index}`}>
                     <span
                       className={`timeline__dot ${attempt.success ? "timeline__dot--success" : "timeline__dot--error"}`}
@@ -178,8 +188,12 @@ export default function OutboxView() {
                         {attempt.success ? (
                           <span className="badge badge--success">{t("outbox.success")}</span>
                         ) : (
-                          <span className={`badge ${attempt.failureKind === "permanent" ? "badge--error" : "badge--warning"}`}>
-                            {attempt.failureKind === "permanent" ? t("outbox.permanent") : t("outbox.transient")}
+                          <span
+                            className={`badge ${attempt.failureKind === "permanent" ? "badge--error" : "badge--warning"}`}
+                          >
+                            {attempt.failureKind === "permanent"
+                              ? t("outbox.permanent")
+                              : t("outbox.transient")}
                           </span>
                         )}
                         <span className="text-xs text-tertiary">{formatDateTime(attempt.at)}</span>

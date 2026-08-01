@@ -1,11 +1,21 @@
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Cloud,
+  Send,
+  Server,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronRight, CircleAlert, Cloud, Send, Server, Trash2, Zap } from "lucide-react";
-import { api } from "../../lib/api";
-import type { Mailbox, ProviderView } from "../../lib/api";
 import type { MailProviderType } from "../../../../src/mail/types";
-import { PROVIDER_LABELS, formatDateTime } from "../../lib/format";
 import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
+import type { Mailbox, ProviderView } from "../../lib/api";
+import { api } from "../../lib/api";
+import { formatDateTime, PROVIDER_LABELS } from "../../lib/format";
 import FormRow from "./FormRow";
 import ProviderLogo from "./ProviderLogo";
 
@@ -353,7 +363,11 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
 
           <FormRow label={t("common.enabled")}>
             <label className="switch">
-              <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(event) => setEnabled(event.target.checked)}
+              />
               {t("providers.enable.hint")}
             </label>
           </FormRow>
@@ -395,7 +409,11 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
           {provider && (
             <FormRow label={t("providers.test")} hint={t("providers.test.hint")}>
               <div className="stack">
-                <select className="select" value={testFrom} onChange={(event) => setTestFrom(event.target.value)}>
+                <select
+                  className="select"
+                  value={testFrom}
+                  onChange={(event) => setTestFrom(event.target.value)}
+                >
                   {mailboxes.map((mailbox) => (
                     <option key={mailbox.id} value={mailbox.address}>
                       {mailbox.address}

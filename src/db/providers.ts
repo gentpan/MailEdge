@@ -114,7 +114,11 @@ export async function deleteProvider(env: Env, id: string): Promise<void> {
 }
 
 /** 把自动拉取到的已验证域名写回渠道配置 */
-export async function setVerifiedDomains(env: Env, id: string, domains: string[]): Promise<MailProviderRecord> {
+export async function setVerifiedDomains(
+  env: Env,
+  id: string,
+  domains: string[],
+): Promise<MailProviderRecord> {
   const record = await getProvider(env, id);
   if (!record) throw new Error("渠道不存在");
   if (record.config.type !== "resend" && record.config.type !== "sendflare") {

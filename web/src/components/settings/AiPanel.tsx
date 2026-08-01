@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
-import type { AiConfigView, TelegramView } from "../../lib/api";
 import { MAIL_CATEGORIES } from "../../../../src/ai/types";
 import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
+import type { AiConfigView, TelegramView } from "../../lib/api";
+import { api } from "../../lib/api";
 import FormRow from "./FormRow";
 
 /** 常见服务商预设：点一下填好 endpoint 与默认模型，仍可自由改。全部 OpenAI 兼容。 */
@@ -97,7 +97,9 @@ export default function AiPanel() {
     setMsg(null);
     try {
       const r = await api.testTelegram();
-      setMsg(r.ok ? { kind: "success", text: t("common.saved") } : { kind: "error", text: r.error ?? "error" });
+      setMsg(
+        r.ok ? { kind: "success", text: t("common.saved") } : { kind: "error", text: r.error ?? "error" },
+      );
     } catch (error) {
       setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
@@ -180,7 +182,12 @@ export default function AiPanel() {
         <button className="btn" type="button" onClick={() => void saveAi()} disabled={busy}>
           {t("common.save")}
         </button>
-        <button className="btn btn--secondary" type="button" onClick={() => void testAi()} disabled={busy || !ai.hasKey}>
+        <button
+          className="btn btn--secondary"
+          type="button"
+          onClick={() => void testAi()}
+          disabled={busy || !ai.hasKey}
+        >
           {t("ai.test")}
         </button>
       </div>
@@ -197,7 +204,10 @@ export default function AiPanel() {
         </label>
       </FormRow>
 
-      <FormRow label={t("ai.tg.token")} hint={tg.hasToken ? t("providers.keepSecret") : t("ai.tg.token.hint")}>
+      <FormRow
+        label={t("ai.tg.token")}
+        hint={tg.hasToken ? t("providers.keepSecret") : t("ai.tg.token.hint")}
+      >
         <input
           className="input"
           type="password"
@@ -208,7 +218,12 @@ export default function AiPanel() {
       </FormRow>
 
       <FormRow label={t("ai.tg.chatId")} hint={t("ai.tg.chatId.hint")}>
-        <input className="input" value={chatId} placeholder="123456789" onChange={(e) => setChatId(e.target.value)} />
+        <input
+          className="input"
+          value={chatId}
+          placeholder="123456789"
+          onChange={(e) => setChatId(e.target.value)}
+        />
       </FormRow>
 
       <FormRow label={t("ai.tg.only")} hint={t("ai.tg.only.hint")}>

@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { Mails } from "lucide-react";
-import { api } from "../lib/api";
-import { useI18n } from "../i18n";
+import { useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
+import { useI18n } from "../i18n";
+import { api } from "../lib/api";
 
 interface Props {
   mode: "login" | "setup";

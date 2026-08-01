@@ -24,9 +24,10 @@ async function fetchResendDomains(apiKey: string): Promise<string[]> {
   const res = await fetch("https://api.resend.com/domains", {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
-  const data = (await res.json().catch(() => null)) as
-    | { data?: Array<{ name?: string; status?: string }>; message?: string }
-    | null;
+  const data = (await res.json().catch(() => null)) as {
+    data?: Array<{ name?: string; status?: string }>;
+    message?: string;
+  } | null;
 
   if (!res.ok) throw new DomainFetchError(data?.message ?? `Resend 请求失败（HTTP ${res.status}）`);
 
@@ -41,21 +42,29 @@ async function fetchSendflareDomains(token: string, baseUrl?: string): Promise<s
 
   const base = (baseUrl ?? "https://api.sendflare.com").replace(/\/+$/, "");
   const res = await fetch(`${base}/domains`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = (await res.json().catch(() => null)) as
-    | { data?: unknown; domains?: unknown; message?: string }
-    | null;
+  const data = (await res.json().catch(() => null)) as {
+    data?: unknown;
+    domains?: unknown;
+    message?: string;
+  } | null;
 
   if (!res.ok) throw new DomainFetchError(data?.message ?? `Sendflare 请求失败（HTTP ${res.status}）`);
 
   // Sendflare 的返回结构以其 API 为准，这里兼容常见几种形态
-  const list = (Array.isArray(data?.data) ? data?.data : Array.isArray(data?.domains) ? data?.domains : []) as unknown[];
+  const list = (
+    Array.isArray(data?.data) ? data?.data : Array.isArray(data?.domains) ? data?.domains : []
+  ) as unknown[];
   return list
     .map((item) => {
       if (typeof item === "string") return item;
       if (item && typeof item === "object") {
         const record = item as { name?: unknown; domain?: unknown; status?: unknown };
         if (record.status && record.status !== "verified" && record.status !== "active") return null;
-        return (typeof record.name === "string" ? record.name : typeof record.domain === "string" ? record.domain : null);
+        return typeof record.name === "string"
+          ? record.name
+          : typeof record.domain === "string"
+            ? record.domain
+            : null;
       }
       return null;
     })

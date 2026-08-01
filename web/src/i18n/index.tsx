@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { DICT } from "./dict";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { Lang, TranslationKey } from "./dict";
+import { DICT } from "./dict";
 
 interface I18nValue {
   lang: Lang;

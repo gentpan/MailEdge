@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { classifyEmail, draftReply, summarizeEmail } from "../ai/tasks";
-import type { EmailContext, ReplyOptions } from "../ai/tasks";
 import { AiError, chat } from "../ai/client";
-import { CATEGORY_LABELS, isMailCategory } from "../ai/types";
+import type { EmailContext, ReplyOptions } from "../ai/tasks";
+import { classifyEmail, draftReply, summarizeEmail } from "../ai/tasks";
 import type { AiConfig, MailCategory, TelegramConfig } from "../ai/types";
+import { CATEGORY_LABELS, isMailCategory } from "../ai/types";
 import {
   getAiConfig,
   getTelegramConfig,
@@ -12,8 +12,8 @@ import {
   saveAiConfig,
   saveTelegramConfig,
 } from "../db/appSettings";
-import { listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { MailboxRecord } from "../db/mailboxes";
+import { listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { Env } from "../env";
 import type { MessageDetail } from "../shared/message";
 import { requireAdmin, requireAuth } from "./auth";

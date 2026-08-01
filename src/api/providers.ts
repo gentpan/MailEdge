@@ -8,9 +8,9 @@ import {
   setVerifiedDomains,
   upsertProvider,
 } from "../db/providers";
+import { newMessageId } from "../lib/id";
 import { DomainFetchError, fetchVerifiedDomains } from "../mail/domains";
 import { createMailProvider } from "../mail/factory";
-import { newMessageId } from "../lib/id";
 import type { MailProviderConfig, MailProviderType } from "../mail/types";
 import { requireAdmin, requireAuth } from "./auth";
 import type { AppContext } from "./context";

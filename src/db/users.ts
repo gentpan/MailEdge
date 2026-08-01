@@ -73,6 +73,7 @@ export async function authenticate(env: Env, email: string, password: string): P
   const row = await env.DB.prepare(`SELECT * FROM users WHERE email = ?`)
     .bind(email.trim().toLowerCase())
     .first<UserRow>();
+  // biome-ignore lint/complexity/useOptionalChain: 认证路径上「账号不存在」和「账号被停用」分开写更一目了然
   if (!row || row.is_enabled !== 1) return null;
 
   const ok = await verifyPassword(password, row.password_hash, row.password_salt);
@@ -110,5 +111,7 @@ export async function resolveSession(env: Env, token: string): Promise<UserRecor
 }
 
 export async function destroySession(env: Env, token: string): Promise<void> {
-  await env.DB.prepare(`DELETE FROM sessions WHERE id = ?`).bind(await sha256Hex(token)).run();
+  await env.DB.prepare(`DELETE FROM sessions WHERE id = ?`)
+    .bind(await sha256Hex(token))
+    .run();
 }

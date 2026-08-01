@@ -36,7 +36,9 @@ export function markdownToEmailHtml(markdown: string): string {
   // 代码块先抽出来占位，内部不参与后续的行内解析
   const blocks: string[] = [];
   const withoutBlocks = source.replace(/```([\s\S]*?)```/g, (_match, code: string) => {
-    const body = String(code).replace(/^[^\n]*\n/, "").replace(/\n$/, "");
+    const body = String(code)
+      .replace(/^[^\n]*\n/, "")
+      .replace(/\n$/, "");
     blocks.push('<pre style="' + S.pre + '">' + escapeHtml(body) + "</pre>");
     return "\n" + BLOCK_MARK + (blocks.length - 1) + END_MARK + "\n";
   });
@@ -95,7 +97,9 @@ export function markdownToEmailHtml(markdown: string): string {
       flushAll();
       const level = heading[1]!.length as 1 | 2 | 3;
       const style = level === 1 ? S.h1 : level === 2 ? S.h2 : S.h3;
-      out.push("<h" + level + ' style="' + style + '">' + inline(escapeHtml(heading[2] ?? "")) + "</h" + level + ">");
+      out.push(
+        "<h" + level + ' style="' + style + '">' + inline(escapeHtml(heading[2] ?? "")) + "</h" + level + ">",
+      );
       continue;
     }
 
@@ -157,7 +161,10 @@ function inline(text: string): string {
     .replace(/\*\*([^*]+)\*\*/g, '<strong style="' + S.strong + '">$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
 
-  return result.replace(new RegExp(CODE_MARK + "(\\d+)" + END_MARK, "g"), (_m, index: string) => codes[Number(index)] ?? "");
+  return result.replace(
+    new RegExp(CODE_MARK + "(\\d+)" + END_MARK, "g"),
+    (_m, index: string) => codes[Number(index)] ?? "",
+  );
 }
 
 function isSafeUrl(url: string): boolean {
@@ -165,9 +172,5 @@ function isSafeUrl(url: string): boolean {
 }
 
 export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

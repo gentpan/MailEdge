@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+import { isValidEmail } from "../address";
 import { classifyThrown, errorMessage } from "../errors";
 import { buildMimeMessage } from "../mime";
 import type { MailProvider, SendMailInput, SendMailResult } from "../types";
@@ -40,6 +41,9 @@ export class CloudflareMailProvider implements MailProvider {
       ];
       const unique = [...new Set(envelopeRecipients)];
       if (!unique.length) throw new Error("invalid recipient：收件人为空");
+      // Bcc 不进报文，绕过了 buildMimeMessage 的地址校验，这里补一道
+      const bad = unique.find((address) => !isValidEmail(address));
+      if (bad) throw new Error(`invalid recipient：地址不合法 ${bad.replace(/\p{C}/gu, "␡")}`);
 
       for (const recipient of unique) {
         await this.emailBinding.send(new EmailMessage(input.from.email, recipient, raw));

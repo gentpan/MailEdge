@@ -80,7 +80,9 @@ export async function listMailboxes(env: Env, userId: string): Promise<MailboxRe
 }
 
 export async function listAllMailboxes(env: Env): Promise<MailboxRecord[]> {
-  const { results } = await env.DB.prepare(`SELECT * FROM mailboxes ORDER BY created_at ASC`).all<MailboxRow>();
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM mailboxes ORDER BY created_at ASC`,
+  ).all<MailboxRow>();
   return results.map(toRecord);
 }
 
@@ -97,7 +99,15 @@ export async function createMailbox(
     `INSERT INTO mailboxes (id, address, display_name, user_id, do_name, is_catch_all, domain)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
   )
-    .bind(id, address, input.displayName ?? null, input.userId, `mailbox:${address}`, input.isCatchAll ? 1 : 0, domain)
+    .bind(
+      id,
+      address,
+      input.displayName ?? null,
+      input.userId,
+      `mailbox:${address}`,
+      input.isCatchAll ? 1 : 0,
+      domain,
+    )
     .run();
 
   const record = await getMailbox(env, id);

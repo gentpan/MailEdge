@@ -1,5 +1,6 @@
 import { connect } from "cloudflare:sockets";
 import { bytesToBase64 } from "../../lib/crypto";
+import { isValidEmail } from "../address";
 import { classifyMessage, classifyThrown, errorMessage } from "../errors";
 import { buildMimeMessage } from "../mime";
 import type { MailProvider, SendMailInput, SendMailResult } from "../types";
@@ -31,11 +32,7 @@ export class SmtpMailProvider implements MailProvider {
   async send(input: SendMailInput): Promise<SendMailResult> {
     let session: SmtpSession | null = null;
     try {
-      const recipients = [
-        ...input.to,
-        ...(input.cc ?? []),
-        ...(input.bcc ?? []),
-      ].map((item) => item.email);
+      const recipients = [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])].map((item) => item.email);
       const unique = [...new Set(recipients)];
       if (!unique.length) throw new SmtpError("invalid recipient：收件人为空", "permanent");
 
@@ -85,12 +82,7 @@ class SmtpSession {
       { hostname: config.host, port: config.port },
       { secureTransport: config.security === "tls" ? "on" : "starttls", allowHalfOpen: false },
     );
-    const session = new SmtpSession(
-      socket,
-      socket.writable.getWriter(),
-      socket.readable.getReader(),
-      config,
-    );
+    const session = new SmtpSession(socket, socket.writable.getWriter(), socket.readable.getReader(), config);
     await session.expect(220); // 服务端问候
     return session;
   }
@@ -118,6 +110,14 @@ class SmtpSession {
   }
 
   async sendMail(from: string, recipients: string[], raw: string): Promise<void> {
+    // 地址直接拼进 SMTP 命令行，含 CRLF 就能追加任意命令（比如偷加 RCPT 群发）。
+    // Bcc 不进 MIME 报文，因此绕过了 buildMimeMessage 的校验，这里必须自己拦。
+    for (const address of [from, ...recipients]) {
+      if (!isValidEmail(address)) {
+        throw new SmtpError(`invalid address：地址不合法 ${address.replace(/\p{C}/gu, "␡")}`, "permanent");
+      }
+    }
+
     await this.command(`MAIL FROM:<${from}>`, 250);
     for (const rcpt of recipients) {
       await this.command(`RCPT TO:<${rcpt}>`, 250);
@@ -158,7 +158,8 @@ class SmtpSession {
     const code = Number(reply.slice(0, 3));
     if (code !== expected) {
       // 4xx 临时、5xx 永久；据此决定上层是否切换备用渠道
-      const kind = code >= 500 ? "permanent" : code >= 400 ? "transient" : classifyMessage(reply, "permanent");
+      const kind =
+        code >= 500 ? "permanent" : code >= 400 ? "transient" : classifyMessage(reply, "permanent");
       throw new SmtpError(`SMTP ${code}：${reply.trim()}`, kind);
     }
     return reply;
@@ -191,7 +192,10 @@ class SmtpSession {
 
 /** DATA 阶段：以点开头的行前面再加一个点，避免被当成报文结束符 */
 function dotStuff(message: string): string {
-  return message.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n").replace(/(^|\r\n)\./g, "$1..");
+  return message
+    .replace(/\r\n/g, "\n")
+    .replace(/\n/g, "\r\n")
+    .replace(/(^|\r\n)\./g, "$1..");
 }
 
 function base64(value: string): string {

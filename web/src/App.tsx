@@ -1,11 +1,11 @@
+import { Loader2 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import type { Mailbox, User } from "./lib/api";
+import { ApiError, api } from "./lib/api";
 import AuthPage from "./pages/AuthPage";
 import MailPage from "./pages/MailPage";
 import SettingsPage from "./pages/SettingsPage";
-import { ApiError, api } from "./lib/api";
-import type { Mailbox, User } from "./lib/api";
 
 interface SessionValue {
   user: User;
@@ -68,9 +68,7 @@ export default function App() {
   }
 
   return (
-    <SessionContext.Provider
-      value={{ user: state.user, mailboxes: state.mailboxes, refresh: load, signOut }}
-    >
+    <SessionContext.Provider value={{ user: state.user, mailboxes: state.mailboxes, refresh: load, signOut }}>
       <Routes>
         <Route path="/" element={<MailPage />} />
         <Route path="/settings" element={<SettingsPage />} />

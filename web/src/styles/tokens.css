@@ -82,8 +82,9 @@ body {
   margin: 0;
   background: var(--color-bg-subtle);
   color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
   font-size: var(--text-sm);
   font-weight: var(--weight-regular);
   line-height: var(--leading-body);
