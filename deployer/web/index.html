@@ -6,196 +6,287 @@
   <title>MailEdge 一键部署</title>
   <style>
     :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --border: #e5e7eb;
-      --text: #111827;
-      --text-secondary: #6b7280;
-      --bg: #f8f9fa;
-      --card: #ffffff;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #1c2128;
+      --border: #30363d;
+      --border-strong: #484f58;
+      --fg: #e6edf3;
+      --fg-dim: #8b949e;
+      --green: #3fb950;
+      --green-strong: #238636;
+      --green-hover: #2ea043;
+      --red: #f85149;
+      --yellow: #d29922;
+      --cyan: #58a6ff;
+      --purple: #bc8cff;
     }
     * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--panel); }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
     body {
       margin: 0;
       background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.7;
     }
-    .wrap { max-width: 640px; margin: 48px auto; padding: 0 16px; }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 700px; margin: 40px auto; padding: 0 16px; }
+
+    /* 终端窗口 */
     .card {
-      background: var(--card);
+      position: relative;
+      background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 24px;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
+      overflow: hidden;
     }
-    h1 { font-size: 24px; margin: 0 0 4px; }
-    h2 { font-size: 16px; margin: 0 0 12px; }
-    p { color: var(--text-secondary); margin: 0 0 12px; }
-    .step-no {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; border-radius: 50%;
-      background: var(--primary); color: #fff; font-size: 13px; margin-right: 8px;
+    .term-bar {
+      display: flex; align-items: center; gap: 6px;
+      background: #21262d;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
     }
+    .tb-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .tb-r { background: #f85149; }
+    .tb-y { background: #d29922; }
+    .tb-g { background: #3fb950; }
+    .tb-title {
+      margin-left: 8px; font-size: 12px; color: var(--fg-dim);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .term-body { padding: 22px; }
+
+    /* 标题 */
+    .brand-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+    h1 { font-size: 22px; margin: 0 0 6px; color: var(--green); font-weight: 600; }
+    h1::before { content: "$ "; color: var(--fg-dim); }
+    h2 { font-size: 15px; margin: 0 0 14px; color: var(--fg); font-weight: 600; }
+    h2 .step-no {
+      color: var(--green); margin-right: 6px;
+      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+    }
+    .lead { color: var(--fg-dim); margin: 0 0 20px; font-size: 13px; }
+    p { color: var(--fg-dim); margin: 0 0 12px; }
+    label { display: block; font-size: 12px; color: var(--fg-dim); margin: 0 0 6px; }
+
+    /* 输入 */
     input, select {
-      width: 100%; padding: 10px 12px;
-      border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+      width: 100%; padding: 9px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      color: var(--fg);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 13px;
       margin-bottom: 12px;
+      outline: none;
     }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 1px var(--green-strong); }
+    select option { background: var(--panel); }
+
+    /* 按钮 */
     button {
-      background: var(--primary); color: #fff; border: 0; border-radius: 6px;
-      padding: 10px 20px; font-size: 14px; cursor: pointer;
+      background: var(--green-strong); color: #fff; border: 0; border-radius: 6px;
+      padding: 9px 20px; font-size: 13px; cursor: pointer;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
     }
-    button:hover { background: var(--primary-hover); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:hover { background: var(--green-hover); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
     button.secondary {
-      background: #fff; color: var(--text); border: 1px solid #d1d5db;
+      background: transparent; color: var(--fg);
+      border: 1px solid var(--border-strong);
     }
+    button.secondary:hover { background: var(--panel-2); border-color: var(--fg-dim); }
+    .btn-danger { background: var(--red); }
+    .btn-danger:hover { background: #da3633; }
     .row { display: flex; gap: 12px; }
     .row > * { flex: 1; }
+
+    /* 提示框 */
     .hint {
-      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;
-      padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+      background: rgba(88, 166, 255, 0.08);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+      color: var(--fg);
     }
     .warn {
-      background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
-      padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+      background: rgba(210, 153, 34, 0.08);
+      border: 1px solid rgba(210, 153, 34, 0.35);
+      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+      color: var(--fg);
     }
+    .warn strong { color: var(--yellow); }
+
+    /* 权限表 */
     table.perm-table {
-      width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px;
+      width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px;
     }
     .perm-table th, .perm-table td {
       text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
     }
-    .perm-table th { color: var(--text-secondary); font-weight: 500; }
-    .perm-table code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .perm-table th { color: var(--fg-dim); font-weight: 500; }
+    .perm-table code { background: var(--bg); color: var(--green); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+    /* 权限体检 */
     .perm-block { margin-bottom: 12px; }
     .perm-grid { display: flex; flex-wrap: wrap; gap: 6px; }
     .perm-chip {
       display: inline-flex; align-items: center; gap: 4px;
-      padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid;
+      padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
     }
-    .perm-ok { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
-    .perm-bad { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .perm-ok { background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.4); color: var(--green); }
+    .perm-bad { background: rgba(248, 81, 73, 0.1); border-color: rgba(248, 81, 73, 0.4); color: var(--red); }
+
+    /* 卸载 */
     .uninstall-item {
       display: flex; align-items: center; gap: 8px;
       padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
-      margin-bottom: 6px; font-size: 14px; cursor: pointer;
+      margin-bottom: 6px; font-size: 13px; cursor: pointer; color: var(--fg);
     }
-    .uninstall-item input { margin: 0; width: auto; }
+    .uninstall-item:hover { background: var(--panel-2); }
+    .uninstall-item input { margin: 0; width: auto; accent-color: var(--green); }
     .uninstall-item.removed { opacity: 0.45; text-decoration: line-through; }
-    .btn-danger { background: #dc2626; }
-    .btn-danger:hover { background: #b91c1c; }
-    ul { margin: 8px 0 12px; padding-left: 20px; color: var(--text-secondary); }
-    li { margin: 4px 0; }
+
+    /* 日志 */
     .log {
-      font-family: ui-monospace, monospace; font-size: 12px;
-      background: #111827; color: #a7f3d0; border-radius: 6px; padding: 12px;
-      white-space: pre-wrap; max-height: 240px; overflow-y: auto; display: none;
+      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+      background: var(--bg); color: var(--green);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 14px;
+      white-space: pre-wrap; max-height: 260px; overflow-y: auto; display: none;
     }
+    .log::before { content: "$ tail -f deploy.log"; display: block; color: var(--fg-dim); margin-bottom: 8px; }
+
+    /* 结果 */
     .result { display: none; }
     .result .url {
-      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;
-      padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 16px; font-weight: 600;
+      background: var(--bg); border: 1px solid var(--green-strong); border-radius: 6px;
+      padding: 12px 16px; font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 15px; font-weight: 600; color: var(--green);
     }
     .hidden { display: none; }
-    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    code { background: var(--bg); color: var(--green); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .muted { color: var(--fg-dim); }
+    ul { margin: 8px 0 12px; padding-left: 20px; color: var(--fg-dim); }
+    li { margin: 4px 0; }
   </style>
 </head>
 <body>
 <div class="wrap">
-  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px"><a href="/">← 返回 MailEdge 首页</a></p>
+  <div class="brand-row">
+    <p style="font-size:13px;margin:0"><a href="/">← 返回 MailEdge 首页</a></p>
+  </div>
   <h1>MailEdge 一键部署</h1>
-  <p>在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
+  <p class="lead">在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
 
   <!-- 第 1 步 -->
   <div class="card" id="step1">
-    <h2><span class="step-no">1</span>创建并粘贴 Cloudflare API Token</h2>
-    <div class="hint">
-      部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
-      我们不会保存它，也看不到你的账号密码。
+    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — token</span></div>
+    <div class="term-body">
+      <h2><span class="step-no">[1]</span>创建并粘贴 Cloudflare API Token</h2>
+      <div class="hint">
+        部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
+        我们不会保存它，也看不到你的账号密码。
+      </div>
+      <p>打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
+      <table class="perm-table">
+        <thead>
+          <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>分类标签</th><th>选</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>Account</td><td><code>Edit</code></td></tr>
+          <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>Account</td><td><code>Edit</code></td></tr>
+          <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>Zone</td><td><code>Edit</code></td></tr>
+          <tr><td>域名（区域）</td><td><code>Zone</code></td><td>Zone</td><td><code>Read</code></td></tr>
+        </tbody>
+      </table>
+      <p class="muted">模板已含 Workers Scripts / R2 / KV 等权限，无需重复添加。<br />
+      提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签——D1、Email Routing Addresses 在 <code>Account</code> 下；Email Routing Rules、Zone 在 <code>Zone</code> 下。</p>
+      <div class="row">
+        <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
+          打开 Cloudflare 创建 Token
+        </button>
+      </div>
+      <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
+      <input type="password" id="token" placeholder="$ TOKEN = …" autocomplete="off" />
+      <button type="button" id="verifyBtn">验证 Token</button>
+      <div id="step1Msg"></div>
     </div>
-    <p>点击下方按钮打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
-    <table class="perm-table">
-      <thead>
-        <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>在哪个分类标签下</th><th>选</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>账户 Account 标签</td><td><code>Edit</code></td></tr>
-        <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>账户 Account 标签</td><td><code>Edit</code></td></tr>
-        <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>区域 Zone 标签</td><td><code>Edit</code></td></tr>
-        <tr><td>域名（区域）</td><td><code>Zone</code></td><td>区域 Zone 标签</td><td><code>Read</code></td></tr>
-      </tbody>
-    </table>
-    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / Workers R2 Storage / Workers KV Storage 等权限，无需重复添加。<br />
-    提示：点 "Add more permissions" 后，界面顶部有 <code>Account</code> / <code>Zone</code> / <code>User</code> 三个分类标签——D1、Email Routing Addresses 在 <code>Account</code> 下；Email Routing Rules、Zone 在 <code>Zone</code> 下，切换标签即可看到。</p>
-    <div class="row">
-      <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
-        打开 Cloudflare 创建 Token
-      </button>
-    </div>
-    <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
-    <input type="password" id="token" placeholder="粘贴你的 Cloudflare API Token（如 8v_n7k...）" autocomplete="off" />
-    <button type="button" id="verifyBtn">验证 Token</button>
-    <div id="step1Msg"></div>
   </div>
 
   <!-- 第 2 步 -->
   <div class="card hidden" id="step2">
-    <h2><span class="step-no">2</span>选择账户与收信域名</h2>
-    <div id="permReport"></div>
-    <label for="account">Cloudflare 账户</label>
-    <select id="account"></select>
-    <label for="zone">收信域名（必须已托管在 Cloudflare）</label>
-    <select id="zone"></select>
-    <div class="row">
-      <div>
-        <label for="address">收件地址（@ 前面部分）</label>
-        <input type="text" id="address" placeholder="support" />
+    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — configure</span></div>
+    <div class="term-body">
+      <h2><span class="step-no">[2]</span>选择账户与收信域名</h2>
+      <div id="permReport"></div>
+      <label for="account">Cloudflare 账户</label>
+      <select id="account"></select>
+      <label for="zone">收信域名（必须已托管在 Cloudflare）</label>
+      <select id="zone"></select>
+      <div class="row">
+        <div>
+          <label for="address">收件地址（@ 前面部分）</label>
+          <input type="text" id="address" placeholder="support" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button type="button" class="secondary" id="catchAllBtn" style="width:100%">收整个域名（catch-all）</button>
+        </div>
       </div>
-      <div>
-        <label>&nbsp;</label>
-        <button type="button" class="secondary" id="catchAllBtn" style="width:100%">收整个域名的信（catch-all）</button>
-      </div>
+      <p class="warn" id="domainHint" style="display:none"></p>
+      <button type="button" id="deployBtn" disabled>一键部署</button>
+      <div id="step2Msg"></div>
     </div>
-    <p class="warn" id="domainHint" style="display:none"></p>
-    <button type="button" id="deployBtn" disabled>一键部署</button>
-    <div id="step2Msg"></div>
-  </div>
-
-  <!-- 卸载 -->
-  <div class="card" id="uninstallCard">
-    <h2><span class="step-no">✕</span>卸载已部署的 MailEdge</h2>
-    <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
-    <input type="password" id="uninstallToken" placeholder="粘贴有权限的 Cloudflare API Token" autocomplete="off" />
-    <div class="row">
-      <button type="button" class="secondary" id="scanBtn">扫描该账户的 MailEdge 资源</button>
-    </div>
-    <div id="uninstallMsg"></div>
-    <div id="uninstallList"></div>
   </div>
 
   <!-- 部署日志 -->
   <div class="card">
-    <div class="log" id="log"></div>
+    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — deploy.log</span></div>
+    <div class="term-body" style="padding:14px">
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <!-- 卸载 -->
+  <div class="card" id="uninstallCard">
+    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — uninstall</span></div>
+    <div class="term-body">
+      <h2><span class="step-no">[✕]</span>卸载已部署的 MailEdge</h2>
+      <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
+      <input type="password" id="uninstallToken" placeholder="$ TOKEN = …" autocomplete="off" />
+      <div class="row">
+        <button type="button" class="secondary" id="scanBtn">扫描该账户的 MailEdge 资源</button>
+      </div>
+      <div id="uninstallMsg"></div>
+      <div id="uninstallList"></div>
+    </div>
   </div>
 
   <!-- 结果 -->
   <div class="card result" id="resultCard">
-    <h2>🎉 部署完成</h2>
-    <p>你的 MailEdge 管理面板：</p>
-    <div class="url" id="resultUrl"></div>
-    <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号并绑定收件地址。</p>
-    <div class="hint" style="margin-top:12px">
-      <strong>想用自己的域名访问？</strong><br />
-      打开 Cloudflare 后台 → Workers 与 Pages → 你的 <code>mailedge</code> → 设置 → 域名 → 添加自定义域，
-      绑定你的域名（如 <code>mail.你的域名.com</code>），按提示添加 DNS 记录即可。
-    </div>
-    <div class="warn" id="deleteTokenWarn">
-      <strong>请务必回到 Cloudflare 后台删除刚才的 Token</strong>，它已完成使命，删除后立即失效。
-      <br />路径：Cloudflare 后台 → 我的个人资料 → API Tokens → 删除。
+    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — done</span></div>
+    <div class="term-body">
+      <h2><span class="step-no">[✓]</span>部署完成</h2>
+      <p>你的 MailEdge 管理面板：</p>
+      <div class="url" id="resultUrl"></div>
+      <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号并绑定收件地址。</p>
+      <div class="hint" style="margin-top:12px">
+        <strong>想用自己的域名访问？</strong><br />
+        打开 Cloudflare 后台 → Workers 与 Pages → 你的 <code>mailedge</code> → 设置 → 域名 → 添加自定义域，
+        绑定你的域名（如 <code>mail.你的域名.com</code>），按提示添加 DNS 记录即可。
+      </div>
+      <div class="warn" id="deleteTokenWarn">
+        <strong>请务必回到 Cloudflare 后台删除刚才的 Token</strong>，它已完成使命，删除后立即失效。
+        <br />路径：Cloudflare 后台 → 我的个人资料 → API Tokens → 删除。
+      </div>
     </div>
   </div>
 </div>
@@ -208,7 +299,7 @@
   function el(id) { return document.getElementById(id); }
   function msg(id, text, isError) {
     el(id).textContent = text || "";
-    el(id).style.color = isError ? "#dc2626" : "#16a34a";
+    el(id).style.color = isError ? "#f85149" : "#3fb950";
   }
   function log(line) {
     const box = el("log");
@@ -232,11 +323,9 @@
       if (!res.ok) throw new Error(data.error || "验证失败");
       msg("step1Msg", "Token 有效 ✓");
 
-      // 缓存各账户的域名
       Object.keys(zonesByAccount).forEach((k) => delete zonesByAccount[k]);
       data.accounts.forEach((a) => { zonesByAccount[a.id] = a.zones || []; });
 
-      // 填充账户下拉
       const sel = el("account");
       sel.innerHTML = "";
       data.accounts.forEach((a) => {
@@ -258,13 +347,12 @@
     }
   });
 
-  /** 渲染权限体检报告 */
   function renderPermReport(accounts) {
     const box = el("permReport");
     let html = "";
     accounts.forEach((a) => {
       html += '<div class="perm-block">';
-      html += '<p style="margin:0 0 6px;font-weight:600">' + escapeHtml(a.name) + '</p>';
+      html += '<p style="margin:0 0 6px;font-weight:600;color:var(--fg)">' + escapeHtml(a.name) + '</p>';
       html += '<div class="perm-grid">';
       a.permissions.forEach((p) => {
         const cls = p.ok ? "perm-ok" : "perm-bad";
@@ -303,7 +391,8 @@
   let catchAllMode = false;
   el("catchAllBtn").addEventListener("click", () => {
     catchAllMode = !catchAllMode;
-    el("catchAllBtn").style.borderColor = catchAllMode ? "var(--primary)" : "";
+    el("catchAllBtn").style.borderColor = catchAllMode ? "var(--green)" : "";
+    el("catchAllBtn").style.color = catchAllMode ? "var(--green)" : "";
     el("address").value = "";
     el("deployBtn").disabled = false;
   });
@@ -406,10 +495,10 @@
   function renderUninstallList(uToken, accountId, resources) {
     const box = el("uninstallList");
     if (!resources.length) {
-      box.innerHTML = '<p style="font-size:13px;color:var(--text-secondary)">未发现 MailEdge 相关资源（Worker / D1 / R2 / Email 路由规则）。</p>';
+      box.innerHTML = '<p class="muted">未发现 MailEdge 相关资源（Worker / D1 / R2 / Email 路由规则）。</p>';
       return;
     }
-    let html = '<p style="font-size:13px;color:var(--text-secondary);margin:8px 0">以下资源将被删除：</p>';
+    let html = '<p class="muted" style="margin:8px 0">以下资源将被删除：</p>';
     resources.forEach((r, i) => {
       html += '<label class="uninstall-item"><input type="checkbox" class="uninstall-item-cb" data-index="' + i + '" checked /> ' +
         escapeHtml(r.label) + "</label>";
@@ -419,7 +508,6 @@
     html += "</div>";
     box.innerHTML = html;
 
-    // 把资源数据挂到元素上，删除时读取勾选项
     box.dataset.token = uToken;
     box.dataset.accountId = accountId;
     box.dataset.resources = JSON.stringify(resources);
@@ -440,7 +528,6 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "删除失败");
 
-        // 展示每项结果
         const lines = data.results.map((r) => (r.ok ? "✓ " : "✗ ") + r.label + (r.ok ? "" : " — " + (r.detail || "失败")));
         msg("uninstallMsg", data.results.some((r) => !r.ok) ? "部分资源删除失败，见列表" : "删除完成", data.results.some((r) => !r.ok));
         renderUninstallList(box.dataset.token, box.dataset.accountId, []);
