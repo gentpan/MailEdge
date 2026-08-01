@@ -40,8 +40,13 @@ export default function MailPage() {
   const [composeDraft, setComposeDraft] = useState<ComposeDraft | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // 竞态守卫：列表与详情的请求可能交错返回，用自增序号只接受最后一次的结果
+  const listSeqRef = useRef(0);
+  const detailSeqRef = useRef(0);
+
   const loadList = useCallback(
     async (options: { append?: boolean; before?: string } = {}) => {
+      const seq = ++listSeqRef.current;
       setListLoading(true);
       try {
         const result = await api.messages({
@@ -51,24 +56,33 @@ export default function MailPage() {
           q: search || undefined,
           before: options.before,
         });
+        if (seq !== listSeqRef.current) return; // 已有更新的请求，丢弃过期响应
         setItems((previous) => (options.append ? [...previous, ...result.items] : result.items));
         setCursor(result.nextCursor);
+      } catch {
+        // 列表加载失败静默：下一次轮询/事件会再试
       } finally {
-        setListLoading(false);
+        if (seq === listSeqRef.current) setListLoading(false);
       }
     },
     [mailboxId, folder, category, search],
   );
 
   const loadStats = useCallback(async () => {
-    const result = await api.stats(mailboxId);
-    setStats(result.stats);
+    try {
+      const result = await api.stats(mailboxId);
+      setStats(result.stats);
+    } catch {
+      // 未读数失败静默，不影响主流程
+    }
   }, [mailboxId]);
 
+  // 列表刷新统一防抖：敲键盘/切文件夹时不立刻连发请求
   useEffect(() => {
     setActiveId(null);
     setDetail(null);
-    void loadList();
+    const timer = window.setTimeout(() => void loadList(), 300);
+    return () => window.clearTimeout(timer);
   }, [loadList]);
 
   useEffect(() => {
@@ -93,11 +107,24 @@ export default function MailPage() {
   }, [toast]);
 
   // 实时推送：连到当前视图涉及的信箱 DO，收信/变动秒级到达。
+  // 事件可能连发（如批量收信），用防抖合并成一次刷新，避免风暴式轰炸 API
+  const streamTimerRef = useRef<number | null>(null);
   const streamIds = mailboxId === "all" ? mailboxes.map((m) => m.id) : mailboxId ? [mailboxId] : [];
   useMailStream(view === "mail" ? streamIds : [], () => {
-    void loadStats();
-    void loadList();
+    if (streamTimerRef.current) window.clearTimeout(streamTimerRef.current);
+    streamTimerRef.current = window.setTimeout(() => {
+      streamTimerRef.current = null;
+      void loadStats();
+      void loadList();
+    }, 500);
   });
+
+  useEffect(
+    () => () => {
+      if (streamTimerRef.current) window.clearTimeout(streamTimerRef.current);
+    },
+    [],
+  );
 
   // 轮询兜底：WebSocket 断线期间每 60 秒查一次未读数，变化了才静默刷新；
   // 标签页隐藏时跳过。不会打断阅读——刷新只替换列表，已打开的邮件详情不受影响。
@@ -124,23 +151,30 @@ export default function MailPage() {
 
   async function openMessage(message: MessageSummary) {
     const owner = message.mailboxId ?? mailboxId;
+    const seq = ++detailSeqRef.current;
     setActiveId(message.id);
     setDetailMailboxId(owner);
     setDetailLoading(true);
     try {
       const result = await api.message(message.id, owner);
+      if (seq !== detailSeqRef.current) return; // 用户已切到别的邮件，丢弃过期详情
       setDetail(result.message);
       setItems((previous) =>
         previous.map((item) => (item.id === message.id ? { ...item, isRead: true } : item)),
       );
       void loadStats();
     } finally {
-      setDetailLoading(false);
+      if (seq === detailSeqRef.current) setDetailLoading(false);
     }
   }
 
   async function moveTo(id: string, target: MailFolder) {
-    await api.patchMessage(id, { folder: target }, detailMailboxId ?? mailboxId);
+    try {
+      await api.patchMessage(id, { folder: target }, detailMailboxId ?? mailboxId);
+    } catch {
+      setToast(t("toast.actionFailed"));
+      return;
+    }
     setItems((previous) => previous.filter((item) => item.id !== id));
     if (activeId === id) {
       setActiveId(null);
@@ -150,7 +184,12 @@ export default function MailPage() {
   }
 
   async function removeMessage(id: string) {
-    await api.deleteMessage(id, detailMailboxId ?? mailboxId);
+    try {
+      await api.deleteMessage(id, detailMailboxId ?? mailboxId);
+    } catch {
+      setToast(t("toast.actionFailed"));
+      return;
+    }
     setItems((previous) => previous.filter((item) => item.id !== id));
     if (activeId === id) {
       setActiveId(null);
@@ -161,7 +200,12 @@ export default function MailPage() {
 
   async function toggleStar(message: MessageDetail) {
     const next = !message.isStarred;
-    await api.patchMessage(message.id, { isStarred: next }, detailMailboxId ?? mailboxId);
+    try {
+      await api.patchMessage(message.id, { isStarred: next }, detailMailboxId ?? mailboxId);
+    } catch {
+      setToast(t("toast.actionFailed"));
+      return;
+    }
     setDetail({ ...message, isStarred: next });
     setItems((previous) =>
       previous.map((item) => (item.id === message.id ? { ...item, isStarred: next } : item)),

@@ -1,4 +1,6 @@
 import { arrayBufferToBase64, base64ToBytes } from "../../lib/crypto";
+import { safeJson } from "../../lib/http";
+import { trimTrailingSlash } from "../../lib/url";
 import { classifyHttpFailure, classifyThrown, errorMessage } from "../errors";
 import type { MailProvider, SendMailInput, SendMailResult } from "../types";
 
@@ -52,7 +54,7 @@ export class SendflareMailProvider implements MailProvider {
         headers["X-Sendflare-Signature"] = await hmacSha256Hex(this.secret, `${timestamp}.${body}`);
       }
 
-      const response = await fetch(`${this.baseUrl.replace(/\/+$/, "")}/emails`, {
+      const response = await fetch(`${trimTrailingSlash(this.baseUrl)}/emails`, {
         method: "POST",
         headers,
         body,
@@ -100,12 +102,4 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
   ]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return [...new Uint8Array(signature)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function safeJson(response: Response): Promise<Record<string, unknown> | null> {
-  try {
-    return (await response.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }

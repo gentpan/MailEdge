@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { dirPrefix, r2Key, safeName } from "../lib/r2key";
+import { r2Key, safeName } from "../lib/r2key";
 import type { MailAddress, OutboundStatus, SendAttempt, SendMailInput } from "../mail/types";
 
 export interface OutboundRecord {
@@ -42,20 +42,28 @@ interface OutboundRow {
   updated_at: string;
 }
 
+function parseJson<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function toRecord(row: OutboundRow): OutboundRecord {
   return {
     id: row.id,
     userId: row.user_id,
     mailboxId: row.mailbox_id,
     fromEmail: row.from_email,
-    to: JSON.parse(row.to_json) as MailAddress[],
+    to: parseJson<MailAddress[]>(row.to_json, []),
     subject: row.subject,
     status: row.status as OutboundStatus,
     providerId: row.provider_id,
     providerType: row.provider_type,
     providerMessageId: row.provider_message_id,
     attempts: row.attempts,
-    attemptLog: JSON.parse(row.attempt_log) as SendAttempt[],
+    attemptLog: parseJson<SendAttempt[]>(row.attempt_log, []),
     lastError: row.last_error,
     payloadKey: row.payload_key,
     nextRetryAt: row.next_retry_at,
@@ -172,12 +180,18 @@ interface StoredPayload extends Omit<SendMailInput, "attachments"> {
   attachments?: StoredAttachment[];
 }
 
+export interface SavedPayload {
+  key: string;
+  /** 与 input.attachments 顺序一一对应的 R2 键，供「已发送」留底引用 */
+  attachments: Array<{ filename: string; contentType: string; r2Key: string }>;
+}
+
 export async function savePayload(
   env: Env,
   id: string,
   input: SendMailInput,
   mailboxId: string,
-): Promise<string> {
+): Promise<SavedPayload> {
   const dir = r2Key.outboundDir(mailboxId, id);
   const attachments: StoredAttachment[] = [];
 
@@ -197,7 +211,7 @@ export async function savePayload(
   const payload: StoredPayload = { ...input, attachments: attachments.length ? attachments : undefined };
   const key = `${dir}/payload.json`;
   await env.R2.put(key, JSON.stringify(payload), { httpMetadata: { contentType: "application/json" } });
-  return key;
+  return { key, attachments };
 }
 
 export async function loadPayload(env: Env, key: string): Promise<SendMailInput | null> {
@@ -222,13 +236,12 @@ export async function loadPayload(env: Env, key: string): Promise<SendMailInput 
 }
 
 /**
- * 邮件终态后清理 R2 中的发送载荷。
- * 键里含年月分区，无法由 id 直接推出，所以从落库的 payloadKey 反推目录前缀；
- * 旧结构（outbound/{id}/…）也能被同一段逻辑覆盖。
+ * 邮件终态后清理 R2 中的发送载荷（payload.json）。
+ * 只删元数据文件，保留 attachments/ 下的附件二进制——「已发送」留底
+ * 引用的正是这些键，删了前端就永远 404；附件随 outbound 前缀由
+ * R2 生命周期规则统一清理。
  */
 export async function deletePayload(env: Env, payloadKey: string | null): Promise<void> {
   if (!payloadKey) return;
-  const listed = await env.R2.list({ prefix: dirPrefix(payloadKey) });
-  if (!listed.objects.length) return;
-  await env.R2.delete(listed.objects.map((object) => object.key));
+  await env.R2.delete(payloadKey);
 }

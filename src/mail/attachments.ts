@@ -2,6 +2,8 @@ import type { Env } from "../env";
 import { numberVar } from "../env";
 import { randomToken } from "../lib/id";
 import { r2Key } from "../lib/r2key";
+import { trimTrailingSlash } from "../lib/url";
+import { escapeHtml } from "../shared/text";
 import type { MailAttachment, SendMailInput } from "./types";
 
 export interface IncomingAttachment {
@@ -122,7 +124,7 @@ async function shareViaR2(
     filename: attachment.filename,
     contentType: attachment.contentType,
     size: attachment.content.byteLength,
-    url: `${env.APP_URL.replace(/\/+$/, "")}/d/${token}`,
+    url: `${trimTrailingSlash(env.APP_URL)}/d/${token}`,
     expiresAt,
   };
 }
@@ -165,8 +167,4 @@ export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

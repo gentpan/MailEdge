@@ -79,13 +79,6 @@ export async function listMailboxes(env: Env, userId: string): Promise<MailboxRe
   return results.map(toRecord);
 }
 
-export async function listAllMailboxes(env: Env): Promise<MailboxRecord[]> {
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM mailboxes ORDER BY created_at ASC`,
-  ).all<MailboxRow>();
-  return results.map(toRecord);
-}
-
 export async function createMailbox(
   env: Env,
   input: { address: string; userId: string; displayName?: string; isCatchAll?: boolean },

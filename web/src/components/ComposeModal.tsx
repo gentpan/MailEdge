@@ -13,6 +13,9 @@ export interface ComposeDraft {
   text?: string;
 }
 
+// 模块级常量：避免每次渲染新建空数组导致 useMemo 依赖不稳定
+const NO_DOMAINS: string[] = [];
+
 interface Props {
   mailboxes: Mailbox[];
   providers: ProviderView[];
@@ -57,7 +60,7 @@ export default function ComposeModal({
   const effectiveProvider = providerId
     ? providers.find((p) => p.id === providerId)
     : providers.find((p) => p.isDefault);
-  const verifiedDomains = (effectiveProvider?.config?.verifiedDomains as string[] | undefined) ?? [];
+  const verifiedDomains = (effectiveProvider?.config?.verifiedDomains as string[] | undefined) ?? NO_DOMAINS;
   const allowedMailboxes = useMemo(
     () =>
       verifiedDomains.length

@@ -66,7 +66,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // 一条 SMTP 回复的末行：「三位数字 + 空格 + 内容 + CRLF」；续行是「数字-」不匹配
-const FINAL_LINE = /(?:^|\r\n)\d{3} [^\r\n]*\r\n/;
+const FINAL_LINE = /(?:^|\r?\n)\d{3} [^\r\n]*\r?\n/;
 
 class SmtpSession {
   private constructor(

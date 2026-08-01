@@ -5,7 +5,6 @@ export type Lang = "zh" | "en";
 export const DICT = {
   zh: {
     "app.name": "MailEdge",
-    "app.loading": "正在加载…",
 
     // 认证
     "auth.login.title": "登录",
@@ -47,6 +46,7 @@ export const DICT = {
     "list.empty.archive": "还没有归档的邮件",
     "list.loading": "加载中…",
     "list.loadMore": "加载更多",
+    "list.loadError": "加载失败，请重试",
     "list.to": "发给",
     "list.sentTo": "发往",
     "cat.all": "全部",
@@ -109,6 +109,7 @@ export const DICT = {
     "toast.sentShared": "已发送，其中 {n} 个大附件转为下载链接",
     "toast.deferred": "所有渠道暂时不可用，已加入重试队列",
     "toast.sendFailed": "发送失败：{error}",
+    "toast.actionFailed": "操作失败，请重试",
     "reply.quote": "---- 原邮件 ----\n发件人：{from}\n",
 
     // 设置
@@ -123,9 +124,9 @@ export const DICT = {
     "common.saving": "处理中…",
     "common.delete": "删除",
     "common.test": "测试",
+    "common.refresh": "刷新",
     "common.enabled": "启用",
     "common.optional": "可选",
-    "common.language": "界面语言",
 
     // 设置 - 发信服务
     "providers.title": "发信服务",
@@ -270,7 +271,6 @@ export const DICT = {
 
   en: {
     "app.name": "MailEdge",
-    "app.loading": "Loading…",
 
     "auth.login.title": "Sign in",
     "auth.login.subtitle": "Sign in with your MailEdge account.",
@@ -310,6 +310,7 @@ export const DICT = {
     "list.empty.archive": "Nothing archived yet",
     "list.loading": "Loading…",
     "list.loadMore": "Load more",
+    "list.loadError": "Failed to load, please retry",
     "list.to": "To",
     "list.sentTo": "To",
     "cat.all": "All",
@@ -370,6 +371,7 @@ export const DICT = {
     "toast.sentShared": "Sent, {n} large attachment(s) turned into download links",
     "toast.deferred": "All channels are temporarily unavailable; queued for retry",
     "toast.sendFailed": "Send failed: {error}",
+    "toast.actionFailed": "Operation failed, please retry",
     "reply.quote": "---- Original message ----\nFrom: {from}\n",
 
     "settings.back": "Back to mail",
@@ -383,9 +385,9 @@ export const DICT = {
     "common.saving": "Working…",
     "common.delete": "Delete",
     "common.test": "Test",
+    "common.refresh": "Refresh",
     "common.enabled": "Enabled",
     "common.optional": "Optional",
-    "common.language": "Language",
 
     "providers.title": "Sending providers",
     "providers.desc":

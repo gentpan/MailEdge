@@ -53,13 +53,13 @@ send.post("/send", async (c) => {
 
   const finalInput = appendShareSection({ ...input, attachments: prepared.inline }, prepared.shared);
 
-  const payloadKey = await savePayload(c.env, internalId, finalInput, mailbox.id);
+  const payload = await savePayload(c.env, internalId, finalInput, mailbox.id);
   await createOutbound(c.env, {
     id: internalId,
     userId: user.id,
     mailboxId: mailbox.id,
     input: finalInput,
-    payloadKey,
+    payloadKey: payload.key,
   });
 
   const result = await dispatch(c.env, { internalId, input: finalInput, preferredProviderId: providerId });
@@ -86,13 +86,14 @@ send.post("/send", async (c) => {
     provider: result.provider,
     error: result.error ?? null,
     attachments: [
-      ...prepared.inline.map((item) => ({
+      ...prepared.inline.map((item, index) => ({
         id: newId("att"),
         filename: item.filename,
         contentType: item.contentType,
         size: item.content.byteLength,
         mode: "inline" as const,
-        r2Key: null,
+        // 留底引用 outbound 载荷里的附件键，前端才能下载
+        r2Key: payload.attachments[index]?.r2Key ?? null,
         token: null,
       })),
       ...prepared.shared.map((item) => ({
@@ -146,6 +147,15 @@ send.post("/outbox/:id/retry", async (c) => {
 
   const input = await loadPayload(c.env, record.payloadKey);
   if (!input) return c.json({ error: "发送载荷已过期，无法重试" }, 409);
+
+  // 抢占重试权：只有 deferred/failed 才允许重试，避免与 cron 并发把同一封发两遍；
+  // failed 记录重置计数，让失败邮件有真实的再次尝试机会
+  const claimed = await c.env.DB.prepare(
+    `UPDATE outbound_messages SET status = 'sending', attempts = 0, updated_at = ? WHERE id = ? AND status IN ('deferred', 'failed')`,
+  )
+    .bind(new Date().toISOString(), record.id)
+    .run();
+  if (!claimed.meta.changes) return c.json({ error: "该邮件正在发送中或状态已变化" }, 409);
 
   const result = await dispatch(c.env, { internalId: record.id, input });
 
@@ -217,12 +227,21 @@ async function parseSendRequest(request: Request): Promise<ParsedSend> {
     return { error: "请求体不是合法 JSON" };
   }
 
-  const attachments: IncomingAttachment[] = (body.attachments ?? []).map((item) => ({
-    filename: item.filename,
-    contentType: item.contentType || "application/octet-stream",
-    contentId: item.contentId,
-    content: base64ToBytes(item.content).slice().buffer as ArrayBuffer,
-  }));
+  const attachments: IncomingAttachment[] = [];
+  for (const item of body.attachments ?? []) {
+    let content: ArrayBuffer;
+    try {
+      content = base64ToBytes(item.content).slice().buffer as ArrayBuffer;
+    } catch {
+      return { error: `附件「${item.filename}」的 base64 内容不合法` };
+    }
+    attachments.push({
+      filename: item.filename,
+      contentType: item.contentType || "application/octet-stream",
+      contentId: item.contentId,
+      content,
+    });
+  }
 
   return buildInput(body, attachments);
 }

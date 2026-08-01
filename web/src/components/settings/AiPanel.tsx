@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MAIL_CATEGORIES } from "../../../../src/ai/types";
 import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
@@ -20,6 +20,7 @@ export default function AiPanel() {
   const { t } = useI18n();
   const [ai, setAi] = useState<AiConfigView | null>(null);
   const [tg, setTg] = useState<TelegramView | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,19 +36,27 @@ export default function AiPanel() {
   const [chatId, setChatId] = useState("");
   const [onlyCategories, setOnlyCategories] = useState<string[]>([]);
 
-  useEffect(() => {
-    api.aiConfig().then((r) => {
-      setAi(r.ai);
-      setTg(r.telegram);
-      setEnabled(r.ai.enabled);
-      setBaseUrl(r.ai.baseUrl ?? "");
-      setModel(r.ai.model ?? "");
-      setAutoClassify(r.ai.autoClassify ?? false);
-      setTgEnabled(r.telegram.enabled);
-      setChatId(r.telegram.chatId ?? "");
-      setOnlyCategories(r.telegram.onlyCategories ?? []);
-    });
+  const load = useCallback(() => {
+    setLoadError(false);
+    api.aiConfig().then(
+      (r) => {
+        setAi(r.ai);
+        setTg(r.telegram);
+        setEnabled(r.ai.enabled);
+        setBaseUrl(r.ai.baseUrl ?? "");
+        setModel(r.ai.model ?? "");
+        setAutoClassify(r.ai.autoClassify ?? false);
+        setTgEnabled(r.telegram.enabled);
+        setChatId(r.telegram.chatId ?? "");
+        setOnlyCategories(r.telegram.onlyCategories ?? []);
+      },
+      () => setLoadError(true),
+    );
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function saveAi() {
     setBusy(true);
@@ -105,6 +114,19 @@ export default function AiPanel() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (loadError) {
+    return (
+      <div className="settings-panel">
+        <div className="empty">
+          <p>{t("list.loadError")}</p>
+          <button className="btn btn--secondary btn--sm" type="button" onClick={load}>
+            {t("common.refresh")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!ai || !tg) return null;

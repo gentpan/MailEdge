@@ -1,5 +1,5 @@
 import { Archive, Loader2, Mail, Paperclip, Reply, Sparkles, Star, Trash2, WandSparkles } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { MessageDetail } from "../../../src/shared/message";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
@@ -37,10 +37,14 @@ export default function MessageView({
   const [replying, setReplying] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // 竞态守卫：AI 请求可能跨越邮件切换返回，用序号丢弃过期结果
+  const aiSeqRef = useRef(0);
+
   // 切换邮件时清空上一封的 AI 状态
   const currentId = message?.id ?? null;
   const [seenId, setSeenId] = useState<string | null>(null);
   if (currentId !== seenId) {
+    aiSeqRef.current += 1;
     setSeenId(currentId);
     setSummary(message?.aiSummary ?? null);
     setSummarizing(false);
@@ -50,33 +54,39 @@ export default function MessageView({
 
   async function summarize(target: MessageDetail) {
     if (!mailboxId) return;
+    const seq = ++aiSeqRef.current;
     setSummarizing(true);
     setAiError(null);
     try {
       const result = await api.aiSummarize(target.id, mailboxId);
+      if (seq !== aiSeqRef.current) return;
       setSummary(result.summary);
     } catch (error) {
+      if (seq !== aiSeqRef.current) return;
       setAiError(error instanceof Error ? error.message : "error");
     } finally {
-      setSummarizing(false);
+      if (seq === aiSeqRef.current) setSummarizing(false);
     }
   }
 
   async function aiReply(target: MessageDetail) {
     if (!mailboxId) return;
+    const seq = ++aiSeqRef.current;
     setReplying(true);
     setAiError(null);
     try {
       const result = await api.aiReply(target.id, mailboxId, {});
+      if (seq !== aiSeqRef.current) return;
       onAiReply({
         to: target.from.email,
         subject: target.subject.startsWith("Re:") ? target.subject : `Re: ${target.subject}`,
         text: result.draft,
       });
     } catch (error) {
+      if (seq !== aiSeqRef.current) return;
       setAiError(error instanceof Error ? error.message : "error");
     } finally {
-      setReplying(false);
+      if (seq === aiSeqRef.current) setReplying(false);
     }
   }
 
@@ -225,7 +235,7 @@ export default function MessageView({
             // 用沙箱 iframe 渲染 HTML 正文：禁用脚本、表单与同源访问
             <iframe
               className="detail-frame"
-              title={t("detail.summaryTitle")}
+              title={message.subject}
               sandbox=""
               srcDoc={message.html}
               referrerPolicy="no-referrer"

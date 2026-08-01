@@ -251,6 +251,32 @@ describe("全部临时失败：延迟重试", () => {
     expect(row.lastError).toMatch(/重试 5 次后仍失败/);
     expect(row.nextRetryAt).toBeNull();
   });
+
+  it("配置了多个备用渠道时也不会突破总尝试上限", async () => {
+    await addResend("渠道一", 10);
+    await addResend("渠道二", 20);
+    await addResend("渠道三", 30);
+
+    // 已攒 4 次失败，本轮最多再试 1 次就应转 failed，而不是把 3 个渠道全跑一遍
+    await createOutbound(env, {
+      id: "mail_multi",
+      userId: null,
+      mailboxId: null,
+      input: INPUT,
+      payloadKey: null,
+    });
+    await env.DB.prepare("UPDATE outbound_messages SET attempts = 4 WHERE id = ?").bind("mail_multi").run();
+
+    mockResend(503, { message: "unavailable" });
+    const result = await dispatch(env, { internalId: "mail_multi", input: INPUT });
+
+    expect(result.status).toBe("failed");
+    expect(result.attempts).toHaveLength(1);
+    expect(requests).toHaveLength(1);
+    const row = await record("mail_multi");
+    expect(row.lastError).toMatch(/重试 5 次/);
+    expect(row.nextRetryAt).toBeNull();
+  });
 });
 
 describe("渠道顺序", () => {

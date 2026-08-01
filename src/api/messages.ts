@@ -33,9 +33,11 @@ async function listAcrossMailboxes(
   mailboxes: MailboxRecord[],
   params: { folder?: MailFolder; category?: string; limit: number; before?: string; search?: string },
 ) {
+  // 每个信箱多取一条来判断「是否还有下一页」：否则两个信箱恰好凑满 limit 时
+  // merged.length === limit 会被误判为没有更多，分页提前终止
   const pages = await Promise.all(
     mailboxes.map(async (mailbox) => {
-      const result = await mailboxStub(env, mailbox).list(params);
+      const result = await mailboxStub(env, mailbox).list({ ...params, limit: params.limit + 1 });
       return result.items.map((item) => ({
         ...item,
         mailboxId: mailbox.id,
@@ -110,6 +112,7 @@ messages.get("/stats", async (c) => {
   }
 
   const mailbox = await resolveMailbox(c.env, userId, requested);
+  if (requested && requested !== ALL && !mailbox) return c.json({ error: "信箱不存在" }, 404);
   if (!mailbox) return c.json({ stats: [] });
   return c.json({ stats: await mailboxStub(c.env, mailbox).stats() });
 });
@@ -132,6 +135,7 @@ messages.get("/messages", async (c) => {
   }
 
   const mailbox = await resolveMailbox(c.env, userId, requested);
+  if (requested && requested !== ALL && !mailbox) return c.json({ error: "信箱不存在" }, 404);
   if (!mailbox) return c.json({ items: [], nextCursor: null });
 
   const result = await mailboxStub(c.env, mailbox).list(params);

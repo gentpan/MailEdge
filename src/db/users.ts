@@ -64,11 +64,6 @@ export async function getUser(env: Env, id: string): Promise<UserRecord | null> 
   return row ? toRecord(row) : null;
 }
 
-export async function listUsers(env: Env): Promise<UserRecord[]> {
-  const { results } = await env.DB.prepare(`SELECT * FROM users ORDER BY created_at ASC`).all<UserRow>();
-  return results.map(toRecord);
-}
-
 export async function authenticate(env: Env, email: string, password: string): Promise<UserRecord | null> {
   const row = await env.DB.prepare(`SELECT * FROM users WHERE email = ?`)
     .bind(email.trim().toLowerCase())

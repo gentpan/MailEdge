@@ -51,13 +51,6 @@ export async function dispatch(
   let lastResult: SendMailResult | null = null;
 
   for (const [index, provider] of chain.entries()) {
-    await updateOutbound(env, internalId, {
-      status: "sending",
-      providerId: provider.id,
-      providerType: provider.type,
-      incrementAttempts: true,
-    });
-
     const result = await sendWith(env, provider, enriched, internalId);
     lastResult = result;
 
@@ -70,6 +63,9 @@ export async function dispatch(
       failureKind: result.failureKind,
     });
 
+    // 本次尝试的累计数（含历史），用于上限判断与退避计算
+    const totalAttempts = attemptCount + index + 1;
+
     if (result.success) {
       await recordProviderHealth(env, provider.id, null);
       await updateOutbound(env, internalId, {
@@ -79,6 +75,7 @@ export async function dispatch(
         providerMessageId: result.providerMessageId ?? null,
         lastError: null,
         nextRetryAt: null,
+        incrementAttempts: true,
         attemptLog: attempts,
       });
       await deletePayload(env, existing?.payloadKey ?? null).catch(() => undefined);
@@ -86,6 +83,15 @@ export async function dispatch(
     }
 
     await recordProviderHealth(env, provider.id, result.error ?? "未知错误");
+
+    // 非终态也把尝试记录落库，避免中途崩溃后计数与日志漂移
+    await updateOutbound(env, internalId, {
+      status: "sending",
+      providerId: provider.id,
+      providerType: provider.type,
+      incrementAttempts: true,
+      attemptLog: attempts,
+    });
 
     if (result.failureKind === "permanent") {
       await updateOutbound(env, internalId, {
@@ -97,45 +103,48 @@ export async function dispatch(
       return { ...result, internalId, status: "failed", attempts };
     }
 
-    // transient：继续尝试下一个备用渠道
+    // 达到总尝试上限：即使还有备用渠道也不再发
+    if (totalAttempts >= MAX_ATTEMPTS) {
+      const error = result.error ?? "渠道暂时不可用";
+      await updateOutbound(env, internalId, {
+        status: "failed",
+        lastError: `重试 ${totalAttempts} 次后仍失败：${error}`,
+        nextRetryAt: null,
+        attemptLog: attempts,
+      });
+      return { internalId, status: "failed", success: false, provider: result.provider, error, attempts };
+    }
+
+    // transient 且有备用渠道：换下一个
     const hasFallback = index < chain.length - 1;
     if (hasFallback) continue;
-  }
 
-  // 所有渠道都是临时性失败 → 延迟重试
-  const totalAttempts = attemptCount + chain.length;
-  if (totalAttempts >= MAX_ATTEMPTS) {
-    const error = lastResult?.error ?? "所有发信渠道均不可用";
+    // 所有渠道都是临时性失败 → 延迟重试（指数退避）
+    const nextRetryAt = new Date(Date.now() + backoffMs(totalAttempts)).toISOString();
     await updateOutbound(env, internalId, {
-      status: "failed",
-      lastError: `重试 ${totalAttempts} 次后仍失败：${error}`,
-      nextRetryAt: null,
+      status: "deferred",
+      lastError: result.error ?? "渠道暂时不可用",
+      nextRetryAt,
       attemptLog: attempts,
     });
+
     return {
       internalId,
-      status: "failed",
+      status: "deferred",
       success: false,
-      provider: lastResult?.provider ?? "cloudflare",
-      error,
+      provider: result.provider,
+      error: result.error,
       attempts,
     };
   }
 
-  const nextRetryAt = new Date(Date.now() + backoffMs(totalAttempts)).toISOString();
-  await updateOutbound(env, internalId, {
-    status: "deferred",
-    lastError: lastResult?.error ?? "渠道暂时不可用",
-    nextRetryAt,
-    attemptLog: attempts,
-  });
-
+  // 理论到不了这里：循环内每条路径都已 return
   return {
     internalId,
-    status: "deferred",
+    status: "failed",
     success: false,
     provider: lastResult?.provider ?? "cloudflare",
-    error: lastResult?.error,
+    error: "所有发信渠道均不可用",
     attempts,
   };
 }

@@ -8,6 +8,7 @@ import type {
   MessageDetail,
   MessageSummary,
 } from "../shared/message";
+import { stripHtml } from "../shared/text";
 
 export interface StoreMessageInput {
   id: string;
@@ -255,8 +256,12 @@ export class MailboxDO extends DurableObject<Env> {
       values.push(params.before);
     }
     if (params.search) {
-      conditions.push("(subject LIKE ? OR snippet LIKE ? OR from_email LIKE ? OR text LIKE ?)");
-      const pattern = `%${params.search}%`;
+      conditions.push(
+        "(subject LIKE ? ESCAPE '\\' OR snippet LIKE ? ESCAPE '\\' OR from_email LIKE ? ESCAPE '\\' OR text LIKE ? ESCAPE '\\')",
+      );
+      // 转义 LIKE 通配符，否则输入里的 %/_ 会把普通字符当通配符
+      const escaped = params.search.replace(/[\\%_]/g, (m) => `\\${m}`);
+      const pattern = `%${escaped}%`;
       values.push(pattern, pattern, pattern, pattern);
     }
 
@@ -294,10 +299,10 @@ export class MailboxDO extends DurableObject<Env> {
       ...toSummary(row),
       cc: parseAddresses(row.cc_json),
       bcc: parseAddresses(row.bcc_json),
-      replyTo: row.reply_to_json ? (JSON.parse(row.reply_to_json) as MessageAddress) : null,
+      replyTo: row.reply_to_json ? safeParse<MessageAddress>(row.reply_to_json, { email: "" }) : null,
       html: row.html,
       text: row.text,
-      headers: JSON.parse(row.headers_json) as Record<string, string>,
+      headers: safeParse<Record<string, string>>(row.headers_json, {}),
       size: row.size,
       messageId: row.message_id,
       inReplyTo: row.in_reply_to,
@@ -476,14 +481,17 @@ function parseAddresses(value: string): MessageAddress[] {
   }
 }
 
+/** 解析脏数据列的 JSON，解析失败返回兜底值而不是让整封邮件读取 500 */
+function safeParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function buildSnippet(text?: string | null, html?: string | null): string {
   const source = text ?? stripHtml(html ?? "");
   return source.replace(/\s+/g, " ").trim().slice(0, 200);
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ");
 }

@@ -1,3 +1,4 @@
+import { trimTrailingSlash } from "../lib/url";
 import type { MailProviderConfig } from "./types";
 
 /**
@@ -40,7 +41,7 @@ async function fetchResendDomains(apiKey: string): Promise<string[]> {
 async function fetchSendflareDomains(token: string, baseUrl?: string): Promise<string[]> {
   if (!token) throw new DomainFetchError("请先填写并保存 API Token");
 
-  const base = (baseUrl ?? "https://api.sendflare.com").replace(/\/+$/, "");
+  const base = trimTrailingSlash(baseUrl ?? "https://api.sendflare.com");
   const res = await fetch(`${base}/domains`, { headers: { Authorization: `Bearer ${token}` } });
   const data = (await res.json().catch(() => null)) as {
     data?: unknown;

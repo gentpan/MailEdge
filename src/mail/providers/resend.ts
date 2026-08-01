@@ -1,4 +1,5 @@
 import { arrayBufferToBase64 } from "../../lib/crypto";
+import { safeJson } from "../../lib/http";
 import { classifyHttpFailure, classifyThrown, errorMessage } from "../errors";
 import { formatAddress } from "../mime";
 import type { MailProvider, SendMailInput, SendMailResult } from "../types";
@@ -65,14 +66,6 @@ export class ResendMailProvider implements MailProvider {
         failureKind: classifyThrown(error),
       };
     }
-  }
-}
-
-async function safeJson(response: Response): Promise<Record<string, unknown> | null> {
-  try {
-    return (await response.json()) as Record<string, unknown>;
-  } catch {
-    return null;
   }
 }
 

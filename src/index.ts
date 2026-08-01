@@ -56,6 +56,17 @@ async function retryDeferred(env: Env): Promise<void> {
 
   for (const record of pending) {
     if (!record.payloadKey) continue;
+
+    // 抢占：cron 只处理仍处于 deferred 的记录。
+    // 若用户已手动重试（状态已变 sending/sent/failed），更新 0 行则跳过，
+    // 避免 cron 与手动重试并发把同一封邮件发两遍。
+    const claimed = await env.DB.prepare(
+      `UPDATE outbound_messages SET status = 'sending', updated_at = ? WHERE id = ? AND status = 'deferred'`,
+    )
+      .bind(new Date().toISOString(), record.id)
+      .run();
+    if (!claimed.meta.changes) continue;
+
     const input = await loadPayload(env, record.payloadKey);
     if (!input) continue;
 

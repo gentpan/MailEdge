@@ -179,7 +179,9 @@ export function redactProvider(record: MailProviderRecord) {
   };
 }
 
-function maskSecret(value: string): string {
+/** 渠道密钥/令牌脱敏。空值原样返回（无密钥则无密可脱）。 */
+export function maskSecret(value: string): string {
+  if (!value) return "";
   if (value.length <= 8) return "••••••••";
   return `${value.slice(0, 4)}••••${value.slice(-4)}`;
 }

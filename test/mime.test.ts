@@ -127,6 +127,34 @@ describe("头注入防护", () => {
     expect(raw).toContain("Subject: Hello");
     expect(raw).not.toContain("<fake>");
   });
+
+  it("附件文件名里的 CRLF 被剥离，不会注入新头部", () => {
+    const raw = build({
+      attachments: [
+        {
+          filename: "a.txt\r\nBcc: evil@x.com",
+          contentType: "text/plain",
+          content: new Uint8Array([1]).buffer,
+        },
+      ],
+    });
+    expect(headersOf(raw)).not.toMatch(/^Bcc:/m);
+    expect(raw).not.toContain("\r\nBcc:");
+  });
+
+  it("附件 content-type 里的 CRLF 被剥离，不会注入新头部", () => {
+    const raw = build({
+      attachments: [
+        {
+          filename: "a.txt",
+          contentType: "text/plain\r\nBcc: evil@x.com",
+          content: new Uint8Array([1]).buffer,
+        },
+      ],
+    });
+    expect(headersOf(raw)).not.toMatch(/^Bcc:/m);
+    expect(raw).not.toContain("\r\nBcc:");
+  });
 });
 
 describe("正文结构", () => {

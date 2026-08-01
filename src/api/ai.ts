@@ -16,6 +16,7 @@ import type { MailboxRecord } from "../db/mailboxes";
 import { listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { Env } from "../env";
 import type { MessageDetail } from "../shared/message";
+import { stripHtml } from "../shared/text";
 import { requireAdmin, requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -172,10 +173,6 @@ function toContext(message: MessageDetail): EmailContext {
     from: message.from.name ? `${message.from.name} <${message.from.email}>` : message.from.email,
     text: message.text ?? stripHtml(message.html ?? ""),
   };
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, " ");
 }
 
 function keepSecret(incoming: string | undefined, previous: string): string {

@@ -9,6 +9,7 @@ import { newId } from "../lib/id";
 import { r2Key } from "../lib/r2key";
 import { sendTelegram, shouldNotify } from "../notify/telegram";
 import type { MessageAddress } from "../shared/message";
+import { stripHtml } from "../shared/text";
 
 /**
  * Cloudflare Email Routing → Email Worker 的入口。
@@ -37,28 +38,34 @@ export async function handleInboundEmail(
   const parsed = await PostalMime.parse(rawBuffer);
 
   const messageId = newId("msg");
-  const receivedAt = parsed.date ? new Date(parsed.date) : new Date();
+  // Date 头畸形时 new Date() 会得到 Invalid Date，后续 toISOString() 抛错整封退信，
+  // 所以解析失败一律回退到当前时间
+  const parsedDate = parsed.date ? new Date(parsed.date) : null;
+  const receivedAt = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date();
   const attachments: NonNullable<StoreMessageInput["attachments"]> = [];
 
-  for (const [index, attachment] of (parsed.attachments ?? []).entries()) {
-    const content = toArrayBuffer(attachment.content);
-    const filename = attachment.filename || `attachment-${index + 1}`;
-    const key = r2Key.inboundAttachment(mailbox.id, messageId, index, filename, receivedAt);
+  // 附件并行上传 R2，互不依赖
+  await Promise.all(
+    (parsed.attachments ?? []).map(async (attachment, index) => {
+      const content = toArrayBuffer(attachment.content);
+      const filename = attachment.filename || `attachment-${index + 1}`;
+      const key = r2Key.inboundAttachment(mailbox.id, messageId, index, filename, receivedAt);
 
-    await env.R2.put(key, content, {
-      httpMetadata: { contentType: attachment.mimeType || "application/octet-stream" },
-    });
+      await env.R2.put(key, content, {
+        httpMetadata: { contentType: attachment.mimeType || "application/octet-stream" },
+      });
 
-    attachments.push({
-      id: newId("att"),
-      filename,
-      contentType: attachment.mimeType || "application/octet-stream",
-      size: content.byteLength,
-      mode: "inline",
-      r2Key: key,
-      token: null,
-    });
-  }
+      attachments.push({
+        id: newId("att"),
+        filename,
+        contentType: attachment.mimeType || "application/octet-stream",
+        size: content.byteLength,
+        mode: "inline",
+        r2Key: key,
+        token: null,
+      });
+    }),
+  );
 
   const headers: Record<string, string> = {};
   for (const header of parsed.headers ?? []) {
@@ -93,7 +100,9 @@ export async function handleInboundEmail(
   ctx.waitUntil(
     env.R2.put(r2Key.inboundRaw(mailbox.id, messageId, receivedAt), rawBuffer, {
       httpMetadata: { contentType: "message/rfc822" },
-    }).then(() => undefined),
+    })
+      .then(() => undefined)
+      .catch((error) => console.error("[MailEdge] 原始报文留档失败", error)),
   );
 
   // AI 分类与 Telegram 推送不阻塞投递，放到 waitUntil 里异步跑
@@ -105,7 +114,7 @@ export async function handleInboundEmail(
       subject: parsed.subject ?? "(无主题)",
       text: parsed.text ?? stripHtml(parsed.html ?? ""),
       snippet: (parsed.text ?? stripHtml(parsed.html ?? "")).replace(/\s+/g, " ").trim().slice(0, 300),
-    }),
+    }).catch((error) => console.error("[MailEdge] 收信后处理失败", error)),
   );
 }
 
@@ -150,10 +159,6 @@ async function postProcess(
   } catch (error) {
     console.error("[MailEdge] Telegram 推送失败", error);
   }
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, " ");
 }
 
 function toArrayBuffer(content: string | ArrayBuffer | Uint8Array): ArrayBuffer {

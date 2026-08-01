@@ -8,6 +8,8 @@
  * 输入一律先转义，用户写的原始 HTML 不会被执行。
  */
 
+import { escapeHtml } from "./text";
+
 // 占位符使用 Unicode 私用区，避免正文里出现同形文本被误替换
 const BLOCK_MARK = "";
 const CODE_MARK = "";
@@ -171,6 +173,5 @@ function isSafeUrl(url: string): boolean {
   return /^(https?:\/\/|mailto:)/i.test(url);
 }
 
-export function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+// 与 shared/text.ts 共用同一份转义，保持 re-export 兼容既有调用方
+export { escapeHtml } from "./text";

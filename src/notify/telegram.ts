@@ -1,5 +1,6 @@
 import type { TelegramConfig } from "../ai/types";
 import { CATEGORY_LABELS, isMailCategory } from "../ai/types";
+import { escapeHtml } from "../shared/text";
 
 export interface InboundNotice {
   from: string;
@@ -55,8 +56,4 @@ export async function sendTelegramTest(config: TelegramConfig): Promise<{ ok: bo
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "请求失败" };
   }
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

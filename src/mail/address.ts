@@ -26,13 +26,11 @@ export function isValidEmail(email: string): boolean {
   return ADDRESS.test(email);
 }
 
-export class InvalidAddressError extends Error {}
-
 /** 校验失败时抛错。message 会直接展示给用户，所以要说清是哪个地址。 */
 export function assertValidEmail(email: string, field = "地址"): string {
   if (!isValidEmail(email)) {
     // 回显时去掉控制字符，避免错误信息本身又把 CRLF 带进日志
-    throw new InvalidAddressError(`${field}不合法：${email.replace(/\p{C}/gu, "␡").slice(0, 80)}`);
+    throw new Error(`${field}不合法：${email.replace(/\p{C}/gu, "␡").slice(0, 80)}`);
   }
   return email;
 }

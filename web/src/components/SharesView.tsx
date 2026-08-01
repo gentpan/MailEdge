@@ -1,28 +1,19 @@
 import { Link2, Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useI18n } from "../i18n";
 import { api } from "../lib/api";
 import { formatDateTime, formatSize, formatTime } from "../lib/format";
+import { useAsyncList } from "../lib/useAsyncList";
 
 type Share = Awaited<ReturnType<typeof api.shares>>["shares"][number];
 
 export default function SharesView() {
   const { t } = useI18n();
-  const [items, setItems] = useState<Share[]>([]);
   const [activeToken, setActiveToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // 同 OutboxView：固定引用，让依赖数组如实反映用到的东西
-  const load = useCallback(async () => {
-    const result = await api.shares();
-    setItems(result.shares);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const fetchItems = useCallback(() => api.shares().then((result) => result.shares), []);
+  const { items, loading, loadError, load } = useAsyncList<Share>(fetchItems);
 
   const active = items.find((item) => item.token === activeToken) ?? null;
   const expired = (share: Share) =>
@@ -36,7 +27,7 @@ export default function SharesView() {
           <button
             className="btn btn--icon"
             type="button"
-            aria-label={t("common.test")}
+            aria-label={t("common.refresh")}
             onClick={() => void load()}
           >
             <RefreshCw size={16} />
@@ -51,7 +42,16 @@ export default function SharesView() {
             </div>
           )}
 
-          {!loading && !items.length && (
+          {!loading && loadError && (
+            <div className="empty">
+              <p>{t("list.loadError")}</p>
+              <button className="btn btn--secondary btn--sm" type="button" onClick={() => void load()}>
+                {t("common.refresh")}
+              </button>
+            </div>
+          )}
+
+          {!loading && !loadError && !items.length && (
             <div className="empty">
               <Link2 size={32} />
               <p>{t("shares.empty")}</p>
@@ -142,9 +142,13 @@ export default function SharesView() {
                   className="btn btn--danger btn--sm"
                   type="button"
                   onClick={async () => {
-                    await api.revokeShare(active.token);
-                    setNotice(t("shares.revoked.notice"));
-                    await load();
+                    try {
+                      await api.revokeShare(active.token);
+                      setNotice(t("shares.revoked.notice"));
+                      await load();
+                    } catch {
+                      setNotice(t("toast.actionFailed"));
+                    }
                   }}
                 >
                   {t("shares.revoke")}

@@ -90,15 +90,23 @@ function buildTextPart(content: string, contentType: string): MimePart {
 }
 
 function buildAttachmentPart(attachment: MailAttachment): MimePart {
+  // contentType 与 filename 会直接进报文，控制字符（含 CRLF/NUL）先剥离，
+  // 否则会被恶意文件名/类型用来注入新头部——这是与地址同等重要的安全边界
+  const contentType = stripControlChars(attachment.contentType) || "application/octet-stream";
+  const filename = stripControlChars(attachment.filename) || "attachment";
   const disposition = attachment.contentId ? "inline" : "attachment";
   const headers = [
-    `Content-Type: ${attachment.contentType}; name="${escapeQuoted(attachment.filename)}"`,
+    `Content-Type: ${contentType}; name="${escapeQuoted(filename)}"`,
     "Content-Transfer-Encoding: base64",
-    `Content-Disposition: ${disposition}; filename="${escapeQuoted(attachment.filename)}"`,
+    `Content-Disposition: ${disposition}; filename="${escapeQuoted(filename)}"`,
   ];
-  if (attachment.contentId) headers.push(`Content-ID: <${attachment.contentId}>`);
+  if (attachment.contentId) headers.push(`Content-ID: <${stripControlChars(attachment.contentId)}>`);
 
   return { headers, content: wrapBase64(arrayBufferToBase64(attachment.content)) };
+}
+
+function stripControlChars(value: string): string {
+  return value.replace(/\p{C}/gu, "");
 }
 
 function wrapMultipart(subtype: string, parts: MimePart[], extraParams = ""): MimePart {

@@ -32,12 +32,20 @@ export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
-    const [providerResult, mailboxResult] = await Promise.all([api.providers(), api.mailboxes()]);
-    setProviders(providerResult.providers);
-    setMailboxes(mailboxResult.mailboxes);
-    setLoading(false);
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [providerResult, mailboxResult] = await Promise.all([api.providers(), api.mailboxes()]);
+      setProviders(providerResult.providers);
+      setMailboxes(mailboxResult.mailboxes);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -96,6 +104,13 @@ export default function SettingsPage() {
           <div className="empty">
             <Loader2 size={20} className="spin" />
             <p>{t("list.loading")}</p>
+          </div>
+        ) : loadError ? (
+          <div className="empty">
+            <p>{t("list.loadError")}</p>
+            <button className="btn btn--secondary btn--sm" type="button" onClick={() => void load()}>
+              {t("common.refresh")}
+            </button>
           </div>
         ) : category === "providers" ? (
           <ProvidersPanel providers={providers} mailboxes={mailboxes} onChanged={() => void load()} />

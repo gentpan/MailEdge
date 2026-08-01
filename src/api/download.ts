@@ -37,7 +37,8 @@ download.get("/d/:token", async (c) => {
     c.env.DB.prepare(`UPDATE attachment_links SET downloads = downloads + 1 WHERE token = ?`)
       .bind(row.token)
       .run()
-      .then(() => undefined),
+      .then(() => undefined)
+      .catch(() => undefined),
   );
 
   return new Response(object.body, {

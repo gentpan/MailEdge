@@ -1,10 +1,11 @@
 import { Loader2, RefreshCw, Send } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
 import type { OutboundView } from "../lib/api";
 import { api } from "../lib/api";
 import { formatDateTime, formatTime, PROVIDER_LABELS } from "../lib/format";
+import { useAsyncList } from "../lib/useAsyncList";
 
 const BADGE: Record<string, string> = {
   sent: "badge--success",
@@ -16,23 +17,12 @@ const BADGE: Record<string, string> = {
 
 export default function OutboxView() {
   const { t } = useI18n();
-  const [items, setItems] = useState<OutboundView[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // 不依赖任何 props/state，用 useCallback 固定引用，
-  // 这样 useEffect 能如实声明依赖而不会反复触发
-  const load = useCallback(async () => {
-    const result = await api.outbox();
-    setItems(result.messages);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const fetchItems = useCallback(() => api.outbox().then((result) => result.messages), []);
+  const { items, loading, loadError, load } = useAsyncList<OutboundView>(fetchItems);
 
   const active = items.find((item) => item.id === activeId) ?? null;
 
@@ -58,7 +48,7 @@ export default function OutboxView() {
           <button
             className="btn btn--icon"
             type="button"
-            aria-label={t("common.test")}
+            aria-label={t("common.refresh")}
             onClick={() => void load()}
           >
             <RefreshCw size={16} />
@@ -73,7 +63,16 @@ export default function OutboxView() {
             </div>
           )}
 
-          {!loading && !items.length && (
+          {!loading && loadError && (
+            <div className="empty">
+              <p>{t("list.loadError")}</p>
+              <button className="btn btn--secondary btn--sm" type="button" onClick={() => void load()}>
+                {t("common.refresh")}
+              </button>
+            </div>
+          )}
+
+          {!loading && !loadError && !items.length && (
             <div className="empty">
               <Send size={32} />
               <p>{t("outbox.empty")}</p>

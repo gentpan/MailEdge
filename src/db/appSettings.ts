@@ -2,6 +2,7 @@ import type { AiConfig, TelegramConfig } from "../ai/types";
 import { AI_DEFAULTS, TELEGRAM_DEFAULTS } from "../ai/types";
 import type { Env } from "../env";
 import { decryptJson, encryptJson } from "../lib/crypto";
+import { maskSecret } from "./providers";
 
 /**
  * settings 表存加密后的应用级配置。AI Key、Telegram Token 都是机密，
@@ -38,18 +39,12 @@ export const getTelegramConfig = (env: Env) =>
 export const saveTelegramConfig = (env: Env, value: TelegramConfig) =>
   writeEncrypted(env, "telegram_config", value);
 
-function mask(value: string): string {
-  if (!value) return "";
-  if (value.length <= 8) return "••••••••";
-  return `${value.slice(0, 4)}••••${value.slice(-4)}`;
-}
-
 /** 脱敏后的 AI 配置，用于返回前端 */
 export function redactAi(config: AiConfig) {
   return {
     enabled: config.enabled,
     baseUrl: config.baseUrl,
-    apiKey: mask(config.apiKey),
+    apiKey: maskSecret(config.apiKey),
     hasKey: Boolean(config.apiKey),
     model: config.model,
     autoClassify: config.autoClassify,
@@ -59,7 +54,7 @@ export function redactAi(config: AiConfig) {
 export function redactTelegram(config: TelegramConfig) {
   return {
     enabled: config.enabled,
-    botToken: mask(config.botToken),
+    botToken: maskSecret(config.botToken),
     hasToken: Boolean(config.botToken),
     chatId: config.chatId,
     onlyCategories: config.onlyCategories,
