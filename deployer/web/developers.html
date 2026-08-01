@@ -5,70 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="MailEdge 开发者文档：HTTP API 参考、发信渠道扩展、本地开发指南。" />
   <title>MailEdge · 开发者文档</title>
+  <link rel="stylesheet" href="/styles.css" />
   <style>
-    :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --panel-2: #1c2128;
-      --border: #30363d;
-      --border-strong: #484f58;
-      --fg: #e6edf3;
-      --fg-dim: #8b949e;
-      --green: #3fb950;
-      --green-strong: #238636;
-      --cyan: #58a6ff;
-      --yellow: #d29922;
-      --purple: #bc8cff;
-      --red: #f85149;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-      font-size: 15px;
-      line-height: 1.8;
-    }
-    code, pre, .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-    .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
-    .topbar {
-      border-bottom: 1px solid var(--border); background: var(--bg);
-      position: sticky; top: 0; z-index: 10;
-    }
-    .topbar-inner {
-      max-width: 860px; margin: 0 auto; padding: 14px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .brand { font-weight: 600; font-size: 16px; color: var(--fg); text-decoration: none; }
-    .logo { display: inline-flex; align-items: center; font-weight: 700; font-size: 18px; line-height: 1; }
-    .logo-mail { color: var(--fg); margin-right: 4px; letter-spacing: -0.5px; }
-    .logo-edge {
-      background: var(--green); color: #0d1117;
-      padding: 3px 10px 3px 8px;
-      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
-      letter-spacing: -0.5px;
-    }
-    .brand-sub { color: var(--fg-dim); margin-left: 8px; font-size: 14px; }
-    .topbar-links { display: flex; gap: 18px; font-size: 13px; }
-    a { color: var(--cyan); text-decoration: none; }
-    a:hover { text-decoration: underline; }
     h1 { font-size: 30px; margin: 48px 0 8px; }
-    h1 .accent { color: var(--green); }
-    .subtitle { color: var(--fg-dim); margin: 0 0 32px; }
+    h1 .accent { color: var(--color-primary); }
+    .subtitle { color: var(--color-text-secondary); margin: 0 0 32px; }
     h2 {
       font-size: 20px; margin: 48px 0 12px; padding-top: 24px;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--color-border);
     }
-    h2::before { content: "## "; color: var(--green); }
+    h2::before { content: "## "; color: var(--color-primary); }
     h3 { font-size: 16px; margin: 28px 0 8px; }
-    h3::before { content: "### "; color: var(--fg-dim); }
+    h3::before { content: "### "; color: var(--color-text-secondary); }
     p { margin: 0 0 14px; }
     pre {
       background: #010409;
-      border: 1px solid var(--border);
+      border: 1px solid var(--color-border);
       border-radius: 8px;
       padding: 16px 18px;
       font-size: 13px;
@@ -77,17 +29,17 @@
       margin: 0 0 18px;
     }
     pre code { color: #e6edf3; }
-    .c { color: var(--fg-dim); }
-    .g { color: var(--green); }
-    .y { color: var(--yellow); }
-    .cy { color: var(--cyan); }
-    .pu { color: var(--purple); }
+    .c { color: var(--color-text-secondary); }
+    .g { color: var(--color-primary); }
+    .y { color: var(--color-warning); }
+    .cy { color: var(--color-link); }
+    .pu { color: var(--color-purple); }
     table {
       width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 18px;
     }
-    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
-    th { color: var(--fg-dim); font-weight: 500; }
-    td code { color: var(--green); font-size: 12px; }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
+    th { color: var(--color-text-secondary); font-weight: 500; }
+    td code { color: var(--color-primary); font-size: 12px; }
     .note {
       background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.3);
       border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
@@ -96,26 +48,19 @@
       background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35);
       border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
     }
-    ul, ol { margin: 0 0 14px; padding-left: 22px; color: var(--fg); }
+    ul, ol { margin: 0 0 14px; padding-left: 22px; color: var(--color-text); }
     li { margin: 4px 0; }
     .toc {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      background: var(--color-bg-panel); border: 1px solid var(--color-border); border-radius: 8px;
       padding: 16px 20px; margin: 24px 0 0;
     }
     .toc a { display: block; padding: 3px 0; font-size: 14px; }
-    .footer {
-      border-top: 1px solid var(--border); margin-top: 64px; padding: 28px 0;
-      color: var(--fg-dim); font-size: 13px;
-      display: flex; justify-content: space-between;
-    }
-  </style>
+    </style>
 </head>
-<body>
+<body class="theme-dark">
   <div class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="/">
-        <span class="logo"><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></span>
-        <span class="brand-sub">开发者文档</span>
+      <a class="logo" href="/"><svg class="logo-mark" fill="none" height="64" viewBox="0 0 64 64" width="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><linearGradient id="me-grad" gradientUnits="userSpaceOnUse" x1="78.644" x2="38.479" y1="65.699" y2="6.963"><stop offset=".00265844" stop-color="#ff37df"></stop><stop offset="1" stop-color="#6e00ff"></stop></linearGradient><g fill="url(#me-grad)"><path d="m3.21981 18.3839c2.04702-6.2227 8.09869-10.3839 14.78639-10.3839h27.9813c6.6817 0 12.7439 4.1557 14.7781 10.3917l-23.1185 12.3299c-3.5295 1.8823-7.7647 1.8823-11.2942 0z"></path><path d="m2.46084 22.5124c-.6492 6.8888-.61204 13.01.10866 20.0031.814 7.8982 7.703 13.4845 15.4522 13.4845h27.9418c7.7029 0 14.5721-5.5224 15.4263-13.3743.7674-7.0535.8108-13.2022.1313-20.1036l-21.9917 11.7289c-4.7059 2.5098-10.3529 2.5098-15.0588 0z"></path></g></svg><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span><span class="logo-sub">开发者文档</span>
       </a>
       <div class="topbar-links">
         <a href="/">首页</a>
@@ -125,12 +70,12 @@
     </div>
   </div>
 
-  <div class="wrap">
+  <main class="container">
     <h1>用 <span class="accent">MailEdge</span> 开发</h1>
     <p class="subtitle">MailEdge 是完整跑在 Cloudflare 上的邮箱系统，也是一组可编程的 HTTP 接口。开发者可以调用它发信、查信、管渠道，或扩展新的发信服务商。</p>
 
     <div class="toc">
-      <strong style="color:var(--fg-dim)">目录</strong>
+      <strong style="color:var(--color-text-secondary)">目录</strong>
       <a href="#api">一、HTTP API</a>
       <a href="#send">　发信</a>
       <a href="#query">　查询与统计</a>
@@ -257,10 +202,17 @@
     <p>测试不是 Node 模拟，而是真实 workerd：<code>crypto.subtle</code>、D1、Durable Object、<code>cloudflare:sockets</code> 的行为与线上一致。</p>
     <div class="note">本地模拟收信：<code>curl -X POST 'http://127.0.0.1:8787/cdn-cgi/handler/email?from=a@x.com&to=you@domain.com' --data-binary @test.eml -H 'Content-Type: message/rfc822'</code></div>
 
-    <div class="footer">
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
       <span>© 2026 MailEdge · 开源</span>
-      <span><a href="/">首页</a> · <a href="/install">部署</a> · <a href="https://github.com/gentpan/MailEdge" target="_blank" rel="noreferrer">GitHub</a></span>
+      <div class="footer-links">
+        <a href="/">首页</a>
+        <a href="/install">部署</a>
+        <a href="https://github.com/gentpan/MailEdge" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
     </div>
-  </div>
+  </footer>
 </body>
 </html>

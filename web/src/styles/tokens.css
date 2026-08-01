@@ -2,9 +2,9 @@
 
 :root {
   /* 品牌色：一个主色 + 一个中性强调色，单视图内不超过 3 个 */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-soft: #eff6ff;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-primary-soft: #f3e8ff;
   --color-secondary: #374151;
 
   --color-success: #16a34a;

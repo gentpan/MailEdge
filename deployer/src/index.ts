@@ -26,6 +26,12 @@ app.get("/install", (c) => c.html(page("index.html")));
 /** 开发者文档 */
 app.get("/developers", (c) => c.html(page("developers.html")));
 
+/** 共享样式 */
+app.get("/styles.css", (c) => {
+  c.header("Content-Type", "text/css; charset=utf-8");
+  return c.body(readFileSync(resolve(ROOT, "web", "styles.css"), "utf8"));
+});
+
 /**
  * 第一步：验证 token + 账户级权限体检。
  * 部署只需要 Workers/D1/R2 权限，不需要域名（收信由用户在 MailEdge 内自行管理）。
