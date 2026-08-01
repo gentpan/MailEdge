@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,11 @@ function page(name: string): string {
   return readFileSync(resolve(ROOT, "web", name), "utf8");
 }
 
+function staticFile(c: Context, name: string, mime: string): Response {
+  c.header("Content-Type", mime);
+  return c.body(readFileSync(resolve(ROOT, "web", name)));
+}
+
 /** 宣传首页 */
 app.get("/", (c) => c.html(page("landing.html")));
 
@@ -27,10 +33,15 @@ app.get("/install", (c) => c.html(page("index.html")));
 app.get("/developers", (c) => c.html(page("developers.html")));
 
 /** 共享样式 */
-app.get("/styles.css", (c) => {
-  c.header("Content-Type", "text/css; charset=utf-8");
-  return c.body(readFileSync(resolve(ROOT, "web", "styles.css"), "utf8"));
-});
+app.get("/styles.css", (c) => staticFile(c, "styles.css", "text/css; charset=utf-8"));
+
+/** favicon 系列 */
+app.get("/favicon.svg", (c) => staticFile(c, "favicon.svg", "image/svg+xml"));
+app.get("/favicon.ico", (c) => staticFile(c, "favicon.ico", "image/x-icon"));
+for (const size of ["16", "32", "48", "180", "192", "512"]) {
+  app.get(`/favicon-${size}.png`, (c) => staticFile(c, `favicon-${size}.png`, "image/png"));
+}
+app.get("/site.webmanifest", (c) => staticFile(c, "site.webmanifest", "application/manifest+json; charset=utf-8"));
 
 /**
  * 第一步：验证 token + 账户级权限体检。
