@@ -101,7 +101,7 @@ code, pre, .mono {
 .logo-edge {
   background: var(--color-grad); color: #ffffff;
   padding: 3px 10px 3px 8px;
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+  border-radius: 6px;
   letter-spacing: -0.5px;
 }
 .logo-sub { margin-left: 8px; font-size: 14px; color: var(--color-text-secondary); font-weight: 400; }
