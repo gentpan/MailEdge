@@ -21,7 +21,6 @@
   --color-warning: #d97706;
   --color-success: #16a34a;
   --color-link: #2563eb;
-  --color-purple: #7c3aed;
 }
 
 .theme-dark {
@@ -43,7 +42,6 @@
   --color-warning: #d29922;
   --color-success: #3fb950;
   --color-link: #58a6ff;
-  --color-purple: #bc8cff;
 }
 
 /* ---------- 全局 ---------- */
