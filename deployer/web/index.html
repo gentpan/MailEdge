@@ -97,9 +97,22 @@
     <div class="term-body">
       <h2>卸载已部署的 MailEdge</h2>
       <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
-      <input type="password" id="uninstallToken" placeholder="$ TOKEN = …" autocomplete="off" />
-      <div class="row">
-        <button type="button" class="btn btn-secondary" id="scanBtn"><span class="spinner"></span><span class="btn-label">扫描该账户的 MailEdge 资源</span></button>
+      <div style="display:flex;gap:12px;align-items:stretch;margin-bottom:12px">
+        <input
+          type="password"
+          id="uninstallToken"
+          placeholder="cfut_…"
+          autocomplete="off"
+          style="margin-bottom:0;flex:1;min-width:0"
+        />
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="scanBtn"
+          style="white-space:nowrap;flex:none"
+        >
+          <span class="spinner"></span><span class="btn-label">扫描资源</span>
+        </button>
       </div>
       <div id="uninstallMsg"></div>
       <div id="uninstallList"></div>
@@ -341,7 +354,7 @@
       msg("uninstallMsg", err.message, true);
       el("uninstallList").innerHTML = "";
     } finally {
-      setLoading("scanBtn", false, "扫描该账户的 MailEdge 资源");
+      setLoading("scanBtn", false, "扫描资源");
     }
   });
 
