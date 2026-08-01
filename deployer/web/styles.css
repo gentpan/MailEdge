@@ -4,6 +4,9 @@
    页面通过 body 的 theme-light 使用本套；theme-dark 仅为旧页兼容
    ============================================================ */
 
+/* 字体：Stack Sans Notch（Logo）+ Roboto（正文）经 bluecdn 反代加载 */
+@import url("https://fonts.bluecdn.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Stack+Sans+Notch:wght@200..700&display=swap");
+
 :root,
 .theme-light {
   /* 主色（xAI） */
@@ -65,7 +68,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "Universal Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 16px;
   line-height: 1.625;
   -webkit-font-smoothing: antialiased;
@@ -100,7 +103,7 @@ code, pre, .mono {
 /* ---------- Logo（独立字体，不随重构改变） ---------- */
 .logo {
   display: inline-flex; align-items: center;
-  font-family: "Stack Sans Notch", "Universal Sans", -apple-system, sans-serif;
+  font-family: "Stack Sans Notch", "Roboto", -apple-system, sans-serif;
   font-weight: 700; font-size: 20px; line-height: 1;
   color: var(--color-text); text-decoration: none;
 }
