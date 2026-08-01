@@ -63,10 +63,19 @@
     .term-body { padding: 22px; }
 
     /* 标题 */
-    .brand-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+    .brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .logo { display: inline-flex; align-items: center; font-weight: 700; font-size: 20px; line-height: 1; text-decoration: none; }
+    .logo:hover { text-decoration: none; }
+    .logo-mail { color: var(--fg); margin-right: 4px; letter-spacing: -0.5px; }
+    .logo-edge {
+      background: var(--green); color: #0d1117;
+      padding: 3px 10px 3px 8px;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+      letter-spacing: -0.5px;
+    }
     .back-btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 14px; margin-bottom: 16px;
+      padding: 7px 14px;
       background: transparent; color: var(--fg);
       border: 1px solid var(--border-strong); border-radius: 6px;
       font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace;
@@ -206,9 +215,10 @@
 <body>
 <div class="wrap">
   <div class="brand-row">
-    <a class="back-btn" href="/">← 返回 MailEdge 首页</a>
+    <a class="logo" href="/"><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></a>
+    <a class="back-btn" href="/">← 返回首页</a>
   </div>
-  <h1>MailEdge 一键部署</h1>
+  <h1>一键部署</h1>
   <p class="lead">在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
 
   <!-- 第 1 步 -->

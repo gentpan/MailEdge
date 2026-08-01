@@ -43,7 +43,15 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .brand { font-weight: 600; font-size: 16px; color: var(--fg); text-decoration: none; }
-    .brand .mark { color: var(--green); }
+    .logo { display: inline-flex; align-items: center; font-weight: 700; font-size: 18px; line-height: 1; }
+    .logo-mail { color: var(--fg); margin-right: 4px; letter-spacing: -0.5px; }
+    .logo-edge {
+      background: var(--green); color: #0d1117;
+      padding: 3px 10px 3px 8px;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+      letter-spacing: -0.5px;
+    }
+    .brand-sub { color: var(--fg-dim); margin-left: 8px; font-size: 14px; }
     .topbar-links { display: flex; gap: 18px; font-size: 13px; }
     a { color: var(--cyan); text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -105,7 +113,10 @@
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="/"><span class="mark">MailEdge</span> · 开发者文档</a>
+      <a class="brand" href="/">
+        <span class="logo"><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></span>
+        <span class="brand-sub">开发者文档</span>
+      </a>
       <div class="topbar-links">
         <a href="/">首页</a>
         <a href="/install">一键部署</a>

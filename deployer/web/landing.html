@@ -47,10 +47,13 @@
     }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: var(--text); }
     .brand:hover { text-decoration: none; }
-    .brand-mark {
-      width: 30px; height: 30px; border-radius: 6px;
+    .logo { display: inline-flex; align-items: center; font-weight: 700; font-size: 20px; line-height: 1; }
+    .logo-mail { color: var(--text); margin-right: 4px; letter-spacing: -0.5px; }
+    .logo-edge {
       background: var(--primary); color: #fff;
-      display: flex; align-items: center; justify-content: center;
+      padding: 3px 10px 3px 8px;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+      letter-spacing: -0.5px;
     }
     .nav-links { display: flex; align-items: center; gap: 20px; font-size: 14px; color: var(--text-secondary); }
 
@@ -139,12 +142,7 @@
   <header class="nav">
     <div class="nav-inner">
       <a class="brand" href="/">
-        <span class="brand-mark">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>
-          </svg>
-        </span>
-        MailEdge
+        <span class="logo"><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></span>
       </a>
       <div class="nav-links">
         <a href="#features">功能</a>
