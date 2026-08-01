@@ -30,7 +30,12 @@
   <!-- 第 1 步 -->
   <div class="card" id="step1">
     <div class="term-body">
-      <h2>创建并粘贴 Cloudflare API Token</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+        <h2 style="margin:0">创建并粘贴 Cloudflare API Token</h2>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
+          打开 Cloudflare 创建 Token
+        </button>
+      </div>
       <div class="hint">
         部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
         我们不会保存它，也看不到你的账号密码。
@@ -46,11 +51,6 @@
       </table>
       <p class="muted">模板已含 Workers Scripts / R2 / KV 等权限，无需重复添加。<br />
       提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签，D1 在 <code>Account</code> 下。<strong>部署不需要域名与 Email 权限</strong>——收件地址部署完成后在 MailEdge 设置页自行添加。</p>
-      <div class="row">
-        <button type="button" class="btn btn-secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
-          打开 Cloudflare 创建 Token
-        </button>
-      </div>
       <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
       <input type="password" id="token" placeholder="$ TOKEN = …" autocomplete="off" />
       <button type="button" class="btn btn-primary" id="verifyBtn"><span class="spinner"></span><span class="btn-label">验证 Token</span></button>
