@@ -92,16 +92,14 @@
       部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
       我们不会保存它，也看不到你的账号密码。
     </div>
-    <p>点击下方按钮打开 Cloudflare 后台，创建 Token 时需要勾选这些权限（<strong>按说明选</strong>）：</p>
+    <p>点击下方按钮打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
     <ul>
-      <li><strong>账户</strong> · Workers Scripts — <code>Edit</code></li>
-      <li><strong>账户</strong> · Workers R2 Storage — <code>Edit</code></li>
       <li><strong>账户</strong> · Workers D1 — <code>Edit</code></li>
-      <li><strong>账户</strong> · Workers KV Storage — <code>Edit</code></li>
       <li><strong>账户</strong> · Email Routing Addresses — <code>Edit</code></li>
       <li><strong>区域</strong> · Email Routing Rules — <code>Edit</code></li>
       <li><strong>区域</strong> · Zone — <code>Read</code></li>
     </ul>
+    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / R2 / KV 等权限，无需重复添加。</p>
     <div class="row">
       <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
         打开 Cloudflare 创建 Token
