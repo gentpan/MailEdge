@@ -217,6 +217,11 @@ export const api = {
 
   // 界面内一键更新
   updateConfig: () => request<{ hasToken: boolean; accountId: string | null }>("/api/update/config"),
+  updateAccounts: (token: string) =>
+    request<{ accounts: Array<{ id: string; name: string }> }>("/api/update/accounts", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
   saveUpdateConfig: (body: { token?: string; accountId?: string }) =>
     request<{ hasToken: boolean; accountId: string | null }>("/api/update/config", {
       method: "POST",

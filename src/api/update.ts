@@ -30,6 +30,22 @@ update.post("/config", async (c) => {
   return c.json({ hasToken: Boolean(cfg.tokenEncrypted), accountId: cfg.accountId });
 });
 
+/** 获取该 Token 可用的账户列表（供更新面板选择，无需手动填 ID） */
+update.post("/accounts", async (c) => {
+  const body = await c.req.json<{ token: string }>().catch(() => null);
+  if (!body?.token?.trim()) return c.json({ error: "缺少 token" }, 400);
+  if (!c.env.DEPLOYER_URL) return c.json({ error: "未配置更新服务器（DEPLOYER_URL）" }, 500);
+
+  const res = await fetch(`${c.env.DEPLOYER_URL.replace(/\/+$/, "")}/api/verify-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: body.token.trim() }),
+  });
+  const data = (await res.json().catch(() => null)) as { accounts?: Array<{ id: string; name: string }>; error?: string } | null;
+  if (!res.ok) return c.json({ error: data?.error ?? "获取账户失败" }, 502);
+  return c.json({ accounts: data?.accounts ?? [] });
+});
+
 /** 一键更新：请求安装向导部署最新代码（幂等，复用资源） */
 update.post("/run", async (c) => {
   const body = await c.req.json<{ token?: string; accountId?: string }>().catch(() => null);

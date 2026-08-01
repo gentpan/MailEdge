@@ -14,6 +14,8 @@ export default function UpdatePanel() {
   const [cfg, setCfg] = useState<{ hasToken: boolean; accountId: string | null } | null>(null);
   const [token, setToken] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([]);
+  const [fetchingAccounts, setFetchingAccounts] = useState(false);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -31,6 +33,22 @@ export default function UpdatePanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function fetchAccounts() {
+    if (!token.trim()) return setMsg({ kind: "error", text: t("update.fetchAccount.hint") });
+    setFetchingAccounts(true);
+    setMsg(null);
+    try {
+      const r = await api.updateAccounts(token.trim());
+      setAccounts(r.accounts ?? []);
+      if (!r.accounts?.length) setMsg({ kind: "error", text: t("update.token.noAccount") });
+      else setMsg({ kind: "success", text: t("update.fetchAccount.done") });
+    } catch (error) {
+      setMsg({ kind: "error", text: error instanceof Error ? error.message : "error" });
+    } finally {
+      setFetchingAccounts(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -132,12 +150,28 @@ export default function UpdatePanel() {
         label={t("update.accountId")}
         hint={cfg.accountId ? `${t("update.accountId.saved")}: ${cfg.accountId}` : t("update.accountId.hint")}
       >
-        <input
-          className="input"
-          value={accountId}
-          placeholder={cfg.accountId ?? "75141e…"}
-          onChange={(event) => setAccountId(event.target.value)}
-        />
+        <div className="row">
+          <select
+            className="select"
+            value={accountId}
+            onChange={(event) => setAccountId(event.target.value)}
+          >
+            <option value="">{t("update.accountId.select")}</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void fetchAccounts()}
+            disabled={busy || updating || fetchingAccounts || !token.trim()}
+          >
+            {fetchingAccounts ? t("update.fetchAccount.loading") : t("update.fetchAccount")}
+          </button>
+        </div>
       </FormRow>
 
       <div className="form-actions">
