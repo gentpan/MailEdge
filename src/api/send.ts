@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
+import { clearStagedAttachments, readStagedAttachment } from "./attachment";
 import { findByAddress, listMailboxes, mailboxStub } from "../db/mailboxes";
 import { createOutbound, getOutbound, listOutbound, loadPayload, savePayload } from "../db/outbound";
 import { getSendChain } from "../db/providers";
@@ -19,10 +21,11 @@ send.use("*", requireAuth);
 
 send.post("/send", async (c) => {
   const user = c.get("user");
-  const parsed = await parseSendRequest(c.req.raw);
+  const parsed = await parseSendRequest(c);
   if ("error" in parsed) return c.json({ error: parsed.error }, 400);
 
-  const { input, attachments, providerId } = parsed;
+  const { input, attachments, providerId, stagedTokens } = parsed;
+  try {
 
   // 发件地址必须是本人持有的信箱，避免任意伪造 From
   const mailboxes = await listMailboxes(c.env, user.id);
@@ -124,6 +127,12 @@ send.post("/send", async (c) => {
     },
     result.success ? 200 : result.status === "deferred" ? 202 : 502,
   );
+  } finally {
+    // 无论成败，清理本次写信暂存的附件
+    if (stagedTokens?.length) {
+      await clearStagedAttachments(c.env, user.id, stagedTokens).catch(() => undefined);
+    }
+  }
 });
 
 /** 发信记录（状态机视图） */
@@ -185,14 +194,22 @@ send.get("/resolve", async (c) => {
 
 type ParsedSend =
   | { error: string }
-  | { input: SendMailInput; attachments: IncomingAttachment[]; providerId?: string };
+  | {
+      input: SendMailInput;
+      attachments: IncomingAttachment[];
+      providerId?: string;
+      /** 本次写信暂存的附件 token，发送结束后清理 */
+      stagedTokens?: string[];
+    };
 
 /**
  * 同时支持两种提交方式：
- *   multipart/form-data：payload 字段是 JSON，文件放在 attachments 字段（前端上传用）
- *   application/json：附件用 base64 内联（脚本调用用）
+ *   multipart/form-data：payload 字段是 JSON，文件放在 attachments 字段（旧版前端）
+ *   application/json：附件用 base64 内联，或引用已暂存的 token（前端写信）
  */
-async function parseSendRequest(request: Request): Promise<ParsedSend> {
+async function parseSendRequest(c: Context<AppContext>): Promise<ParsedSend> {
+  const request = c.req.raw;
+  const user = c.get("user");
   const contentType = request.headers.get("Content-Type") ?? "";
 
   if (contentType.includes("multipart/form-data")) {
@@ -228,10 +245,25 @@ async function parseSendRequest(request: Request): Promise<ParsedSend> {
   }
 
   const attachments: IncomingAttachment[] = [];
+  const stagedTokens: string[] = [];
   for (const item of body.attachments ?? []) {
+    // 先暂存后提交的附件：从 R2 staging 读取内容
+    if (item.token) {
+      const staged = await readStagedAttachment(c.env, user.id, item.token);
+      if (!staged) return { error: `附件「${item.filename}」已过期，请重新添加` };
+      attachments.push({
+        filename: item.filename || staged.filename,
+        contentType: item.contentType || staged.contentType,
+        contentId: item.contentId,
+        content: staged.content,
+      });
+      stagedTokens.push(item.token);
+      continue;
+    }
+
     let content: ArrayBuffer;
     try {
-      content = base64ToBytes(item.content).slice().buffer as ArrayBuffer;
+      content = base64ToBytes(item.content ?? "").slice().buffer as ArrayBuffer;
     } catch {
       return { error: `附件「${item.filename}」的 base64 内容不合法` };
     }
@@ -243,7 +275,9 @@ async function parseSendRequest(request: Request): Promise<ParsedSend> {
     });
   }
 
-  return buildInput(body, attachments);
+  const built = buildInput(body, attachments);
+  if ("error" in built) return built;
+  return { ...built, stagedTokens };
 }
 
 interface RawSendBody {
@@ -259,7 +293,14 @@ interface RawSendBody {
   markdown?: string;
   headers?: Record<string, string>;
   providerId?: string;
-  attachments?: Array<{ filename: string; contentType: string; content: string; contentId?: string }>;
+  attachments?: Array<{
+    filename: string;
+    contentType: string;
+    /** 内联 base64 或已暂存的 token 二选一 */
+    content?: string;
+    token?: string;
+    contentId?: string;
+  }>;
 }
 
 function buildInput(body: RawSendBody, attachments: IncomingAttachment[]): ParsedSend {

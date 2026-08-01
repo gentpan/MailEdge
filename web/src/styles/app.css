@@ -908,6 +908,27 @@
   white-space: nowrap;
 }
 
+/* 附件上传进度条 */
+.file-item__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 120px;
+}
+.file-item__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-neutral-100);
+  overflow: hidden;
+}
+.file-item__fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
 /* ---------- 设置：左导航 + 右内容 ---------- */
 
 .settings-shell {

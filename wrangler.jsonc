@@ -61,7 +61,7 @@
 
   "vars": {
     // 超过该字节数的附件改走 R2 下载链接（智能附件）
-    "SMART_ATTACHMENT_THRESHOLD": "3145728",
+    "SMART_ATTACHMENT_THRESHOLD": "2097152",
     // Cloudflare Email Service 单封上限 5 MiB，留出编码余量
     "MAX_EMAIL_SIZE": "4718592",
     // R2 下载链接有效期

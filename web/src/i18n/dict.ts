@@ -101,6 +101,8 @@ export const DICT = {
     "compose.addAttachment": "添加附件",
     "compose.cancel": "取消",
     "compose.largeHint": "有 {n} 个附件超过 {mb} MB，将自动上传到 R2 并在正文中插入下载链接。",
+    "compose.uploading": "附件正在上传，请稍候…",
+    "compose.uploadError": "有附件上传失败，请删除后重新添加",
     "compose.toLink": "转下载链接",
     "compose.senderLimited": "当前渠道仅验证了 {domains}，发件人已限定在这些域名",
 
@@ -386,6 +388,8 @@ export const DICT = {
     "compose.cancel": "Cancel",
     "compose.largeHint":
       "{n} attachment(s) exceed {mb} MB and will be uploaded to R2 with a download link inserted into the body.",
+    "compose.uploading": "Attachment is uploading, please wait…",
+    "compose.uploadError": "Some attachments failed to upload. Remove and re-add them.",
     "compose.toLink": "as link",
     "compose.senderLimited": "This channel only verified {domains}; senders are limited to these domains",
 

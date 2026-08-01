@@ -5,6 +5,7 @@ import type { AppContext } from "./api/context";
 import download from "./api/download";
 import messages from "./api/messages";
 import providers from "./api/providers";
+import attachment from "./api/attachment";
 import send from "./api/send";
 import update from "./api/update";
 import { listMailboxes, mailboxStub } from "./db/mailboxes";
@@ -22,6 +23,7 @@ app.get("/api/health", (c) => c.json({ ok: true, service: "MailEdge" }));
 
 app.route("/api/auth", auth);
 app.route("/api/mail", send);
+app.route("/api/mail/attachment", attachment);
 app.route("/api/providers", providers);
 app.route("/api/ai", ai);
 app.route("/api/update", update);

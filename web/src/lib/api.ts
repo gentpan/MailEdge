@@ -173,15 +173,36 @@ export const api = {
     }),
 
   // 发信
-  send: (payload: Record<string, unknown>, files: File[]) => {
-    if (!files.length) {
-      return request<SendResponse>("/api/mail/send", { method: "POST", body: JSON.stringify(payload) });
-    }
-    const form = new FormData();
-    form.set("payload", JSON.stringify(payload));
-    for (const file of files) form.append("attachments", file);
-    return request<SendResponse>("/api/mail/send", { method: "POST", body: form });
-  },
+  send: (payload: Record<string, unknown>, attachments: Array<{ token: string; filename: string }>) =>
+    request<SendResponse>("/api/mail/send", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, attachments }),
+    }),
+
+  /** 上传附件到暂存区（XHR 带上传进度），返回 token 供提交/删除 */
+  uploadAttachment: (file: File, onProgress: (percent: number) => void) =>
+    new Promise<{ token: string; filename: string; size: number }>((resolve, reject) => {
+      const form = new FormData();
+      form.append("file", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/mail/attachment");
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText) as { token: string; filename: string; size: number; error?: string };
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else reject(new Error(data.error ?? "上传失败"));
+        } catch {
+          reject(new Error("上传失败"));
+        }
+      };
+      xhr.onerror = () => reject(new Error("上传失败"));
+      xhr.send(form);
+    }),
+
+  deleteAttachment: (token: string) => request<{ ok: true }>(`/api/mail/attachment/${token}`, { method: "DELETE" }),
 
   outbox: () => request<{ messages: OutboundView[] }>("/api/mail/outbox"),
   retry: (id: string) =>

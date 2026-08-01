@@ -17,6 +17,17 @@ export interface ComposeDraft {
 // 模块级常量：避免每次渲染新建空数组导致 useMemo 依赖不稳定
 const NO_DOMAINS: string[] = [];
 
+/** 写信附件：选中即上传到暂存区，显示进度 */
+interface AttachmentItem {
+  id: string;
+  name: string;
+  size: number;
+  status: "uploading" | "done" | "error";
+  progress: number;
+  token?: string;
+  error?: string;
+}
+
 interface Props {
   mailboxes: Mailbox[];
   providers: ProviderView[];
@@ -32,7 +43,7 @@ export default function ComposeModal({
   providers,
   isAdmin,
   draft,
-  smartThresholdMb = 3,
+  smartThresholdMb = 2,
   onClose,
   onSent,
 }: Props) {
@@ -45,16 +56,56 @@ export default function ComposeModal({
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState(draft?.text ?? "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
-  const [files, setFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [providerId, setProviderId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const thresholdBytes = smartThresholdMb * 1024 * 1024;
   const largeFiles = useMemo(
-    () => files.filter((file) => file.size > thresholdBytes),
-    [files, thresholdBytes],
+    () => attachments.filter((a) => a.size > thresholdBytes),
+    [attachments, thresholdBytes],
   );
+  const uploading = attachments.some((a) => a.status === "uploading");
+
+  /** 选中文件即上传到暂存区，带进度 */
+  function handleFiles(newFiles: FileList | null) {
+    for (const file of Array.from(newFiles ?? [])) {
+      const id = `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAttachments((prev) => [
+        ...prev,
+        { id, name: file.name, size: file.size, status: "uploading", progress: 0 },
+      ]);
+      api
+        .uploadAttachment(file, (percent) => {
+          setAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, progress: percent } : a)));
+        })
+        .then((res) => {
+          setAttachments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status: "done", token: res.token, progress: 100 } : a)),
+          );
+        })
+        .catch((err) => {
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id ? { ...a, status: "error", error: err instanceof Error ? err.message : "上传失败" } : a,
+            ),
+          );
+        });
+    }
+  }
+
+  /** 删除附件（同时清理暂存区） */
+  function removeAttachment(id: string, token?: string) {
+    if (token) void api.deleteAttachment(token).catch(() => undefined);
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  /** 关闭写信框前，清理未发送的暂存附件 */
+  function cleanupAndClose() {
+    for (const a of attachments) if (a.token) void api.deleteAttachment(a.token).catch(() => undefined);
+    onClose();
+  }
 
   // 按所选渠道的「已验证域名」约束发件人：只有该域名的信箱才能选。
   // 渠道没配已验证域名（或用 Cloudflare/SMTP）时不限制。
@@ -79,6 +130,15 @@ export default function ComposeModal({
   }, [allowedMailboxes, from]);
 
   async function submit() {
+    if (uploading) {
+      setError(t("compose.uploading"));
+      return;
+    }
+    const uploaded = attachments.filter((a) => a.status === "done" && a.token);
+    if (attachments.some((a) => a.status === "error")) {
+      setError(t("compose.uploadError"));
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -94,7 +154,7 @@ export default function ComposeModal({
           markdown: text,
           providerId: providerId || undefined,
         },
-        files,
+        uploaded.map((a) => ({ token: a.token as string, filename: a.name })),
       );
       onSent(result);
     } catch (caught) {
@@ -109,7 +169,7 @@ export default function ComposeModal({
       <div className="modal">
         <div className="modal__header">
           <h3>{t("compose.title")}</h3>
-          <button className="btn btn--icon" type="button" onClick={onClose} aria-label={t("compose.cancel")}>
+          <button className="btn btn--icon" type="button" onClick={cleanupAndClose} aria-label={t("compose.cancel")}>
             <X size={16} />
           </button>
         </div>
@@ -227,22 +287,32 @@ export default function ComposeModal({
             </div>
           )}
 
-          {files.length > 0 && (
+          {attachments.length > 0 && (
             <div className="file-list">
-              {files.map((file, index) => (
-                // 附件可以删中间那个，用 index 当 key 会让后面的行错位
-                <div className="file-item" key={`${file.name}-${file.size}-${file.lastModified}`}>
+              {attachments.map((attachment) => (
+                <div className="file-item" key={attachment.id}>
                   <Paperclip size={14} />
-                  <span className="file-item__name">{file.name}</span>
-                  <span className="text-tertiary">{formatSize(file.size)}</span>
-                  {file.size > thresholdBytes && (
+                  <span className="file-item__name">{attachment.name}</span>
+                  <span className="text-tertiary">{formatSize(attachment.size)}</span>
+                  {attachment.status === "uploading" && (
+                    <div className="file-item__progress">
+                      <div className="file-item__bar">
+                        <div className="file-item__fill" style={{ width: `${attachment.progress}%` }} />
+                      </div>
+                      <span className="text-xs">{attachment.progress}%</span>
+                    </div>
+                  )}
+                  {attachment.status === "done" && attachment.size > thresholdBytes && (
                     <span className="badge badge--primary">{t("compose.toLink")}</span>
+                  )}
+                  {attachment.status === "error" && (
+                    <span className="text-xs text-tertiary">{attachment.error}</span>
                   )}
                   <button
                     className="btn btn--icon"
                     type="button"
                     aria-label={t("common.delete")}
-                    onClick={() => setFiles(files.filter((_, position) => position !== index))}
+                    onClick={() => removeAttachment(attachment.id, attachment.token)}
                   >
                     <X size={14} />
                   </button>
@@ -259,7 +329,7 @@ export default function ComposeModal({
         </div>
 
         <div className="modal__footer">
-          <button className="btn" type="button" onClick={submit} disabled={busy || !from || !to}>
+          <button className="btn" type="button" onClick={submit} disabled={busy || uploading || !from || !to}>
             <Send size={16} />
             {busy ? t("compose.send.busy") : t("compose.send")}
           </button>
@@ -272,14 +342,14 @@ export default function ComposeModal({
               multiple
               hidden
               onChange={(event) => {
-                setFiles([...files, ...Array.from(event.target.files ?? [])]);
+                handleFiles(event.target.files);
                 event.target.value = "";
               }}
             />
           </label>
 
           <div className="modal__footer-spacer" />
-          <button className="btn btn--ghost" type="button" onClick={onClose}>
+          <button className="btn btn--ghost" type="button" onClick={cleanupAndClose}>
             {t("compose.cancel")}
           </button>
         </div>
