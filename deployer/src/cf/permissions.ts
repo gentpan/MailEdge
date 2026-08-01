@@ -65,14 +65,18 @@ export async function checkZonePermissions(
     );
     const zoneId = list[0]?.id;
     if (zoneId) {
-      const email = await probe(token, `/zones/${zoneId}/email/routing`);
+      // 优先用与部署实际一致的端点（rules 读取）；失败再退回 routing 状态端点
+      let email = await probe(token, `/zones/${zoneId}/email/routing/rules`);
+      if (!email.ok) {
+        email = await probe(token, `/zones/${zoneId}/email/routing`);
+      }
+
       if (email.ok) {
         return [
           { key: "zone", label: "域名（Zone）读取", ok: true },
           { key: "email", label: "Email Routing", ok: true },
         ];
       }
-      // Email Routing 未启用时端点会报错，但不代表 token 缺权限
       const isPermission = email.status === 403 || email.status === 401;
       return [
         { key: "zone", label: "域名（Zone）读取", ok: true },
@@ -81,7 +85,7 @@ export async function checkZonePermissions(
           label: "Email Routing",
           ok: false,
           warn: !isPermission,
-          detail: isPermission ? "Token 缺少 Email Routing 权限" : "尚未启用（部署时会自动启用）",
+          detail: isPermission ? `Token 缺少权限（${email.detail}）` : email.detail,
         },
       ];
     }
