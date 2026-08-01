@@ -1,6 +1,9 @@
 /* MailEdge 网站共享样式：设计令牌 + 统一布局（页头/页脚/容器） */
 /* 页面通过 body 的 theme-light / theme-dark 切换两套配色 */
 
+/* 字体：Roboto（正文）+ Stack Sans Notch（品牌）从 bluecdn 反代加载，不用 Google Fonts */
+@import url("https://fonts.bluecdn.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Stack+Sans+Notch:wght@200..700&display=swap");
+
 :root,
 .theme-light {
   --color-bg: #ffffff;
@@ -51,7 +54,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 15px;
   line-height: 1.7;
 }
@@ -88,6 +91,7 @@ code, pre, .mono {
 /* ---------- Logo（统一） ---------- */
 .logo {
   display: inline-flex; align-items: center;
+  font-family: "Stack Sans Notch", "Roboto", -apple-system, sans-serif;
   font-weight: 700; font-size: 20px; line-height: 1;
   color: var(--color-text); text-decoration: none;
 }
