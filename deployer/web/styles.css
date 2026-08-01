@@ -96,9 +96,9 @@ code, pre, .mono {
   padding-top: 16px; padding-bottom: 16px;
 }
 .topbar-links { display: flex; align-items: center; gap: 28px; font-size: 16px; }
-.topbar-links a { color: var(--color-text); }
-.topbar-links a:hover { color: rgba(10, 10, 10, 0.7); }
-.topbar-links a.active { font-weight: 500; }
+.topbar-links a:not(.btn) { color: var(--color-text); }
+.topbar-links a:not(.btn):hover { color: rgba(10, 10, 10, 0.7); }
+.topbar-links a.active:not(.btn) { font-weight: 500; }
 
 /* ---------- Logo（独立字体，不随重构改变） ---------- */
 .logo {
