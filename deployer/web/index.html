@@ -103,16 +103,17 @@
     <p>点击下方按钮打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
     <table class="perm-table">
       <thead>
-        <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>级别</th><th>选</th></tr>
+        <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>在哪个分类标签下</th><th>选</th></tr>
       </thead>
       <tbody>
-        <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>账户 Account</td><td><code>Edit</code></td></tr>
-        <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>账户 Account</td><td><code>Edit</code></td></tr>
-        <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>区域 Zone</td><td><code>Edit</code></td></tr>
-        <tr><td>域名（区域）</td><td><code>Zone</code></td><td>区域 Zone</td><td><code>Read</code></td></tr>
+        <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>账户 Account 标签</td><td><code>Edit</code></td></tr>
+        <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>账户 Account 标签</td><td><code>Edit</code></td></tr>
+        <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>区域 Zone 标签</td><td><code>Edit</code></td></tr>
+        <tr><td>域名（区域）</td><td><code>Zone</code></td><td>区域 Zone 标签</td><td><code>Read</code></td></tr>
       </tbody>
     </table>
-    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / Workers R2 Storage / Workers KV Storage 等权限，无需重复添加。在后台搜索时直接搜英文名，如搜 <code>D1</code>（不要搜 "Workers D1"）。</p>
+    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / Workers R2 Storage / Workers KV Storage 等权限，无需重复添加。<br />
+    提示：点 "Add more permissions" 后，界面顶部有 <code>Account</code> / <code>Zone</code> / <code>User</code> 三个分类标签——D1、Email Routing Addresses 在 <code>Account</code> 下；Email Routing Rules、Zone 在 <code>Zone</code> 下，切换标签即可看到。</p>
     <div class="row">
       <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
         打开 Cloudflare 创建 Token
