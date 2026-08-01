@@ -261,8 +261,8 @@ pre code { background: none; padding: 0; }
 .social-links a { display: inline-flex; color: var(--color-text-secondary); transition: transform 0.15s ease, color 0.15s ease; }
 .social-links a svg { width: 18px; height: 18px; display: block; }
 .social-links a:hover { transform: scale(1.5); color: var(--color-text); }
-/* Cloudflare：悬浮时圆形背景变橙色，白风暴不变 */
-.social-links a.cf-logo .cf-circle { fill: var(--color-text); transition: fill 0.15s ease; }
+/* Cloudflare：默认与前三个同为次级灰，悬浮时只有圆形背景转橙，白风暴不变 */
+.social-links a.cf-logo .cf-circle { fill: var(--color-text-secondary); transition: fill 0.15s ease; }
 .social-links a.cf-logo:hover .cf-circle { fill: #F38020; }
 
 /* ---------- 通用工具 ---------- */
@@ -282,3 +282,141 @@ pre code { background: none; padding: 0; }
   .footer-inner { flex-wrap: wrap; }
   .footer-inner > span:first-child { margin-right: 0; width: 100%; }
 }
+
+/* ============================================================
+   官网首页（landing.html）
+   正文字号 18px、字体栈与文档页不同，靠 body.landing 限定作用域
+   ============================================================ */
+body.landing {
+  font-family: "Universal Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+}
+
+/* 首页容器：与 .container 同宽，但不承载 sticky 顶栏 */
+.wrap { max-width: 1232px; margin: 0 auto; padding: 0 32px; }
+
+/* 首页导航：不吸顶，与文档页 .topbar 区分 */
+.nav {
+  background: transparent; padding: 16px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-links { display: flex; align-items: center; gap: 28px; font-size: 16px; }
+.nav-links a:not(.btn) { color: var(--color-text); }
+.nav-links a:not(.btn):hover { color: rgba(10, 10, 10, 0.7); }
+
+/* Hero */
+.hero { padding: 120px 0 96px; }
+.hero .kicker {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 500; color: var(--color-ink);
+  background: var(--color-cream); border: 1px solid var(--color-border);
+  border-radius: 9999px; padding: 6px 14px; margin-bottom: 28px;
+}
+.hero h1 {
+  margin: 0 0 24px;
+  font-size: 60px; font-weight: 500; line-height: 1.05;
+  letter-spacing: -0.03em; max-width: 800px;
+}
+.hero .lead { margin: 0 0 40px; font-size: 18px; color: var(--color-gray); max-width: 560px; }
+.hero .cta { display: flex; gap: 16px; flex-wrap: wrap; }
+.hero .meta { margin-top: 24px; font-size: 14px; color: var(--color-gray-deep); }
+.hero .meta .dot { color: var(--color-success); }
+
+/* 区块 */
+.section { padding: 96px 0; }
+.section--cream { background: var(--color-cream); }
+.section-head { max-width: 640px; margin-bottom: 64px; }
+.section-head h2 {
+  margin: 0 0 16px; font-size: 48px; font-weight: 400;
+  line-height: 1.05; letter-spacing: -0.02em;
+}
+.section-head p { margin: 0; font-size: 16px; color: var(--color-gray); }
+
+/* 功能卡：与表单用的 .card 分开——无外边距，hover 上浮 */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.feature-card {
+  background: var(--color-cream);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: var(--color-shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.feature-card:hover { transform: translateY(-4px); }
+.feature-card .icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--color-paper);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-ink); margin-bottom: 20px;
+}
+.feature-card h3 { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
+.feature-card p { margin: 0; font-size: 16px; color: var(--color-gray); }
+
+/* 三步 */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.step { padding: 24px 8px; }
+.step .num {
+  font-size: 48px; font-weight: 500; line-height: 1;
+  color: var(--color-ink); opacity: 0.18; margin-bottom: 16px;
+}
+.step h3 { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
+.step p { margin: 0; font-size: 16px; color: var(--color-gray); }
+
+/* CTA 黑带 */
+.cta-band {
+  background: var(--color-ink); color: #fff;
+  border-radius: 16px; padding: 96px 48px;
+  text-align: center;
+}
+.cta-band h2 {
+  margin: 0 0 16px; font-size: 48px; font-weight: 400;
+  line-height: 1.05; letter-spacing: -0.02em;
+}
+.cta-band p { margin: 0 auto 40px; font-size: 18px; color: rgba(255, 255, 255, 0.65); max-width: 560px; }
+.cta-band .cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.cta-band .btn-on-dark { background: #fff; color: var(--color-ink); }
+.cta-band .btn-on-dark:hover { opacity: 0.85; }
+.cta-band .btn-ghost-dark {
+  background: transparent; color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.cta-band .btn-ghost-dark:hover { background: rgba(255, 255, 255, 0.08); opacity: 1; }
+
+@media (max-width: 1024px) {
+  .grid, .steps { grid-template-columns: repeat(2, 1fr); }
+  .nav-links .hide-md { display: none; }
+}
+@media (max-width: 768px) {
+  .wrap { padding: 0 20px; }
+  .grid, .steps { grid-template-columns: 1fr; }
+  .hero { padding: 72px 0 64px; }
+  .hero h1 { font-size: 40px; }
+  .section { padding: 64px 0; }
+  .section-head h2, .cta-band h2 { font-size: 32px; }
+  .cta-band { padding: 64px 24px; }
+}
+
+/* ============================================================
+   开发者文档（developers.html）
+   标题带 ## 前缀、代码高亮色，靠 body.dev-doc 限定，避免影响其他页
+   ============================================================ */
+.dev-doc h1 { font-size: 32px; margin: 48px 0 8px; }
+.dev-doc h1 .accent { color: var(--color-primary); }
+.dev-doc .subtitle { color: var(--color-text-secondary); margin: 0 0 32px; }
+.dev-doc h2 {
+  font-size: 20px; margin: 48px 0 12px; padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+.dev-doc h2::before { content: "## "; color: var(--color-primary); }
+.dev-doc h3 { font-size: 16px; margin: 28px 0 8px; }
+.dev-doc h3::before { content: "### "; color: var(--color-text-secondary); }
+/* 代码高亮（pre/code 本身走共享样式） */
+.dev-doc .c { color: var(--color-text-secondary); }
+.dev-doc .g { color: var(--color-primary); }
+.dev-doc .y { color: var(--color-warning); }
+.dev-doc .cy { color: var(--color-link); }
+.dev-doc .pu { color: var(--color-link); }
+.dev-doc .toc {
+  background: var(--color-bg-panel); border: 1px solid var(--color-border);
+  border-radius: 12px; padding: 16px 20px; margin: 24px 0 0;
+}
+.dev-doc .toc a { display: block; padding: 3px 0; font-size: 14px; }

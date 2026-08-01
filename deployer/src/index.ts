@@ -20,10 +20,73 @@ function analyticsFor(host: string): string {
   return `<script defer src="https://tongji.giantaccel.com/script.js" data-website-id="${websiteId}"></script>`;
 }
 
+/** 静态资源版本号：改完 styles.css / doc.css 把它 +1，所有页面的 ?v= 一起变 */
+const ASSET_VERSION = "12";
+
 const app = new Hono();
 
+/** 读取 web/partials/<name>.html */
+function partial(name: string): string {
+  return readFileSync(resolve(ROOT, "web", "partials", `${name}.html`), "utf8").trimEnd();
+}
+
+/** 字面量替换，避开 $& 之类的替换模式 */
+function fill(template: string, token: string, value: string): string {
+  return template.replace(token, () => value);
+}
+
+/** <!--#logo--> / <!--#logo 开发者文档--> */
+function renderLogo(sub: string): string {
+  return fill(partial("logo"), "{{sub}}", sub ? `<span class="logo-sub">${sub}</span>` : "");
+}
+
+/** <!--#head 标题|描述--> ，第三段写 doc 时额外引入 doc.css */
+function renderHead(args: string): string {
+  const [title = "MailEdge", description = "", extra = ""] = args.split("|").map((s) => s.trim());
+  const extraCss =
+    extra === "doc" ? `\n  <link rel="stylesheet" href="/doc.css?v=${ASSET_VERSION}" />` : "";
+  let html = partial("head");
+  html = fill(html, "{{title}}", title);
+  html = fill(html, "{{description}}", description);
+  html = fill(html, "{{version}}", ASSET_VERSION);
+  return fill(html, "{{extraCss}}", extraCss);
+}
+
+/** <!--#topbar-doc usage--> ，参数是当前页，用于导航高亮 */
+function renderTopbarDoc(active: string): string {
+  let html = partial("topbar-doc");
+  html = fill(html, "{{logo}}", renderLogo(""));
+  html = fill(html, "{{active:usage}}", active === "usage" ? ' class="active"' : "");
+  return fill(html, "{{active:developers}}", active === "developers" ? ' class="active"' : "");
+}
+
+/** <!--#footer--> / <!--#footer 开源免费--> */
+function renderFooter(tagline: string): string {
+  return fill(partial("footer"), "{{tagline}}", tagline || "MIT License");
+}
+
+/** 展开页面里的 <!--#片段 参数--> 占位符 */
+function expandPartials(html: string): string {
+  return html.replace(
+    /<!--#(head|logo|topbar-doc|footer)(?:\s+([\s\S]*?))?-->/g,
+    (_match, tag: string, args = "") => {
+      const value = args.trim();
+      switch (tag) {
+        case "head":
+          return renderHead(value);
+        case "logo":
+          return renderLogo(value);
+        case "topbar-doc":
+          return renderTopbarDoc(value);
+        default:
+          return renderFooter(value);
+      }
+    },
+  );
+}
+
 function page(name: string, host = ""): string {
-  const html = readFileSync(resolve(ROOT, "web", name), "utf8");
+  const html = expandPartials(readFileSync(resolve(ROOT, "web", name), "utf8"));
   return html.replace("</head>", `${analyticsFor(host)}\n</head>`);
 }
 
