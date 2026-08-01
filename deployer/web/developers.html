@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="MailEdge 开发者文档：HTTP API 参考、发信渠道扩展、本地开发指南。" />
+  <title>MailEdge · 开发者文档</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #1c2128;
+      --border: #30363d;
+      --border-strong: #484f58;
+      --fg: #e6edf3;
+      --fg-dim: #8b949e;
+      --green: #3fb950;
+      --green-strong: #238636;
+      --cyan: #58a6ff;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+      --red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    code, pre, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topbar {
+      border-bottom: 1px solid var(--border); background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar-inner {
+      max-width: 860px; margin: 0 auto; padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { font-weight: 600; font-size: 16px; color: var(--fg); text-decoration: none; }
+    .brand .mark { color: var(--green); }
+    .topbar-links { display: flex; gap: 18px; font-size: 13px; }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1 { font-size: 30px; margin: 48px 0 8px; }
+    h1 .accent { color: var(--green); }
+    .subtitle { color: var(--fg-dim); margin: 0 0 32px; }
+    h2 {
+      font-size: 20px; margin: 48px 0 12px; padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    h2::before { content: "## "; color: var(--green); }
+    h3 { font-size: 16px; margin: 28px 0 8px; }
+    h3::before { content: "### "; color: var(--fg-dim); }
+    p { margin: 0 0 14px; }
+    pre {
+      background: #010409;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-x: auto;
+      margin: 0 0 18px;
+    }
+    pre code { color: #e6edf3; }
+    .c { color: var(--fg-dim); }
+    .g { color: var(--green); }
+    .y { color: var(--yellow); }
+    .cy { color: var(--cyan); }
+    .pu { color: var(--purple); }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 18px;
+    }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--fg-dim); font-weight: 500; }
+    td code { color: var(--green); font-size: 12px; }
+    .note {
+      background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.3);
+      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
+    }
+    .warn {
+      background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35);
+      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
+    }
+    ul, ol { margin: 0 0 14px; padding-left: 22px; color: var(--fg); }
+    li { margin: 4px 0; }
+    .toc {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px 20px; margin: 24px 0 0;
+    }
+    .toc a { display: block; padding: 3px 0; font-size: 14px; }
+    .footer {
+      border-top: 1px solid var(--border); margin-top: 64px; padding: 28px 0;
+      color: var(--fg-dim); font-size: 13px;
+      display: flex; justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="mark">MailEdge</span> · 开发者文档</a>
+      <div class="topbar-links">
+        <a href="/">首页</a>
+        <a href="/install">一键部署</a>
+        <a href="https://github.com/gentpan/MailEdge" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h1>用 <span class="accent">MailEdge</span> 开发</h1>
+    <p class="subtitle">MailEdge 是完整跑在 Cloudflare 上的邮箱系统，也是一组可编程的 HTTP 接口。开发者可以调用它发信、查信、管渠道，或扩展新的发信服务商。</p>
+
+    <div class="toc">
+      <strong style="color:var(--fg-dim)">目录</strong>
+      <a href="#api">一、HTTP API</a>
+      <a href="#send">　发信</a>
+      <a href="#query">　查询与统计</a>
+      <a href="#channel">　渠道管理</a>
+      <a href="#share">　分享与下载</a>
+      <a href="#sdk">二、扩展发信渠道（Provider SDK）</a>
+      <a href="#local">三、本地开发</a>
+    </div>
+
+    <!-- ==================== API ==================== -->
+    <h2 id="api">HTTP API</h2>
+    <p>除健康检查与初始化外，全部接口需要登录会话（浏览器用 Cookie，脚本先调登录接口拿会话）。</p>
+    <p>基础地址：<code>https://你的-mailedge-域名</code></p>
+
+    <h3 id="send">发信</h3>
+    <p><code>POST /api/mail/send</code> —— 支持 JSON 或 multipart 两种提交。</p>
+    <p><span class="g">JSON 方式</span>（附件用 base64 内联，脚本调用方便）：</p>
+    <pre><code>curl -X POST https://your-domain/api/mail/send \
+  -H 'Content-Type: application/json' \
+  -b cookie.txt \
+  -d '{
+    "from": "you@yourdomain.com",
+    "to": "someone@example.com",
+    "cc": ["cc@example.com"],
+    "bcc": ["hidden@example.com"],
+    "subject": "你好",
+    "text": "纯文本正文",
+    "html": "&lt;p&gt;富文本正文&lt;/p&gt;"
+  }'</code></pre>
+    <p><span class="g">multipart 方式</span>（前端上传用，<code>payload</code> 字段是 JSON，文件放 <code>attachments</code>）：</p>
+    <pre><code>curl -X POST https://your-domain/api/mail/send -b cookie.txt \
+  -F 'payload={"from":"you@yourdomain.com","subject":"报价单","text":"见附件"}' \
+  -F 'attachments=@quote.pdf'</code></pre>
+    <p><span class="g">Markdown 快捷方式</span>（服务端自动转邮件安全 HTML，原文作纯文本版）：</p>
+    <pre><code>curl -X POST https://your-domain/api/mail/send -b cookie.txt \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"you@yourdomain.com","to":"a@b.com","subject":"周报","markdown":"## 本周\n- 完成 A\n- 完成 B"}'</code></pre>
+    <p>响应里的 <code>smartAttachments</code> 会说明哪些附件真发了、哪些因超过 3MB 自动转成了 R2 下载链接；<code>internalId</code> 是跨渠道不变的邮件 ID，用于去重与追踪。</p>
+    <div class="note">发件地址必须是当前账户持有的信箱；正文为空会被拒绝。附件超过 <code>SMART_ATTACHMENT_THRESHOLD</code>（默认 3MB）自动转下载链接。</div>
+
+    <h3 id="query">查询与统计</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+      <tr><td>GET</td><td>/api/messages</td><td>邮件列表，支持 <code>folder</code> <code>q</code> <code>before</code> <code>limit</code> 分页</td></tr>
+      <tr><td>GET</td><td>/api/messages/:id</td><td>邮件详情（拉取后自动标记已读）</td></tr>
+      <tr><td>PATCH</td><td>/api/messages/:id</td><td>已读 / 星标 / 移动文件夹</td></tr>
+      <tr><td>DELETE</td><td>/api/messages/:id</td><td>删除（先进回收站，回收站再删才彻底清除）</td></tr>
+      <tr><td>GET</td><td>/api/messages/:id/attachments/:aid</td><td>收件附件下载</td></tr>
+      <tr><td>GET</td><td>/api/stats</td><td>各文件夹未读数</td></tr>
+      <tr><td>GET</td><td>/api/mail/outbox</td><td>发信记录（状态机视图）</td></tr>
+      <tr><td>POST</td><td>/api/mail/outbox/:id/retry</td><td>手动重试（沿用同一 internalId，不会重复生成新邮件）</td></tr>
+    </table>
+    <p>聚合视图：传 <code>mailboxId=all</code> 可一次查询所有信箱，返回条目带 <code>mailboxId</code> 与 <code>mailboxAddress</code> 用于区分来源。</p>
+    <pre><code>curl -s "https://your-domain/api/messages?mailboxId=all&folder=inbox&limit=20" -b cookie.txt</code></pre>
+
+    <h3 id="channel">渠道管理</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+      <tr><td>GET/POST/DELETE</td><td>/api/providers</td><td>发信渠道增删查（管理员），密钥接口只返回脱敏值</td></tr>
+      <tr><td>POST</td><td>/api/providers/:id/default</td><td>设为默认渠道</td></tr>
+      <tr><td>POST</td><td>/api/providers/:id/test</td><td>测试发送</td></tr>
+      <tr><td>GET</td><td>/api/auth/me</td><td>当前用户与信箱</td></tr>
+    </table>
+
+    <h3 id="share">分享与下载</h3>
+    <table>
+      <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+      <tr><td>GET/POST</td><td>/api/shares</td><td>列出 / 创建附件分享链接</td></tr>
+      <tr><td>POST</td><td>/api/shares/:token/revoke</td><td>撤销分享</td></tr>
+      <tr><td>GET</td><td>/d/:token</td><td>大附件公开下载（Worker 校验 token / 有效期 / 撤销状态后从 R2 出流）</td></tr>
+    </table>
+
+    <!-- ==================== SDK ==================== -->
+    <h2 id="sdk">扩展发信渠道（Provider SDK）</h2>
+    <p>MailEdge 把"发信"抽象成一个接口。新增一家服务商（SES / Mailgun / Postmark / 任意 SMTP），只需要三处改动，不改任何上层逻辑。</p>
+
+    <h3>核心接口</h3>
+    <pre><code><span class="y">// src/mail/types.ts</span>
+<span class="pu">export type</span> <span class="cy">MailProviderType</span> = <span class="g">"cloudflare"</span> | <span class="g">"resend"</span> | <span class="g">"sendflare"</span> | <span class="g">"smtp"</span>;
+
+<span class="pu">export interface</span> <span class="cy">MailProvider</span> {
+  <span class="pu">readonly</span> type: MailProviderType;
+  send(input: <span class="cy">SendMailInput</span>): Promise&lt;<span class="cy">SendMailResult</span>&gt;;
+}
+
+<span class="pu">export type</span> <span class="cy">FailureKind</span> = <span class="g">"transient"</span> | <span class="g">"permanent"</span>;
+<span class="c">// transient（网络故障/429/5xx）才允许切换备用渠道重试；</span>
+<span class="c">// permanent（域名未验证/地址非法/内容被拒）立即失败，绝不重发</span></code></pre>
+
+    <h3>三步新增一家服务商</h3>
+    <ol>
+      <li>在 <code>src/mail/providers/</code> 加一个类，实现 <code>MailProvider</code></li>
+      <li>在 <code>src/mail/types.ts</code> 的 <code>MailProviderType</code> / <code>MailProviderConfig</code> 加新类型</li>
+      <li>在 <code>src/mail/factory.ts</code> 加一个分支</li>
+    </ol>
+    <pre><code><span class="c">// src/mail/providers/mailgun.ts（骨架）</span>
+<span class="pu">export class</span> <span class="cy">MailgunMailProvider</span> <span class="pu">implements</span> <span class="cy">MailProvider</span> {
+  <span class="pu">readonly</span> type = <span class="g">"mailgun"</span> <span class="pu">as const</span>;
+
+  constructor(<span class="pu">private readonly</span> apiKey: string, <span class="pu">private readonly</span> domain: string) {}
+
+  <span class="pu">async</span> send(input: <span class="cy">SendMailInput</span>): Promise&lt;<span class="cy">SendMailResult</span>&gt; {
+    <span class="c">// 调用 Mailgun REST API，失败时返回 { success:false, failureKind }</span>
+    <span class="pu">return</span> { provider: <span class="pu">this</span>.type, success: <span class="pu">true</span> };
+  }
+}</code></pre>
+    <pre><code><span class="y">// src/mail/factory.ts（加一个 case）</span>
+<span class="pu">case</span> <span class="g">"mailgun"</span>:
+  <span class="pu">return new</span> <span class="cy">MailgunMailProvider</span>(config.apiKey, config.domain);
+<span class="pu">default:</span> {
+  <span class="pu">const</span> exhaustive: <span class="pu">never</span> = config;
+  <span class="pu">throw new</span> Error(<span class="g">`不支持的邮件服务`</span>);
+}</code></pre>
+    <div class="warn">分类规则很关键：<code>permanent</code> 错误会被立即置为 failed，<strong>不会</strong>换渠道重发——否则一封被拒的邮件会在三个平台各发一次。分类实现见 <code>src/mail/errors.ts</code>。</div>
+
+    <!-- ==================== 本地开发 ==================== -->
+    <h2 id="local">本地开发</h2>
+    <pre><code><span class="g">npm install</span>
+<span class="g">cp</span> .dev.vars.example .dev.vars          <span class="c"># 填入两个 openssl rand -base64 32</span>
+<span class="g">npx wrangler d1 migrations apply mailedge --local</span>
+<span class="g">npm run dev</span>                            <span class="c"># http://127.0.0.1:8787</span></code></pre>
+    <p>改前端时另开一个终端跑 <code>npm run dev:web</code> 做增量构建。测试与检查一条命令：</p>
+    <pre><code><span class="g">npm run verify</span>   <span class="c"># lint + 三套 typecheck + 全部测试（跑在真实 workerd 里）</span></code></pre>
+    <p>测试不是 Node 模拟，而是真实 workerd：<code>crypto.subtle</code>、D1、Durable Object、<code>cloudflare:sockets</code> 的行为与线上一致。</p>
+    <div class="note">本地模拟收信：<code>curl -X POST 'http://127.0.0.1:8787/cdn-cgi/handler/email?from=a@x.com&to=you@domain.com' --data-binary @test.eml -H 'Content-Type: message/rfc822'</code></div>
+
+    <div class="footer">
+      <span>© 2026 MailEdge · 开源</span>
+      <span><a href="/">首页</a> · <a href="/install">部署</a> · <a href="https://github.com/gentpan/MailEdge" target="_blank" rel="noreferrer">GitHub</a></span>
+    </div>
+  </div>
+</body>
+</html>

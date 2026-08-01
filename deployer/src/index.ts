@@ -25,6 +25,9 @@ app.get("/", (c) => c.html(page("landing.html")));
 /** 安装向导 */
 app.get("/install", (c) => c.html(page("index.html")));
 
+/** 开发者文档 */
+app.get("/developers", (c) => c.html(page("developers.html")));
+
 /** 第一步：验证 token + 权限体检 + 返回账户/域名 */
 app.post("/api/verify-token", async (c) => {
   const { token } = await c.req.json<{ token: string }>();
@@ -111,26 +114,26 @@ app.get("/api/deploy/:id", (c) => {
 
 /** 卸载第一步：扫描该账户下的 MailEdge 资源（只读） */
 app.post("/api/uninstall/list", async (c) => {
-  const { token, accountId } = await c.req
+  const body = await c.req
     .json<{ token: string; accountId: string }>()
     .catch(() => null);
-  if (!token?.trim() || !accountId) return c.json({ error: "缺少必要参数" }, 400);
-  const resources = await listMailEdgeResources(token.trim(), accountId);
+  if (!body || !body.token?.trim() || !body.accountId) return c.json({ error: "缺少必要参数" }, 400);
+  const resources = await listMailEdgeResources(body.token.trim(), body.accountId);
   return c.json({ resources });
 });
 
 /** 卸载第二步：删除被勾选的资源 */
 app.post("/api/uninstall", async (c) => {
-  const { token, accountId, items } = await c.req
+  const body = await c.req
     .json<{ token: string; accountId: string; items: Array<{ kind: string; id: string; label: string; zoneId?: string }> }>()
     .catch(() => null);
-  if (!token?.trim() || !accountId || !Array.isArray(items) || !items.length) {
+  if (!body || !body.token?.trim() || !body.accountId || !Array.isArray(body.items) || !body.items.length) {
     return c.json({ error: "缺少必要参数" }, 400);
   }
   const results = await deleteResources(
-    token.trim(),
-    accountId,
-    items.map((item) => ({ kind: item.kind as "worker" | "d1" | "r2" | "emailRule", id: item.id, label: item.label, zoneId: item.zoneId })),
+    body.token.trim(),
+    body.accountId,
+    body.items.map((item) => ({ kind: item.kind as "worker" | "d1" | "r2" | "emailRule", id: item.id, label: item.label, zoneId: item.zoneId })),
   );
   return c.json({ results });
 });
