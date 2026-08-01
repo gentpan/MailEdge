@@ -59,13 +59,13 @@ export async function listMailEdgeResources(
     // 跳过
   }
 
-  // R2 桶
+  // R2 桶（注意：接口返回 { buckets: [...] }，不是数组）
   try {
-    const buckets = await cfRequest<Array<{ name: string }>>(
+    const r2 = await cfRequest<{ buckets: Array<{ name: string }> }>(
       token,
       `/accounts/${accountId}/r2/buckets?per_page=100`,
     );
-    if (buckets.some((b) => b.name === "mailedge-attachments")) {
+    if (r2.buckets.some((b) => b.name === "mailedge-attachments")) {
       resources.push({ kind: "r2", id: "mailedge-attachments", label: "R2 存储桶：mailedge-attachments" });
     }
   } catch {
