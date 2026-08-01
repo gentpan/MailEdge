@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { listAccounts, listZones, verifyToken } from "./cf/client";
 import { configureEmailRouting } from "./cf/email";
 import { checkAccountPermissions, checkZonePermissions } from "./cf/permissions";
+import { deleteResources, listMailEdgeResources } from "./cf/resources";
 import { getJob, startDeploy } from "./deploy";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -106,6 +107,32 @@ app.get("/api/deploy/:id", (c) => {
   const job = getJob(c.req.param("id"));
   if (!job) return c.json({ error: "任务不存在" }, 404);
   return c.json({ status: job.status, log: job.log, url: job.url, error: job.error });
+});
+
+/** 卸载第一步：扫描该账户下的 MailEdge 资源（只读） */
+app.post("/api/uninstall/list", async (c) => {
+  const { token, accountId } = await c.req
+    .json<{ token: string; accountId: string }>()
+    .catch(() => null);
+  if (!token?.trim() || !accountId) return c.json({ error: "缺少必要参数" }, 400);
+  const resources = await listMailEdgeResources(token.trim(), accountId);
+  return c.json({ resources });
+});
+
+/** 卸载第二步：删除被勾选的资源 */
+app.post("/api/uninstall", async (c) => {
+  const { token, accountId, items } = await c.req
+    .json<{ token: string; accountId: string; items: Array<{ kind: string; id: string; label: string; zoneId?: string }> }>()
+    .catch(() => null);
+  if (!token?.trim() || !accountId || !Array.isArray(items) || !items.length) {
+    return c.json({ error: "缺少必要参数" }, 400);
+  }
+  const results = await deleteResources(
+    token.trim(),
+    accountId,
+    items.map((item) => ({ kind: item.kind as "worker" | "d1" | "r2" | "emailRule", id: item.id, label: item.label, zoneId: item.zoneId })),
+  );
+  return c.json({ results });
 });
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {

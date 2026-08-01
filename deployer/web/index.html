@@ -79,6 +79,15 @@
     }
     .perm-ok { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
     .perm-bad { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+    .uninstall-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+      margin-bottom: 6px; font-size: 14px; cursor: pointer;
+    }
+    .uninstall-item input { margin: 0; width: auto; }
+    .uninstall-item.removed { opacity: 0.45; text-decoration: line-through; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
     ul { margin: 8px 0 12px; padding-left: 20px; color: var(--text-secondary); }
     li { margin: 4px 0; }
     .log {
@@ -154,6 +163,18 @@
     <p class="warn" id="domainHint" style="display:none"></p>
     <button type="button" id="deployBtn" disabled>一键部署</button>
     <div id="step2Msg"></div>
+  </div>
+
+  <!-- 卸载 -->
+  <div class="card" id="uninstallCard">
+    <h2><span class="step-no">✕</span>卸载已部署的 MailEdge</h2>
+    <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
+    <input type="password" id="uninstallToken" placeholder="粘贴有权限的 Cloudflare API Token" autocomplete="off" />
+    <div class="row">
+      <button type="button" class="secondary" id="scanBtn">扫描该账户的 MailEdge 资源</button>
+    </div>
+    <div id="uninstallMsg"></div>
+    <div id="uninstallList"></div>
   </div>
 
   <!-- 部署日志 -->
@@ -347,6 +368,89 @@
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // ---------- 卸载 ----------
+  el("scanBtn").addEventListener("click", async () => {
+    const uToken = el("uninstallToken").value.trim();
+    if (!uToken) return msg("uninstallMsg", "请先粘贴 Token", true);
+    el("scanBtn").disabled = true;
+    msg("uninstallMsg", "正在验证 Token 并扫描资源…");
+    try {
+      const vres = await fetch("/api/verify-token", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: uToken }),
+      });
+      const vdata = await vres.json();
+      if (!vres.ok) throw new Error(vdata.error || "Token 无效");
+      if (!vdata.accounts.length) throw new Error("这个 Token 没有可访问的账户");
+      const account = vdata.accounts[0];
+
+      const res = await fetch("/api/uninstall/list", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: uToken, accountId: account.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "扫描失败");
+
+      msg("uninstallMsg", "账户：" + account.name + (vdata.accounts.length > 1 ? "（该 Token 有多个账户，仅扫描了第一个）" : ""));
+      renderUninstallList(uToken, account.id, data.resources);
+    } catch (err) {
+      msg("uninstallMsg", err.message, true);
+      el("uninstallList").innerHTML = "";
+    } finally {
+      el("scanBtn").disabled = false;
+    }
+  });
+
+  function renderUninstallList(uToken, accountId, resources) {
+    const box = el("uninstallList");
+    if (!resources.length) {
+      box.innerHTML = '<p style="font-size:13px;color:var(--text-secondary)">未发现 MailEdge 相关资源（Worker / D1 / R2 / Email 路由规则）。</p>';
+      return;
+    }
+    let html = '<p style="font-size:13px;color:var(--text-secondary);margin:8px 0">以下资源将被删除：</p>';
+    resources.forEach((r, i) => {
+      html += '<label class="uninstall-item"><input type="checkbox" class="uninstall-item-cb" data-index="' + i + '" checked /> ' +
+        escapeHtml(r.label) + "</label>";
+    });
+    html += '<div class="row" style="margin-top:12px">';
+    html += '<button type="button" class="btn-danger" id="uninstallBtn">确认删除勾选资源</button>';
+    html += "</div>";
+    box.innerHTML = html;
+
+    // 把资源数据挂到元素上，删除时读取勾选项
+    box.dataset.token = uToken;
+    box.dataset.accountId = accountId;
+    box.dataset.resources = JSON.stringify(resources);
+
+    el("uninstallBtn").addEventListener("click", async () => {
+      const resources = JSON.parse(box.dataset.resources);
+      const indexes = [...document.querySelectorAll(".uninstall-item-cb:checked")].map((cb) => Number(cb.dataset.index));
+      if (!indexes.length) return msg("uninstallMsg", "请至少勾选一项要删除的资源", true);
+      const items = indexes.map((i) => resources[i]);
+      if (!confirm("确认删除选中的 " + items.length + " 项资源？邮件与附件数据将被永久清空，不可恢复。")) return;
+
+      msg("uninstallMsg", "正在删除…");
+      try {
+        const res = await fetch("/api/uninstall", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: box.dataset.token, accountId: box.dataset.accountId, items }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "删除失败");
+
+        // 展示每项结果
+        const lines = data.results.map((r) => (r.ok ? "✓ " : "✗ ") + r.label + (r.ok ? "" : " — " + (r.detail || "失败")));
+        msg("uninstallMsg", data.results.some((r) => !r.ok) ? "部分资源删除失败，见列表" : "删除完成", data.results.some((r) => !r.ok));
+        renderUninstallList(box.dataset.token, box.dataset.accountId, []);
+        el("uninstallList").innerHTML =
+          '<div style="font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap">' +
+          escapeHtml(lines.join("\n")) + "</div>";
+      } catch (err) {
+        msg("uninstallMsg", err.message, true);
+      }
+    });
   }
 </script>
 </body>
