@@ -97,12 +97,15 @@ code, pre, .mono {
 }
 .logo:hover { text-decoration: none; }
 .logo-mark { width: 26px; height: 26px; margin-right: 8px; display: block; }
-.logo-mail { letter-spacing: -0.5px; }
-.logo-edge {
-  background: var(--color-primary); color: var(--color-on-primary);
-  padding: 2px 7px 2px 6px;
-  border-radius: 4px;
-  letter-spacing: -0.5px;
+/* 文字 "MailEdge" 末尾 e 右下角的小方块点缀 */
+.logo-text { letter-spacing: -0.5px; }
+.logo-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: var(--color-text);
+  border-radius: 1px;
+  margin-left: 2px;
+  transform: translateY(7px);
 }
 .logo-sub { margin-left: 8px; font-size: 14px; color: var(--color-text-secondary); font-weight: 400; }
 
