@@ -12,10 +12,14 @@ import { getJob, startDeploy } from "./deploy";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PORT ?? 8788);
 
+/** 站点统计（umami 风格，经 giantaccell 反代）——统一注入所有页面，无需逐个 HTML 添加 */
+const ANALYTICS = `<script defer src="https://tongji.giantaccel.com/script.js" data-website-id="5b892cd4-4c02-4bdd-8888-83c1e5310fb4"></script>`;
+
 const app = new Hono();
 
 function page(name: string): string {
-  return readFileSync(resolve(ROOT, "web", name), "utf8");
+  const html = readFileSync(resolve(ROOT, "web", name), "utf8");
+  return html.replace("</head>", `${ANALYTICS}\n</head>`);
 }
 
 function staticFile(c: Context, name: string, mime: string): Response {
