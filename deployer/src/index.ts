@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { listAccounts, listZones, verifyToken } from "./cf/client";
 import { configureEmailRouting } from "./cf/email";
+import { checkAccountPermissions, checkZonePermissions } from "./cf/permissions";
 import { getJob, startDeploy } from "./deploy";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,7 +24,7 @@ app.get("/", (c) => c.html(page("landing.html")));
 /** 安装向导 */
 app.get("/install", (c) => c.html(page("index.html")));
 
-/** 第一步：验证 token 并返回 token 有权限的账户 */
+/** 第一步：验证 token + 权限体检 + 返回账户/域名 */
 app.post("/api/verify-token", async (c) => {
   const { token } = await c.req.json<{ token: string }>();
   if (!token?.trim()) return c.json({ error: "缺少 token" }, 400);
@@ -35,7 +36,20 @@ app.post("/api/verify-token", async (c) => {
   if (!accounts.length) {
     return c.json({ error: "这个 token 没有权限访问任何账户，请按页面指引补足权限" }, 403);
   }
-  return c.json({ ok: true, accounts });
+
+  // 对前 3 个账户做只读权限体检（GET 探测，不产生任何修改）
+  const checked = await Promise.all(
+    accounts.slice(0, 3).map(async (account) => {
+      const permissions = [
+        ...(await checkAccountPermissions(token.trim(), account.id)),
+        ...(await checkZonePermissions(token.trim(), account.id)),
+      ];
+      const zones = await listZones(token.trim(), account.id).catch(() => []);
+      return { id: account.id, name: account.name, permissions, zones };
+    }),
+  );
+
+  return c.json({ ok: true, accounts: checked });
 });
 
 /** 第二步：列出某账户下托管在 Cloudflare 的域名 */

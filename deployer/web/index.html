@@ -71,6 +71,14 @@
     }
     .perm-table th { color: var(--text-secondary); font-weight: 500; }
     .perm-table code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .perm-block { margin-bottom: 12px; }
+    .perm-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .perm-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid;
+    }
+    .perm-ok { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+    .perm-bad { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
     ul { margin: 8px 0 12px; padding-left: 20px; color: var(--text-secondary); }
     li { margin: 4px 0; }
     .log {
@@ -128,6 +136,7 @@
   <!-- 第 2 步 -->
   <div class="card hidden" id="step2">
     <h2><span class="step-no">2</span>选择账户与收信域名</h2>
+    <div id="permReport"></div>
     <label for="account">Cloudflare 账户</label>
     <select id="account"></select>
     <label for="zone">收信域名（必须已托管在 Cloudflare）</label>
@@ -173,6 +182,7 @@
 <script>
   let token = "";
   let accountId = "";
+  const zonesByAccount = {};
 
   function el(id) { return document.getElementById(id); }
   function msg(id, text, isError) {
@@ -190,8 +200,8 @@
     token = el("token").value.trim();
     if (!token) return msg("step1Msg", "请先粘贴 Token", true);
     el("verifyBtn").disabled = true;
-    msg("step1Msg", "正在验证…");
-    log("> 验证 Token…");
+    msg("step1Msg", "正在验证 Token 并体检权限…");
+    log("> 验证 Token 并体检权限…");
     try {
       const res = await fetch("/api/verify-token", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -199,10 +209,13 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "验证失败");
-      msg("step1Msg", "验证通过 ✓");
-      log("✓ Token 有效，可用账户：" + data.accounts.map(a => a.name).join("、"));
-      el("step1").classList.add("hidden");
-      el("step2").classList.remove("hidden");
+      msg("step1Msg", "Token 有效 ✓");
+
+      // 缓存各账户的域名
+      Object.keys(zonesByAccount).forEach((k) => delete zonesByAccount[k]);
+      data.accounts.forEach((a) => { zonesByAccount[a.id] = a.zones || []; });
+
+      // 填充账户下拉
       const sel = el("account");
       sel.innerHTML = "";
       data.accounts.forEach((a) => {
@@ -210,7 +223,12 @@
         opt.value = a.id; opt.textContent = a.name;
         sel.appendChild(opt);
       });
-      loadZones();
+
+      el("step1").classList.add("hidden");
+      el("step2").classList.remove("hidden");
+      renderPermReport(data.accounts);
+      fillZones();
+      log("✓ Token 有效，可用账户：" + data.accounts.map((a) => a.name).join("、"));
     } catch (err) {
       msg("step1Msg", err.message, true);
       log("✗ " + err.message);
@@ -219,33 +237,43 @@
     }
   });
 
-  async function loadZones() {
+  /** 渲染权限体检报告 */
+  function renderPermReport(accounts) {
+    const box = el("permReport");
+    let html = "";
+    accounts.forEach((a) => {
+      html += '<div class="perm-block">';
+      html += '<p style="margin:0 0 6px;font-weight:600">' + escapeHtml(a.name) + '</p>';
+      html += '<div class="perm-grid">';
+      a.permissions.forEach((p) => {
+        const cls = p.ok ? "perm-ok" : "perm-bad";
+        const mark = p.ok ? "✓" : "✗";
+        html += '<span class="perm-chip ' + cls + '">' + mark + " " + escapeHtml(p.label) + "</span>";
+      });
+      html += "</div></div>";
+    });
+    box.innerHTML = html;
+  }
+
+  function fillZones() {
     accountId = el("account").value;
-    if (!accountId) return;
     const zoneSel = el("zone");
     zoneSel.innerHTML = "";
     el("deployBtn").disabled = true;
-    try {
-      const res = await fetch("/api/zones", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, accountId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "获取域名失败");
-      data.zones.forEach((z) => {
-        const opt = document.createElement("option");
-        opt.value = z.id; opt.dataset.name = z.name; opt.textContent = z.name;
-        zoneSel.appendChild(opt);
-      });
-      if (!data.zones.length) {
-        el("domainHint").textContent = "这个账户下没有托管域名。收信需要域名托管在 Cloudflare（设置 → Email Routing）。";
-        el("domainHint").style.display = "block";
-      }
-    } catch (err) {
-      msg("step2Msg", err.message, true);
+    const zones = zonesByAccount[accountId] || [];
+    zones.forEach((z) => {
+      const opt = document.createElement("option");
+      opt.value = z.id; opt.dataset.name = z.name; opt.textContent = z.name;
+      zoneSel.appendChild(opt);
+    });
+    if (!zones.length) {
+      el("domainHint").textContent = "这个账户下没有托管域名。收信需要域名托管在 Cloudflare（设置 → Email Routing）。";
+      el("domainHint").style.display = "block";
+    } else {
+      el("domainHint").style.display = "none";
     }
   }
-  el("account").addEventListener("change", loadZones);
+  el("account").addEventListener("change", fillZones);
 
   el("address").addEventListener("input", () => {
     el("deployBtn").disabled = !el("address").value.trim();
@@ -314,6 +342,11 @@
     el("resultCard").style.display = "block";
     el("resultUrl").textContent = url || "（部署成功，请在日志中查看地址）";
     if (!url) el("resultUrl").style.fontSize = "14px";
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 </script>
 </body>
