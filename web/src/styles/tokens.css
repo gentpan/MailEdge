@@ -68,6 +68,43 @@
   --list-width: 380px;
 }
 
+/* 深色主题：body 加 .theme-dark 切换 */
+.theme-dark {
+  --color-primary: #60a5fa;
+  --color-primary-hover: #3b82f6;
+  --color-primary-soft: rgba(96, 165, 250, 0.15);
+  --color-secondary: #cbd5e1;
+
+  --color-success: #4ade80;
+  --color-success-soft: rgba(74, 222, 128, 0.15);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.15);
+  --color-error: #f87171;
+  --color-error-soft: rgba(248, 113, 113, 0.15);
+
+  --color-neutral-0: #0f1115;
+  --color-neutral-50: #16181d;
+  --color-neutral-100: #1c1f26;
+  --color-neutral-200: #262a32;
+  --color-neutral-300: #333842;
+  --color-neutral-400: #4b5160;
+  --color-neutral-500: #6b7280;
+  --color-neutral-700: #d1d5db;
+  --color-neutral-900: #f3f4f6;
+
+  --color-text: #e5e7eb;
+  --color-text-secondary: #9ca3af;
+  --color-text-tertiary: #6b7280;
+
+  --color-bg: #0f1115;
+  --color-bg-subtle: #16181d;
+  --color-border: #262a32;
+  --color-border-strong: #333842;
+
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
 * {
   box-sizing: border-box;
 }

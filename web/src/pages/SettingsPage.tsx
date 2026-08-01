@@ -1,8 +1,9 @@
-import { ArrowLeft, AtSign, Loader2, RefreshCw, Send, Sparkles, User as UserIcon } from "lucide-react";
+import { ArrowLeft, AtSign, Loader2, LogOut, RefreshCw, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useSession } from "../App";
 import LanguageToggle from "../components/LanguageToggle";
+import ThemeToggle from "../components/ThemeToggle";
 import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
@@ -25,12 +26,16 @@ const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof 
   ];
 
 export default function SettingsPage() {
-  const { user, refresh } = useSession();
+  const { user, refresh, signOut } = useSession();
   const { t } = useI18n();
   const isAdmin = user.role === "admin";
 
   const visible = CATEGORIES.filter((item) => !item.adminOnly || isAdmin);
-  const [category, setCategory] = useState<Category>(visible[0]?.key ?? "account");
+  // 二级目录路由驱动：/settings/:category，无效或不可见的回退到第一个可见 tab
+  const { category: categoryParam } = useParams<{ category: string }>();
+  const category: Category = visible.some((item) => item.key === categoryParam)
+    ? (categoryParam as Category)
+    : (visible[0]?.key ?? "account");
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,15 +77,14 @@ export default function SettingsPage() {
           {visible.map((item) => {
             const Icon = item.icon;
             return (
-              <button
+              <Link
                 key={item.key}
-                type="button"
+                to={`/settings/${item.key}`}
                 className={`nav-item${category === item.key ? " nav-item--active" : ""}`}
-                onClick={() => setCategory(item.key)}
               >
                 <Icon size={16} />
                 {t(item.labelKey)}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -97,7 +101,16 @@ export default function SettingsPage() {
           </div>
           <div className="sidebar__footer-row">
             <LanguageToggle />
+            <ThemeToggle />
           </div>
+          <button
+            className="btn btn--ghost btn--block sidebar__logout"
+            type="button"
+            onClick={() => void signOut()}
+          >
+            <LogOut size={14} />
+            {t("nav.signOut")}
+          </button>
         </div>
       </aside>
 

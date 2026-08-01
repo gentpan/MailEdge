@@ -371,6 +371,13 @@
   gap: var(--space-2);
 }
 
+/* 登出按钮独立一行，与上方工具条分隔 */
+.sidebar__logout {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
 /* ---------- 邮件列表 ---------- */
 
 .list-pane {

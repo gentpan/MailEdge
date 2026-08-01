@@ -75,7 +75,8 @@ export default function App() {
     <SessionContext.Provider value={{ user: state.user, mailboxes: state.mailboxes, refresh: load, signOut }}>
       <Routes>
         <Route path="/" element={<MailPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
+        <Route path="/settings/:category" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </SessionContext.Provider>
