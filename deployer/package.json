@@ -1,0 +1,23 @@
+{
+  "name": "mailedge-deployer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MailEdge 网页安装向导：用户提供一次性 Cloudflare API Token，自动建资源并部署 MailEdge",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "esbuild": "^0.25.0",
+    "hono": "^4.9.10"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^7.0.2",
+    "@types/node": "^24.0.0"
+  }
+}

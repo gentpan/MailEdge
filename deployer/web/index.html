@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailEdge 一键部署</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-secondary: #6b7280;
+      --bg: #f8f9fa;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .wrap { max-width: 640px; margin: 48px auto; padding: 0 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 0 0 12px; }
+    p { color: var(--text-secondary); margin: 0 0 12px; }
+    .step-no {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--primary); color: #fff; font-size: 13px; margin-right: 8px;
+    }
+    input, select {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+      margin-bottom: 12px;
+    }
+    button {
+      background: var(--primary); color: #fff; border: 0; border-radius: 6px;
+      padding: 10px 20px; font-size: 14px; cursor: pointer;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary {
+      background: #fff; color: var(--text); border: 1px solid #d1d5db;
+    }
+    .row { display: flex; gap: 12px; }
+    .row > * { flex: 1; }
+    .hint {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;
+      padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+    }
+    .warn {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
+      padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
+    }
+    ul { margin: 8px 0 12px; padding-left: 20px; color: var(--text-secondary); }
+    li { margin: 4px 0; }
+    .log {
+      font-family: ui-monospace, monospace; font-size: 12px;
+      background: #111827; color: #a7f3d0; border-radius: 6px; padding: 12px;
+      white-space: pre-wrap; max-height: 240px; overflow-y: auto; display: none;
+    }
+    .result { display: none; }
+    .result .url {
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;
+      padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 16px; font-weight: 600;
+    }
+    .hidden { display: none; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MailEdge 一键部署</h1>
+  <p>在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
+
+  <!-- 第 1 步 -->
+  <div class="card" id="step1">
+    <h2><span class="step-no">1</span>创建并粘贴 Cloudflare API Token</h2>
+    <div class="hint">
+      部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
+      我们不会保存它，也看不到你的账号密码。
+    </div>
+    <p>点击下方按钮打开 Cloudflare 后台，创建 Token 时需要勾选这些权限（<strong>按说明选</strong>）：</p>
+    <ul>
+      <li><strong>账户</strong> · Workers Scripts — <code>Edit</code></li>
+      <li><strong>账户</strong> · Workers R2 Storage — <code>Edit</code></li>
+      <li><strong>账户</strong> · Workers D1 — <code>Edit</code></li>
+      <li><strong>账户</strong> · Workers KV Storage — <code>Edit</code></li>
+      <li><strong>账户</strong> · Email Routing Addresses — <code>Edit</code></li>
+      <li><strong>区域</strong> · Email Routing Rules — <code>Edit</code></li>
+      <li><strong>区域</strong> · Zone — <code>Read</code></li>
+    </ul>
+    <div class="row">
+      <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
+        打开 Cloudflare 创建 Token
+      </button>
+    </div>
+    <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
+    <input type="password" id="token" placeholder="粘贴你的 Cloudflare API Token（如 8v_n7k...）" autocomplete="off" />
+    <button type="button" id="verifyBtn">验证 Token</button>
+    <div id="step1Msg"></div>
+  </div>
+
+  <!-- 第 2 步 -->
+  <div class="card hidden" id="step2">
+    <h2><span class="step-no">2</span>选择账户与收信域名</h2>
+    <label for="account">Cloudflare 账户</label>
+    <select id="account"></select>
+    <label for="zone">收信域名（必须已托管在 Cloudflare）</label>
+    <select id="zone"></select>
+    <div class="row">
+      <div>
+        <label for="address">收件地址（@ 前面部分）</label>
+        <input type="text" id="address" placeholder="support" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button type="button" class="secondary" id="catchAllBtn" style="width:100%">收整个域名的信（catch-all）</button>
+      </div>
+    </div>
+    <p class="warn" id="domainHint" style="display:none"></p>
+    <button type="button" id="deployBtn" disabled>一键部署</button>
+    <div id="step2Msg"></div>
+  </div>
+
+  <!-- 部署日志 -->
+  <div class="card">
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="card result" id="resultCard">
+    <h2>🎉 部署完成</h2>
+    <p>你的 MailEdge 管理面板：</p>
+    <div class="url" id="resultUrl"></div>
+    <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号并绑定收件地址。</p>
+    <div class="warn" id="deleteTokenWarn">
+      <strong>请务必回到 Cloudflare 后台删除刚才的 Token</strong>，它已完成使命，删除后立即失效。
+      <br />路径：Cloudflare 后台 → 我的个人资料 → API Tokens → 删除。
+    </div>
+  </div>
+</div>
+
+<script>
+  let token = "";
+  let accountId = "";
+
+  function el(id) { return document.getElementById(id); }
+  function msg(id, text, isError) {
+    el(id).textContent = text || "";
+    el(id).style.color = isError ? "#dc2626" : "#16a34a";
+  }
+  function log(line) {
+    const box = el("log");
+    box.style.display = "block";
+    box.textContent += (box.textContent ? "\n" : "") + line;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  el("verifyBtn").addEventListener("click", async () => {
+    token = el("token").value.trim();
+    if (!token) return msg("step1Msg", "请先粘贴 Token", true);
+    el("verifyBtn").disabled = true;
+    msg("step1Msg", "正在验证…");
+    log("> 验证 Token…");
+    try {
+      const res = await fetch("/api/verify-token", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "验证失败");
+      msg("step1Msg", "验证通过 ✓");
+      log("✓ Token 有效，可用账户：" + data.accounts.map(a => a.name).join("、"));
+      el("step1").classList.add("hidden");
+      el("step2").classList.remove("hidden");
+      const sel = el("account");
+      sel.innerHTML = "";
+      data.accounts.forEach((a) => {
+        const opt = document.createElement("option");
+        opt.value = a.id; opt.textContent = a.name;
+        sel.appendChild(opt);
+      });
+      loadZones();
+    } catch (err) {
+      msg("step1Msg", err.message, true);
+      log("✗ " + err.message);
+    } finally {
+      el("verifyBtn").disabled = false;
+    }
+  });
+
+  async function loadZones() {
+    accountId = el("account").value;
+    if (!accountId) return;
+    const zoneSel = el("zone");
+    zoneSel.innerHTML = "";
+    el("deployBtn").disabled = true;
+    try {
+      const res = await fetch("/api/zones", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, accountId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "获取域名失败");
+      data.zones.forEach((z) => {
+        const opt = document.createElement("option");
+        opt.value = z.id; opt.dataset.name = z.name; opt.textContent = z.name;
+        zoneSel.appendChild(opt);
+      });
+      if (!data.zones.length) {
+        el("domainHint").textContent = "这个账户下没有托管域名。收信需要域名托管在 Cloudflare（设置 → Email Routing）。";
+        el("domainHint").style.display = "block";
+      }
+    } catch (err) {
+      msg("step2Msg", err.message, true);
+    }
+  }
+  el("account").addEventListener("change", loadZones);
+
+  el("address").addEventListener("input", () => {
+    el("deployBtn").disabled = !el("address").value.trim();
+  });
+
+  let catchAllMode = false;
+  el("catchAllBtn").addEventListener("click", () => {
+    catchAllMode = !catchAllMode;
+    el("catchAllBtn").style.borderColor = catchAllMode ? "var(--primary)" : "";
+    el("address").value = "";
+    el("deployBtn").disabled = false;
+  });
+
+  el("deployBtn").addEventListener("click", async () => {
+    const zone = el("zone").selectedOptions[0];
+    if (!zone) return msg("step2Msg", "请先选择域名", true);
+    const zoneName = zone.textContent;
+    el("deployBtn").disabled = true;
+    log("> 开始部署：");
+    log("  账户：" + el("account").selectedOptions[0]?.textContent);
+    log("  域名：" + zoneName);
+    log("  收件：" + (catchAllMode ? "整个域名的所有来信" : el("address").value.trim() + "@" + zoneName));
+    try {
+      const res = await fetch("/api/deploy", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token, accountId,
+          zoneId: zone.value,
+          address: catchAllMode ? "" : el("address").value.trim(),
+          catchAll: catchAllMode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "启动部署失败");
+      await pollDeploy(data.jobId);
+    } catch (err) {
+      msg("step2Msg", err.message, true);
+      log("✗ " + err.message);
+      el("deployBtn").disabled = false;
+    }
+  });
+
+  async function pollDeploy(jobId) {
+    el("log").style.display = "block";
+    let done = false;
+    while (!done) {
+      const res = await fetch("/api/deploy/" + jobId);
+      const data = await res.json();
+      const box = el("log");
+      box.textContent = data.log;
+      box.scrollTop = box.scrollHeight;
+      if (data.status !== "running") done = true;
+      else await new Promise((r) => setTimeout(r, 1500));
+    }
+    const final = await (await fetch("/api/deploy/" + jobId)).json();
+    if (final.status === "done") {
+      showResult(final.url);
+    } else {
+      msg("step2Msg", final.error || "部署失败", true);
+      el("deployBtn").disabled = false;
+    }
+  }
+
+  function showResult(url) {
+    el("step2").classList.add("hidden");
+    el("resultCard").style.display = "block";
+    el("resultUrl").textContent = url || "（部署成功，请在日志中查看地址）";
+    if (!url) el("resultUrl").style.fontSize = "14px";
+  }
+</script>
+</body>
+</html>
