@@ -113,11 +113,22 @@ code, pre, .mono {
   background: var(--color-bg);
 }
 .footer-inner {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 24px;
   padding-top: 26px; padding-bottom: 26px;
   font-size: 13px; color: var(--color-text-tertiary);
 }
+.footer-inner > span:first-child { margin-right: auto; }
 .footer-links { display: flex; gap: 20px; }
+
+/* 页脚社交图标：无背景，悬浮放大 1.5 倍 */
+.social-links { display: flex; align-items: center; gap: 16px; }
+.social-links a {
+  display: inline-flex;
+  color: var(--color-text-tertiary);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.social-links a svg { width: 18px; height: 18px; display: block; }
+.social-links a:hover { transform: scale(1.5); color: var(--color-text); }
 
 /* ---------- 按钮 ---------- */
 .btn {
