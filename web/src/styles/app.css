@@ -217,7 +217,7 @@
 
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-width) var(--list-width) 1fr;
+  grid-template-columns: minmax(0, var(--sidebar-width)) minmax(0, var(--list-width)) minmax(0, 1fr);
   height: 100%;
   background: var(--color-neutral-0);
 }
@@ -594,6 +594,7 @@
 .detail-pane {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -933,7 +934,7 @@
 
 .master-detail {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
 }
