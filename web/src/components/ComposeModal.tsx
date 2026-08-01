@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { formatSize, PROVIDER_LABELS } from "../lib/format";
 
 export interface ComposeDraft {
+  from?: string;
   to?: string;
   cc?: string;
   subject?: string;
@@ -36,7 +37,7 @@ export default function ComposeModal({
   onSent,
 }: Props) {
   const { t } = useI18n();
-  const [from, setFrom] = useState(mailboxes[0]?.address ?? "");
+  const [from, setFrom] = useState(draft?.from ?? mailboxes[0]?.address ?? "");
   const [to, setTo] = useState(draft?.to ?? "");
   const [cc, setCc] = useState(draft?.cc ?? "");
   const [bcc, setBcc] = useState("");

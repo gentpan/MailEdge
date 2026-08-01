@@ -213,7 +213,12 @@ export default function MailPage() {
   }
 
   function replyTo(message: MessageDetail) {
+    // 回复时发件人自动用「收到信的那个地址」（所属信箱），
+    // 对方看到的就是给你发信时用的地址，而不是默认发信地址
+    const mailbox = mailboxes.find((m) => m.id === detailMailboxId);
+    const from = mailbox?.address ?? message.to[0]?.email;
     setComposeDraft({
+      from,
       to: message.from.email,
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
       text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
