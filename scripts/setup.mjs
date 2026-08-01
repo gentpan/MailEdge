@@ -49,9 +49,9 @@ const log = {
   step: (n, total, message) => console.log(`\n${C.bold}[${n}/${total}] ${message}${C.reset}`),
   info: (message) => console.log(`      ${message}`),
   dim: (message) => console.log(`      ${C.dim}${message}${C.reset}`),
-  ok: (message) => console.log(`      ${C.green}✓${C.reset} ${message}`),
-  warn: (message) => console.log(`      ${C.yellow}!${C.reset} ${message}`),
-  fail: (message) => console.error(`\n${C.red}✗ ${message}${C.reset}`),
+  ok: (message) => console.log(`      ${C.green}[OK]${C.reset} ${message}`),
+  warn: (message) => console.log(`      ${C.yellow}[WARN]${C.reset} ${message}`),
+  fail: (message) => console.error(`\n${C.red}[FAIL]${C.reset} ${message}`),
 };
 
 class SetupError extends Error {
@@ -401,8 +401,8 @@ async function main() {
   console.log(`\n${C.bold}接下来还有两步需要你在面板操作：${C.reset}\n`);
 
   console.log(`${C.bold}① 配置收件路由${C.reset}`);
-  console.log("   Cloudflare 面板 → Compute → Email Service → Email Routing → 选择你的域名");
-  console.log("   首次进入需先启用（会自动写入 MX 与 SPF 记录），然后 Routing Rules → Create：");
+  console.log("   Cloudflare 面板 -> Compute -> Email Service -> Email Routing -> 选择你的域名");
+  console.log("   首次进入需先启用（会自动写入 MX 与 SPF 记录），然后 Routing Rules -> Create：");
   console.log(`     Email pattern  地址的本地部分，如 ${C.cyan}support${C.reset}`);
   console.log(`     Action         ${C.cyan}Send to a Worker${C.reset}`);
   console.log(`     Worker         ${C.cyan}${workerName}${C.reset}`);
@@ -414,7 +414,7 @@ async function main() {
   console.log(`   打开 ${C.cyan}${url ?? "你的部署地址"}${C.reset}，首次访问会进入初始化页。`);
   console.log(`   ${C.yellow}这里填的收件地址必须和上一步的路由规则完全一致${C.reset}，`);
   console.log("   否则 Worker 收到信找不到对应信箱，会直接退信（550 未知收件人）。");
-  console.log("\n   之后到「设置 → 发信服务」配置渠道，先「测试发送」确认可用，再「设为默认」。");
+  console.log("\n   之后到「设置 -> 发信服务」配置渠道，先「测试发送」确认可用，再「设为默认」。");
   console.log(`\n${C.dim}发往任意外部邮箱需要 Workers Paid；收件在免费计划即可用。${C.reset}`);
 
   if (!redeployed && url) {
