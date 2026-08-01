@@ -110,6 +110,18 @@
     }
     button:hover { background: var(--green-hover); }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .spinner {
+      display: none;
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: -2px;
+      margin-right: 7px;
+    }
+    button.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     button.secondary {
       background: transparent; color: var(--fg);
       border: 1px solid var(--border-strong);
@@ -229,7 +241,7 @@
       </div>
       <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
       <input type="password" id="token" placeholder="$ TOKEN = …" autocomplete="off" />
-      <button type="button" id="verifyBtn">验证 Token</button>
+      <button type="button" id="verifyBtn"><span class="spinner"></span><span class="btn-label">验证 Token</span></button>
       <div id="step1Msg"></div>
     </div>
   </div>
@@ -255,7 +267,7 @@
         </div>
       </div>
       <p class="warn" id="domainHint" style="display:none"></p>
-      <button type="button" id="deployBtn" disabled>一键部署</button>
+      <button type="button" id="deployBtn" disabled><span class="spinner"></span><span class="btn-label">一键部署</span></button>
       <div id="step2Msg"></div>
     </div>
   </div>
@@ -276,7 +288,7 @@
       <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
       <input type="password" id="uninstallToken" placeholder="$ TOKEN = …" autocomplete="off" />
       <div class="row">
-        <button type="button" class="secondary" id="scanBtn">扫描该账户的 MailEdge 资源</button>
+        <button type="button" class="secondary" id="scanBtn"><span class="spinner"></span><span class="btn-label">扫描该账户的 MailEdge 资源</span></button>
       </div>
       <div id="uninstallMsg"></div>
       <div id="uninstallList"></div>
@@ -322,10 +334,19 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  /** 按钮 loading 状态：旋转圆圈 + 换文字 + 禁用 */
+  function setLoading(btnId, loading, label) {
+    const btn = el(btnId);
+    btn.disabled = loading;
+    btn.classList.toggle("loading", loading);
+    const labelEl = btn.querySelector(".btn-label");
+    if (labelEl && label) labelEl.textContent = label;
+  }
+
   el("verifyBtn").addEventListener("click", async () => {
     token = el("token").value.trim();
     if (!token) return msg("step1Msg", "请先粘贴 Token", true);
-    el("verifyBtn").disabled = true;
+    setLoading("verifyBtn", true, "验证中…");
     msg("step1Msg", "正在验证 Token 并体检权限…");
     log("> 验证 Token 并体检权限…");
     try {
@@ -357,7 +378,7 @@
       msg("step1Msg", err.message, true);
       log("✗ " + err.message);
     } finally {
-      el("verifyBtn").disabled = false;
+      setLoading("verifyBtn", false, "验证 Token");
     }
   });
 
@@ -417,7 +438,7 @@
     const zone = el("zone").selectedOptions[0];
     if (!zone) return msg("step2Msg", "请先选择域名", true);
     const zoneName = zone.textContent;
-    el("deployBtn").disabled = true;
+    setLoading("deployBtn", true, "部署中…");
     log("> 开始部署：");
     log("  账户：" + el("account").selectedOptions[0]?.textContent);
     log("  域名：" + zoneName);
@@ -438,7 +459,7 @@
     } catch (err) {
       msg("step2Msg", err.message, true);
       log("✗ " + err.message);
-      el("deployBtn").disabled = false;
+      setLoading("deployBtn", false, "一键部署");
     }
   });
 
@@ -459,7 +480,7 @@
       showResult(final.url);
     } else {
       msg("step2Msg", final.error || "部署失败", true);
-      el("deployBtn").disabled = false;
+      setLoading("deployBtn", false, "一键部署");
     }
   }
 
@@ -479,7 +500,7 @@
   el("scanBtn").addEventListener("click", async () => {
     const uToken = el("uninstallToken").value.trim();
     if (!uToken) return msg("uninstallMsg", "请先粘贴 Token", true);
-    el("scanBtn").disabled = true;
+    setLoading("scanBtn", true, "扫描中…");
     msg("uninstallMsg", "正在验证 Token 并扫描资源…");
     try {
       const vres = await fetch("/api/verify-token", {
@@ -504,7 +525,7 @@
       msg("uninstallMsg", err.message, true);
       el("uninstallList").innerHTML = "";
     } finally {
-      el("scanBtn").disabled = false;
+      setLoading("scanBtn", false, "扫描该账户的 MailEdge 资源");
     }
   });
 
