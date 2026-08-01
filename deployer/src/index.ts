@@ -13,10 +13,15 @@ const WORKER_NAME = "mailedge";
 
 const app = new Hono();
 
-app.get("/", (c) => {
-  const html = readFileSync(resolve(ROOT, "web/index.html"), "utf8");
-  return c.html(html);
-});
+function page(name: string): string {
+  return readFileSync(resolve(ROOT, "web", name), "utf8");
+}
+
+/** 宣传首页 */
+app.get("/", (c) => c.html(page("landing.html")));
+
+/** 安装向导 */
+app.get("/install", (c) => c.html(page("index.html")));
 
 /** 第一步：验证 token 并返回 token 有权限的账户 */
 app.post("/api/verify-token", async (c) => {

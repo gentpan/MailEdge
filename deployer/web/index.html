@@ -81,6 +81,7 @@
 </head>
 <body>
 <div class="wrap">
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px"><a href="/">← 返回 MailEdge 首页</a></p>
   <h1>MailEdge 一键部署</h1>
   <p>在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
 
@@ -145,6 +146,11 @@
     <p>你的 MailEdge 管理面板：</p>
     <div class="url" id="resultUrl"></div>
     <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号并绑定收件地址。</p>
+    <div class="hint" style="margin-top:12px">
+      <strong>想用自己的域名访问？</strong><br />
+      打开 Cloudflare 后台 → Workers 与 Pages → 你的 <code>mailedge</code> → 设置 → 域名 → 添加自定义域，
+      绑定你的域名（如 <code>mail.你的域名.com</code>），按提示添加 DNS 记录即可。
+    </div>
     <div class="warn" id="deleteTokenWarn">
       <strong>请务必回到 Cloudflare 后台删除刚才的 Token</strong>，它已完成使命，删除后立即失效。
       <br />路径：Cloudflare 后台 → 我的个人资料 → API Tokens → 删除。
