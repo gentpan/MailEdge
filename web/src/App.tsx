@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import Logo from "./components/Logo";
 import type { Mailbox, User } from "./lib/api";
 import { ApiError, api } from "./lib/api";
 import AuthPage from "./pages/AuthPage";
@@ -58,7 +59,10 @@ export default function App() {
     return (
       <div className="empty">
         <Loader2 size={20} className="spin" />
-        <p>MailEdge</p>
+        <p>
+          <Logo size={18} />
+          MailEdge
+        </p>
       </div>
     );
   }

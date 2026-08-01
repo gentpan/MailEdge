@@ -175,7 +175,7 @@
 <body class="theme-dark">
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="logo" href="/"><svg class="logo-mark" fill="none" height="64" viewBox="0 0 64 64" width="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><linearGradient id="me-grad" gradientUnits="userSpaceOnUse" x1="78.644" x2="38.479" y1="65.699" y2="6.963"><stop offset=".00265844" stop-color="#ff37df"></stop><stop offset="1" stop-color="#6e00ff"></stop></linearGradient><g fill="url(#me-grad)"><path d="m3.21981 18.3839c2.04702-6.2227 8.09869-10.3839 14.78639-10.3839h27.9813c6.6817 0 12.7439 4.1557 14.7781 10.3917l-23.1185 12.3299c-3.5295 1.8823-7.7647 1.8823-11.2942 0z"></path><path d="m2.46084 22.5124c-.6492 6.8888-.61204 13.01.10866 20.0031.814 7.8982 7.703 13.4845 15.4522 13.4845h27.9418c7.7029 0 14.5721-5.5224 15.4263-13.3743.7674-7.0535.8108-13.2022.1313-20.1036l-21.9917 11.7289c-4.7059 2.5098-10.3529 2.5098-15.0588 0z"></path></g></svg><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></a>
+    <a class="logo" href="/"><svg class="logo-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g><path d="m29.84 8.64v.48l-12.71 8a2.0997 2.0997 0 0 1 -2.26 0l-12.71-8a3.02176 3.02176 0 0 1 2.96005-3.43h21.76a2.9512 2.9512 0 0 1 2.95995 2.95zm-13.84 10.81a4.1535 4.1535 0 0 1 -2.2-.63l-11.64-7.34v11.88a2.9512 2.9512 0 0 0 2.96 2.95h21.76a2.9512 2.9512 0 0 0 2.96-2.95v-11.88l-11.64 7.34a4.1535 4.1535 0 0 1 -2.2.63z"></path></g></svg><span class="logo-mail">Mail</span><span class="logo-edge">Edge</span></a>
     <nav class="topbar-links">
       <a href="/">首页</a>
       <a href="/developers">开发者</a>
@@ -229,6 +229,7 @@
       <label for="account">Cloudflare 账户</label>
       <select id="account"></select>
       <p class="muted" style="font-size:12px">部署只创建基础资源（Worker / D1 / R2）。收件地址在部署完成后，到 MailEdge 设置页自行添加管理，可添加多个。</p>
+      <p class="warn" id="deployStatusHint" style="display:none"></p>
       <button type="button" id="deployBtn"><span class="spinner"></span><span class="btn-label">一键部署</span></button>
       <div id="step2Msg"></div>
     </div>
@@ -347,6 +348,7 @@
       el("step1").classList.add("hidden");
       el("step2").classList.remove("hidden");
       renderPermReport(data.accounts);
+      checkDeployStatus();
       log("✓ Token 有效，可用账户：" + data.accounts.map((a) => a.name).join("、"));
     } catch (err) {
       msg("step1Msg", err.message, true);
@@ -377,7 +379,32 @@
 
   el("account").addEventListener("change", () => {
     accountId = el("account").value;
+    checkDeployStatus();
   });
+
+  /** 检测该账户是否已部署，决定按钮是「一键部署」还是「一键重新部署（更新）」 */
+  async function checkDeployStatus() {
+    const acct = el("account").value;
+    if (!acct || !token) return;
+    try {
+      const res = await fetch("/api/deploy/status", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, accountId: acct }),
+      });
+      const data = await res.json();
+      const deployed = Boolean(data.deployed);
+      el("deployBtn").querySelector(".btn-label").textContent = deployed ? "一键重新部署（更新）" : "一键部署";
+      const hint = el("deployStatusHint");
+      if (deployed) {
+        hint.textContent = "检测到该账户已有 MailEdge 部署。重新部署会保留邮件数据和配置，只更新代码。";
+        hint.style.display = "block";
+      } else {
+        hint.style.display = "none";
+      }
+    } catch {
+      // 忽略检测失败，保持默认文案
+    }
+  }
 
   el("deployBtn").addEventListener("click", async () => {
     const acct = el("account").selectedOptions[0];

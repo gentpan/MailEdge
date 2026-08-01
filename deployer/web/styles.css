@@ -9,15 +9,14 @@
   --color-text: #111827;
   --color-text-secondary: #6b7280;
   --color-text-tertiary: #9ca3af;
-  --color-primary: #7c3aed;
-  --color-primary-hover: #6d28d9;
-  --color-primary-soft: #f3e8ff;
+  --color-primary: #111827;
+  --color-primary-hover: #374151;
+  --color-primary-soft: #f3f4f6;
   --color-on-primary: #ffffff;
-  --color-grad: linear-gradient(135deg, #ff37df, #6e00ff);
   --color-border: #e5e7eb;
   --color-border-strong: #d1d5db;
   --color-code-bg: #f3f4f6;
-  --color-code-fg: #2563eb;
+  --color-code-fg: #111827;
   --color-error: #dc2626;
   --color-warning: #d97706;
   --color-success: #16a34a;
@@ -32,15 +31,14 @@
   --color-text: #e6edf3;
   --color-text-secondary: #8b949e;
   --color-text-tertiary: #6e7681;
-  --color-primary: #8b5cf6;
-  --color-primary-hover: #7c3aed;
-  --color-primary-soft: rgba(139, 92, 246, 0.12);
-  --color-on-primary: #ffffff;
-  --color-grad: linear-gradient(135deg, #ff37df, #6e00ff);
+  --color-primary: #e6edf3;
+  --color-primary-hover: #c9d1d9;
+  --color-primary-soft: rgba(230, 237, 243, 0.1);
+  --color-on-primary: #0d1117;
   --color-border: #30363d;
   --color-border-strong: #484f58;
   --color-code-bg: #010409;
-  --color-code-fg: #3fb950;
+  --color-code-fg: #e6edf3;
   --color-error: #f85149;
   --color-warning: #d29922;
   --color-success: #3fb950;
@@ -99,7 +97,7 @@ code, pre, .mono {
 .logo-mark { width: 26px; height: 26px; margin-right: 8px; display: block; }
 .logo-mail { margin-right: 4px; letter-spacing: -0.5px; }
 .logo-edge {
-  background: var(--color-grad); color: #ffffff;
+  background: var(--color-primary); color: var(--color-on-primary);
   padding: 3px 10px 3px 8px;
   border-radius: 6px;
   letter-spacing: -0.5px;

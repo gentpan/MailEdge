@@ -71,6 +71,17 @@ app.post("/api/verify-token", async (c) => {
   return c.json({ ok: true, accounts: checked });
 });
 
+/** 检测账户是否已部署过 MailEdge（用于提示「重新部署/更新」） */
+app.post("/api/deploy/status", async (c) => {
+  const body = await c.req
+    .json<{ token: string; accountId: string }>()
+    .catch(() => null);
+  if (!body || !body.token?.trim() || !body.accountId) return c.json({ error: "缺少必要参数" }, 400);
+  const resources = await listMailEdgeResources(body.token.trim(), body.accountId);
+  const deployed = resources.some((r) => r.kind === "worker" || r.kind === "d1");
+  return c.json({ deployed });
+});
+
 /** 第二步：发起一键部署（后台异步执行，只建资源，不配置收信） */
 app.post("/api/deploy", async (c) => {
   const body = await c.req

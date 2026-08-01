@@ -1,4 +1,4 @@
-import { Mails } from "lucide-react";
+import Logo from "../components/Logo";
 import { useState } from "react";
 import LanguageToggle from "../components/LanguageToggle";
 import { useI18n } from "../i18n";
@@ -43,7 +43,7 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
     <div className="auth">
       <form className="auth__card" onSubmit={submit}>
         <div className="auth__brand">
-          <Mails size={20} />
+          <Logo size={20} />
           <span>{t("app.name")}</span>
           <span style={{ marginLeft: "auto" }}>
             <LanguageToggle />
