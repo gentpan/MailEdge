@@ -138,6 +138,19 @@
   </div>
 </main>
 
+<!-- 自定义确认对话框（替代系统 confirm） -->
+<div class="modal-overlay hidden" id="confirmOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="confirmTitle">确认删除</h3>
+    <p id="confirmText"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="confirmCancel">取消</button>
+      <button type="button" class="btn btn-danger" id="confirmOk">确认删除</button>
+    </div>
+  </div>
+</div>
+
+
 <!--#footer 开源免费-->
 
 <script>
@@ -186,6 +199,20 @@
     btn.classList.toggle("loading", loading);
     const labelEl = btn.querySelector(".btn-label");
     if (labelEl && label) labelEl.textContent = label;
+  }
+
+  /** 自定义确认对话框（替代系统 confirm） */
+  function confirmDialog(text, onConfirm) {
+    el("confirmText").textContent = text;
+    el("confirmOverlay").classList.remove("hidden");
+    el("confirmOk").onclick = () => {
+      el("confirmOverlay").classList.add("hidden");
+      onConfirm();
+    };
+    el("confirmCancel").onclick = () => el("confirmOverlay").classList.add("hidden");
+    el("confirmOverlay").onclick = (event) => {
+      if (event.target === el("confirmOverlay")) el("confirmOverlay").classList.add("hidden");
+    };
   }
 
   el("verifyBtn").addEventListener("click", async () => {
@@ -379,31 +406,34 @@
     box.dataset.accountId = accountId;
     box.dataset.resources = JSON.stringify(resources);
 
-    el("uninstallBtn").addEventListener("click", async () => {
+    el("uninstallBtn").addEventListener("click", () => {
       const resources = JSON.parse(box.dataset.resources);
       const indexes = [...document.querySelectorAll(".uninstall-item-cb:checked")].map((cb) => Number(cb.dataset.index));
       if (!indexes.length) return msg("uninstallMsg", "请至少勾选一项要删除的资源", true);
       const items = indexes.map((i) => resources[i]);
-      if (!confirm("确认删除选中的 " + items.length + " 项资源？邮件与附件数据将被永久清空，不可恢复。")) return;
+      confirmDialog(
+        "确认删除选中的 " + items.length + " 项资源？邮件与附件数据将被永久清空，不可恢复。",
+        async () => {
+          msg("uninstallMsg", "正在删除…");
+          try {
+            const res = await fetch("/api/uninstall", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: box.dataset.token, accountId: box.dataset.accountId, items }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "删除失败");
 
-      msg("uninstallMsg", "正在删除…");
-      try {
-        const res = await fetch("/api/uninstall", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: box.dataset.token, accountId: box.dataset.accountId, items }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "删除失败");
-
-        const lines = data.results.map((r) => (r.ok ? "✓ " : "✗ ") + r.label + (r.ok ? "" : " — " + (r.detail || "失败")));
-        msg("uninstallMsg", data.results.some((r) => !r.ok) ? "部分资源删除失败，见列表" : "删除完成", data.results.some((r) => !r.ok));
-        renderUninstallList(box.dataset.token, box.dataset.accountId, []);
-        el("uninstallList").innerHTML =
-          '<div style="font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap">' +
-          escapeHtml(lines.join("\n")) + "</div>";
-      } catch (err) {
-        msg("uninstallMsg", err.message, true);
-      }
+            const lines = data.results.map((r) => (r.ok ? "✓ " : "✗ ") + r.label + (r.ok ? "" : " — " + (r.detail || "失败")));
+            msg("uninstallMsg", data.results.some((r) => !r.ok) ? "部分资源删除失败，见列表" : "删除完成", data.results.some((r) => !r.ok));
+            renderUninstallList(box.dataset.token, box.dataset.accountId, []);
+            el("uninstallList").innerHTML =
+              '<div style="font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap">' +
+              escapeHtml(lines.join("\n")) + "</div>";
+          } catch (err) {
+            msg("uninstallMsg", err.message, true);
+          }
+        },
+      );
     });
   }
 </script>

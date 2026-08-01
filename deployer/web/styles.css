@@ -265,6 +265,22 @@ pre code { background: none; padding: 0; }
 .social-links a.cf-logo .cf-circle { fill: #F38020; transition: fill 0.15s ease; }
 .social-links a.cf-logo:hover .cf-circle { fill: #e06c00; }
 
+/* ---------- 确认对话框（自定义，替代系统 confirm） ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.modal {
+  background: var(--color-bg); border-radius: 12px;
+  box-shadow: var(--color-shadow-card);
+  padding: 32px; max-width: 420px; width: 100%;
+}
+.modal h3 { margin: 0 0 12px; font-size: 18px; font-weight: 500; }
+.modal p { margin: 0 0 24px; color: var(--color-text-secondary); font-size: 15px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 12px; }
+
 /* ---------- 通用工具 ---------- */
 .hidden { display: none; }
 .muted { color: var(--color-text-secondary); }
