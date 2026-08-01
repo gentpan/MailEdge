@@ -3,15 +3,13 @@ import { Hono } from "hono";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAccounts, listZones, verifyToken } from "./cf/client";
-import { configureEmailRouting } from "./cf/email";
-import { checkAccountPermissions, checkZonePermissions } from "./cf/permissions";
+import { listAccounts, verifyToken } from "./cf/client";
+import { checkAccountPermissions } from "./cf/permissions";
 import { deleteResources, listMailEdgeResources } from "./cf/resources";
 import { getJob, startDeploy } from "./deploy";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PORT ?? 8788);
-const WORKER_NAME = "mailedge";
 
 const app = new Hono();
 
@@ -28,7 +26,10 @@ app.get("/install", (c) => c.html(page("index.html")));
 /** 开发者文档 */
 app.get("/developers", (c) => c.html(page("developers.html")));
 
-/** 第一步：验证 token + 权限体检 + 返回账户/域名 */
+/**
+ * 第一步：验证 token + 账户级权限体检。
+ * 部署只需要 Workers/D1/R2 权限，不需要域名（收信由用户在 MailEdge 内自行管理）。
+ */
 app.post("/api/verify-token", async (c) => {
   const { token } = await c.req.json<{ token: string }>();
   if (!token?.trim()) return c.json({ error: "缺少 token" }, 400);
@@ -43,65 +44,24 @@ app.post("/api/verify-token", async (c) => {
 
   // 对前 3 个账户做只读权限体检（GET 探测，不产生任何修改）
   const checked = await Promise.all(
-    accounts.slice(0, 3).map(async (account) => {
-      const permissions = [
-        ...(await checkAccountPermissions(token.trim(), account.id)),
-        ...(await checkZonePermissions(token.trim(), account.id)),
-      ];
-      const zones = await listZones(token.trim(), account.id).catch(() => []);
-      return { id: account.id, name: account.name, permissions, zones };
-    }),
+    accounts.slice(0, 3).map(async (account) => ({
+      id: account.id,
+      name: account.name,
+      permissions: await checkAccountPermissions(token.trim(), account.id),
+    })),
   );
 
   return c.json({ ok: true, accounts: checked });
 });
 
-/** 第二步：列出某账户下托管在 Cloudflare 的域名 */
-app.post("/api/zones", async (c) => {
-  const { token, accountId } = await c.req.json<{ token: string; accountId: string }>();
-  if (!token || !accountId) return c.json({ error: "缺少参数" }, 400);
-
-  const zones = await listZones(token, accountId);
-  return c.json({ zones });
-});
-
-/** 第三步：发起一键部署（后台异步执行） */
+/** 第二步：发起一键部署（后台异步执行，只建资源，不配置收信） */
 app.post("/api/deploy", async (c) => {
   const body = await c.req
-    .json<{ token: string; accountId: string; zoneId: string; address: string; catchAll: boolean }>()
+    .json<{ token: string; accountId: string }>()
     .catch(() => null);
-  if (!body?.token || !body.accountId || !body.zoneId) return c.json({ error: "缺少必要参数" }, 400);
+  if (!body?.token?.trim() || !body.accountId) return c.json({ error: "缺少必要参数" }, 400);
 
-  const address = body.address?.trim().toLowerCase();
-  const catchAll = body.catchAll === true || !address;
-  if (!catchAll && !/^[a-z0-9._%+-]{1,64}$/.test(address ?? "")) {
-    return c.json({ error: "收件地址格式不正确（只能包含字母数字和 . _ % + -）" }, 400);
-  }
-
-  const jobId = await startDeploy(body.token, body.accountId);
-
-  // 部署完成后配置 Email Routing（依赖 Worker 已存在）
-  void (async () => {
-    const job = getJob(jobId);
-    if (!job) return;
-    const waitFor = setInterval(() => {
-      if (job.status === "running") return;
-      clearInterval(waitFor);
-      if (job.status !== "done") return;
-      configureEmailRouting(body.token, body.zoneId, WORKER_NAME, { address, catchAll })
-        .then(() => {
-          job.log += `\n✓ Email Routing 已配置：来信将转发到 ${WORKER_NAME} Worker\n`;
-          if (!catchAll && address) {
-            job.log += `  · 收件地址：${address}@你的域名\n`;
-          }
-        })
-        .catch((error) => {
-          job.log += `\n⚠ Email Routing 配置失败：${error instanceof Error ? error.message : String(error)}\n`;
-          job.log += "   可在 Cloudflare 面板手动配置（Email Service → Email Routing → Routing rules）\n";
-        });
-    }, 3000);
-  })();
-
+  const jobId = await startDeploy(body.token.trim(), body.accountId);
   return c.json({ jobId });
 });
 

@@ -220,20 +220,17 @@
         部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
         我们不会保存它，也看不到你的账号密码。
       </div>
-      <p>打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
+      <p>打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上 D1 一项</strong>：</p>
       <table class="perm-table">
         <thead>
           <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>分类标签</th><th>选</th></tr>
         </thead>
         <tbody>
           <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>Account</td><td><code>Edit</code></td></tr>
-          <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>Account</td><td><code>Edit</code></td></tr>
-          <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>Zone</td><td><code>Edit</code></td></tr>
-          <tr><td>域名（区域）</td><td><code>Zone</code></td><td>Zone</td><td><code>Read</code></td></tr>
         </tbody>
       </table>
       <p class="muted">模板已含 Workers Scripts / R2 / KV 等权限，无需重复添加。<br />
-      提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签——D1、Email Routing Addresses 在 <code>Account</code> 下；Email Routing Rules、Zone 在 <code>Zone</code> 下。</p>
+      提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签，D1 在 <code>Account</code> 下。<strong>部署不需要域名与 Email 权限</strong>——收件地址部署完成后在 MailEdge 设置页自行添加。</p>
       <div class="row">
         <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
           打开 Cloudflare 创建 Token
@@ -250,24 +247,12 @@
   <div class="card hidden" id="step2">
     <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — configure</span></div>
     <div class="term-body">
-      <h2><span class="step-no">[2]</span>选择账户与收信域名</h2>
+      <h2><span class="step-no">[2]</span>选择账户并一键部署</h2>
       <div id="permReport"></div>
       <label for="account">Cloudflare 账户</label>
       <select id="account"></select>
-      <label for="zone">收信域名（必须已托管在 Cloudflare）</label>
-      <select id="zone"></select>
-      <div class="row">
-        <div>
-          <label for="address">收件地址（@ 前面部分）</label>
-          <input type="text" id="address" placeholder="support" />
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button type="button" class="secondary" id="catchAllBtn" style="width:100%">收整个域名（catch-all）</button>
-        </div>
-      </div>
-      <p class="warn" id="domainHint" style="display:none"></p>
-      <button type="button" id="deployBtn" disabled><span class="spinner"></span><span class="btn-label">一键部署</span></button>
+      <p class="muted" style="font-size:12px">部署只创建基础资源（Worker / D1 / R2）。收件地址在部署完成后，到 MailEdge 设置页自行添加管理，可添加多个。</p>
+      <button type="button" id="deployBtn"><span class="spinner"></span><span class="btn-label">一键部署</span></button>
       <div id="step2Msg"></div>
     </div>
   </div>
@@ -302,11 +287,16 @@
       <h2><span class="step-no">[✓]</span>部署完成</h2>
       <p>你的 MailEdge 管理面板：</p>
       <div class="url" id="resultUrl"></div>
-      <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号并绑定收件地址。</p>
+      <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号。</p>
       <div class="hint" style="margin-top:12px">
         <strong>想用自己的域名访问？</strong><br />
         打开 Cloudflare 后台 → Workers 与 Pages → 你的 <code>mailedge</code> → 设置 → 域名 → 添加自定义域，
         绑定你的域名（如 <code>mail.你的域名.com</code>），按提示添加 DNS 记录即可。
+      </div>
+      <div class="hint" style="margin-top:12px">
+        <strong>如何开始收信？</strong><br />
+        在 MailEdge 的「设置 → 收件地址」里添加你的邮箱地址（可添加多个）；然后到 Cloudflare 后台
+        <code>Email Service → Email Routing</code>，把域名收到的信（Catch-all 或具体地址）投递给 <code>mailedge</code> Worker。
       </div>
       <div class="warn" id="deleteTokenWarn">
         <strong>请务必回到 Cloudflare 后台删除刚才的 Token</strong>，它已完成使命，删除后立即失效。
@@ -319,7 +309,6 @@
 <script>
   let token = "";
   let accountId = "";
-  const zonesByAccount = {};
 
   function el(id) { return document.getElementById(id); }
   function msg(id, text, isError) {
@@ -358,9 +347,6 @@
       if (!res.ok) throw new Error(data.error || "验证失败");
       msg("step1Msg", "Token 有效 ✓");
 
-      Object.keys(zonesByAccount).forEach((k) => delete zonesByAccount[k]);
-      data.accounts.forEach((a) => { zonesByAccount[a.id] = a.zones || []; });
-
       const sel = el("account");
       sel.innerHTML = "";
       data.accounts.forEach((a) => {
@@ -368,11 +354,11 @@
         opt.value = a.id; opt.textContent = a.name;
         sel.appendChild(opt);
       });
+      accountId = sel.value;
 
       el("step1").classList.add("hidden");
       el("step2").classList.remove("hidden");
       renderPermReport(data.accounts);
-      fillZones();
       log("✓ Token 有效，可用账户：" + data.accounts.map((a) => a.name).join("、"));
     } catch (err) {
       msg("step1Msg", err.message, true);
@@ -401,57 +387,19 @@
     box.innerHTML = html;
   }
 
-  function fillZones() {
+  el("account").addEventListener("change", () => {
     accountId = el("account").value;
-    const zoneSel = el("zone");
-    zoneSel.innerHTML = "";
-    el("deployBtn").disabled = true;
-    const zones = zonesByAccount[accountId] || [];
-    zones.forEach((z) => {
-      const opt = document.createElement("option");
-      opt.value = z.id; opt.dataset.name = z.name; opt.textContent = z.name;
-      zoneSel.appendChild(opt);
-    });
-    if (!zones.length) {
-      el("domainHint").textContent = "这个账户下没有托管域名。收信需要域名托管在 Cloudflare（设置 → Email Routing）。";
-      el("domainHint").style.display = "block";
-    } else {
-      el("domainHint").style.display = "none";
-    }
-  }
-  el("account").addEventListener("change", fillZones);
-
-  el("address").addEventListener("input", () => {
-    el("deployBtn").disabled = !el("address").value.trim();
-  });
-
-  let catchAllMode = false;
-  el("catchAllBtn").addEventListener("click", () => {
-    catchAllMode = !catchAllMode;
-    el("catchAllBtn").style.borderColor = catchAllMode ? "var(--green)" : "";
-    el("catchAllBtn").style.color = catchAllMode ? "var(--green)" : "";
-    el("address").value = "";
-    el("deployBtn").disabled = false;
   });
 
   el("deployBtn").addEventListener("click", async () => {
-    const zone = el("zone").selectedOptions[0];
-    if (!zone) return msg("step2Msg", "请先选择域名", true);
-    const zoneName = zone.textContent;
+    const acct = el("account").selectedOptions[0];
+    if (!acct) return msg("step2Msg", "请先选择账户", true);
     setLoading("deployBtn", true, "部署中…");
-    log("> 开始部署：");
-    log("  账户：" + el("account").selectedOptions[0]?.textContent);
-    log("  域名：" + zoneName);
-    log("  收件：" + (catchAllMode ? "整个域名的所有来信" : el("address").value.trim() + "@" + zoneName));
+    log("> 开始部署到账户：" + acct.textContent);
     try {
       const res = await fetch("/api/deploy", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token, accountId,
-          zoneId: zone.value,
-          address: catchAllMode ? "" : el("address").value.trim(),
-          catchAll: catchAllMode,
-        }),
+        body: JSON.stringify({ token, accountId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "启动部署失败");

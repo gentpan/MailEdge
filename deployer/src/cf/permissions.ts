@@ -28,7 +28,7 @@ async function probe(
   }
 }
 
-/** 账户级权限探测（D1 / R2 / Workers） */
+/** 账户级权限探测（D1 / R2 / Workers）——部署只需这三项 */
 export async function checkAccountPermissions(token: string, accountId: string): Promise<PermissionCheck[]> {
   const [d1, r2, workers] = await Promise.all([
     probe(token, `/accounts/${accountId}/d1/database?per_page=1`),
@@ -40,61 +40,5 @@ export async function checkAccountPermissions(token: string, accountId: string):
     { key: "d1", label: "D1 数据库", ok: d1.ok },
     { key: "r2", label: "R2 存储", ok: r2.ok },
     { key: "workers", label: "Workers 脚本", ok: workers.ok },
-  ];
-}
-
-/** 区域级权限探测（Email Routing / 域名） */
-export async function checkZonePermissions(
-  token: string,
-  accountId: string,
-): Promise<PermissionCheck[]> {
-  const zones = await probe(token, `/zones?account.id=${accountId}&per_page=1`);
-  if (!zones.ok) {
-    const isPermission = zones.status === 403 || zones.status === 401;
-    return [
-      { key: "zone", label: "域名（Zone）读取", ok: !isPermission, warn: !isPermission, detail: zones.detail },
-      { key: "email", label: "Email Routing", ok: false, warn: true, detail: "未列出域名，无法验证" },
-    ];
-  }
-
-  // 拿第一个域名做 Email Routing 只读探测
-  try {
-    const list = await cfRequest<Array<{ id: string }>>(
-      token,
-      `/zones?account.id=${accountId}&per_page=1`,
-    );
-    const zoneId = list[0]?.id;
-    if (zoneId) {
-      // 优先用与部署实际一致的端点（rules 读取）；失败再退回 routing 状态端点
-      let email = await probe(token, `/zones/${zoneId}/email/routing/rules`);
-      if (!email.ok) {
-        email = await probe(token, `/zones/${zoneId}/email/routing`);
-      }
-
-      if (email.ok) {
-        return [
-          { key: "zone", label: "域名（Zone）读取", ok: true },
-          { key: "email", label: "Email Routing", ok: true },
-        ];
-      }
-      const isPermission = email.status === 403 || email.status === 401;
-      return [
-        { key: "zone", label: "域名（Zone）读取", ok: true },
-        {
-          key: "email",
-          label: "Email Routing",
-          ok: false,
-          warn: !isPermission,
-          detail: isPermission ? `Token 缺少权限（${email.detail}）` : email.detail,
-        },
-      ];
-    }
-  } catch {
-    // 忽略，fallthrough
-  }
-
-  return [
-    { key: "zone", label: "域名（Zone）读取", ok: true },
-    { key: "email", label: "Email Routing", ok: true, detail: "账户下暂无域名，部署时选择域名后再验证" },
   ];
 }
