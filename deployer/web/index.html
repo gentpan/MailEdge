@@ -63,6 +63,14 @@
       background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
       padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
     }
+    table.perm-table {
+      width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px;
+    }
+    .perm-table th, .perm-table td {
+      text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    }
+    .perm-table th { color: var(--text-secondary); font-weight: 500; }
+    .perm-table code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
     ul { margin: 8px 0 12px; padding-left: 20px; color: var(--text-secondary); }
     li { margin: 4px 0; }
     .log {
@@ -93,13 +101,18 @@
       我们不会保存它，也看不到你的账号密码。
     </div>
     <p>点击下方按钮打开 Cloudflare 后台创建 Token。推荐做法：<br /><strong>选 "Edit Cloudflare Workers" 模板 → 再点 "Add more permissions" 补上下面 4 项</strong>：</p>
-    <ul>
-      <li><strong>账户</strong> · <code>D1</code> → <code>Edit</code>（注意：权限名就叫 D1，不是 "Workers D1"）</li>
-      <li><strong>账户</strong> · Email Routing Addresses → <code>Edit</code></li>
-      <li><strong>区域</strong> · Email Routing Rules → <code>Edit</code></li>
-      <li><strong>区域</strong> · Zone → <code>Read</code></li>
-    </ul>
-    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / R2 / KV 等权限，无需重复添加。</p>
+    <table class="perm-table">
+      <thead>
+        <tr><th>权限（中文）</th><th>Cloudflare 后台英文名</th><th>级别</th><th>选</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Workers D1 数据库</td><td><code>D1</code></td><td>账户 Account</td><td><code>Edit</code></td></tr>
+        <tr><td>邮件路由地址</td><td><code>Email Routing Addresses</code></td><td>账户 Account</td><td><code>Edit</code></td></tr>
+        <tr><td>邮件路由规则</td><td><code>Email Routing Rules</code></td><td>区域 Zone</td><td><code>Edit</code></td></tr>
+        <tr><td>域名（区域）</td><td><code>Zone</code></td><td>区域 Zone</td><td><code>Read</code></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px;color:var(--text-secondary)">模板本身已包含 Workers Scripts / Workers R2 Storage / Workers KV Storage 等权限，无需重复添加。在后台搜索时直接搜英文名，如搜 <code>D1</code>（不要搜 "Workers D1"）。</p>
     <div class="row">
       <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
         打开 Cloudflare 创建 Token
