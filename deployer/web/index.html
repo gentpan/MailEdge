@@ -260,7 +260,7 @@
   </div>
 
   <!-- 部署日志 -->
-  <div class="card">
+  <div class="card hidden" id="logCard">
     <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — deploy.log</span></div>
     <div class="term-body" style="padding:14px">
       <div class="log" id="log"></div>
@@ -314,6 +314,7 @@
     el(id).style.color = isError ? "#f85149" : "#3fb950";
   }
   function log(line) {
+    el("logCard").classList.remove("hidden");
     const box = el("log");
     box.style.display = "block";
     box.textContent += (box.textContent ? "\n" : "") + line;
