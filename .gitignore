@@ -7,4 +7,3 @@ web/dist/
 .DS_Store
 *.tsbuildinfo
 worker-configuration.d.ts
-deployer/workspace/
