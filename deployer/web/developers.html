@@ -10,59 +10,25 @@
   <link rel="apple-touch-icon" href="/favicon-180.png" />
   <link rel="manifest" href="/site.webmanifest" />
 
-  <link rel="stylesheet" href="/styles.css?v=6" />
-  <style>
-    h1 { font-size: 30px; margin: 48px 0 8px; }
+  <link rel="stylesheet" href="/styles.css?v=7" />  <style>
+    h1 { font-size: 32px; margin: 48px 0 8px; }
     h1 .accent { color: var(--color-primary); }
     .subtitle { color: var(--color-text-secondary); margin: 0 0 32px; }
-    h2 {
-      font-size: 20px; margin: 48px 0 12px; padding-top: 24px;
-      border-top: 1px solid var(--color-border);
-    }
+    h2 { font-size: 20px; margin: 48px 0 12px; padding-top: 24px; border-top: 1px solid var(--color-border); }
     h2::before { content: "## "; color: var(--color-primary); }
     h3 { font-size: 16px; margin: 28px 0 8px; }
     h3::before { content: "### "; color: var(--color-text-secondary); }
-    p { margin: 0 0 14px; }
-    pre {
-      background: #010409;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      padding: 16px 18px;
-      font-size: 13px;
-      line-height: 1.6;
-      overflow-x: auto;
-      margin: 0 0 18px;
-    }
-    pre code { color: #e6edf3; }
+    /* 代码高亮色（共享 pre/code 已覆盖） */
     .c { color: var(--color-text-secondary); }
     .g { color: var(--color-primary); }
     .y { color: var(--color-warning); }
     .cy { color: var(--color-link); }
     .pu { color: var(--color-link); }
-    table {
-      width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 18px;
-    }
-    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
-    th { color: var(--color-text-secondary); font-weight: 500; }
-    td code { color: var(--color-primary); font-size: 12px; }
-    .note {
-      background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.3);
-      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
-    }
-    .warn {
-      background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.35);
-      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 0 0 18px;
-    }
-    ul, ol { margin: 0 0 14px; padding-left: 22px; color: var(--color-text); }
-    li { margin: 4px 0; }
-    .toc {
-      background: var(--color-bg-panel); border: 1px solid var(--color-border); border-radius: 8px;
-      padding: 16px 20px; margin: 24px 0 0;
-    }
+    .toc { background: var(--color-bg-panel); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px 20px; margin: 24px 0 0; }
     .toc a { display: block; padding: 3px 0; font-size: 14px; }
-    </style>
+  </style>
 </head>
-<body class="theme-dark">
+<body class="theme-light">
   <div class="topbar">
     <div class="topbar-inner">
       <a class="logo" href="/"><svg class="logo-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g><path d="m29.84 8.64v.48l-12.71 8a2.0997 2.0997 0 0 1 -2.26 0l-12.71-8a3.02176 3.02176 0 0 1 2.96005-3.43h21.76a2.9512 2.9512 0 0 1 2.95995 2.95zm-13.84 10.81a4.1535 4.1535 0 0 1 -2.2-.63l-11.64-7.34v11.88a2.9512 2.9512 0 0 0 2.96 2.95h21.76a2.9512 2.9512 0 0 0 2.96-2.95v-11.88l-11.64 7.34a4.1535 4.1535 0 0 1 -2.2.63z"></path></g></svg><span class="logo-text">MailEdge</span><span class="logo-dot"></span><span class="logo-sub">开发者文档</span>

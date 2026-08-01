@@ -9,170 +9,9 @@
   <link rel="apple-touch-icon" href="/favicon-180.png" />
   <link rel="manifest" href="/site.webmanifest" />
 
-  <link rel="stylesheet" href="/styles.css?v=6" />
-  <style>
-    * { box-sizing: border-box; }
-    /* 终端窗口 */
-    .card {
-      position: relative;
-      background: var(--color-bg-panel);
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      margin-bottom: 18px;
-      overflow: hidden;
-    }
-    .term-bar {
-      display: flex; align-items: center; gap: 6px;
-      background: #21262d;
-      border-bottom: 1px solid var(--color-border);
-      padding: 8px 14px;
-    }
-    .tb-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .tb-r { background: #f85149; }
-    .tb-y { background: #d29922; }
-    .tb-g { background: #3fb950; }
-    .tb-title {
-      margin-left: 8px; font-size: 12px; color: var(--color-text-secondary);
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-    }
-    .term-body { padding: 22px; }
-
-    /* 标题 */
-    
-    
-    
-    
-    
-    
-    
-    h1 { font-size: 22px; margin: 0 0 6px; color: var(--color-primary); font-weight: 600; }
-    h1::before { content: "$ "; color: var(--color-text-secondary); }
-    h2 { font-size: 15px; margin: 0 0 14px; color: var(--color-text); font-weight: 600; }
-    h2 .step-no {
-      color: var(--color-primary); margin-right: 6px;
-      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
-    }
-    .lead { color: var(--color-text-secondary); margin: 0 0 20px; font-size: 13px; }
-    p { color: var(--color-text-secondary); margin: 0 0 12px; }
-    label { display: block; font-size: 12px; color: var(--color-text-secondary); margin: 0 0 6px; }
-
-    /* 输入 */
-    input, select {
-      width: 100%; padding: 9px 12px;
-      background: var(--color-bg);
-      border: 1px solid var(--color-border-strong);
-      border-radius: 6px;
-      color: var(--color-text);
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-      font-size: 13px;
-      margin-bottom: 12px;
-      outline: none;
-    }
-    input:focus, select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary-hover); }
-    select option { background: var(--color-bg-panel); }
-
-    /* 按钮 */
-    button {
-      background: var(--color-primary-hover); color: #fff; border: 0; border-radius: 6px;
-      padding: 9px 20px; font-size: 13px; cursor: pointer;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-    }
-    button:hover { background: var(--color-primary-hover); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    .spinner {
-      display: none;
-      width: 13px; height: 13px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: currentColor;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: -2px;
-      margin-right: 7px;
-    }
-    button.loading .spinner { display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    button.secondary {
-      background: transparent; color: var(--color-text);
-      border: 1px solid var(--color-border-strong);
-    }
-    button.secondary:hover { background: var(--color-bg-subtle); border-color: var(--color-text-secondary); }
-    .btn-danger { background: var(--color-error); }
-    .btn-danger:hover { background: #da3633; }
-    .row { display: flex; gap: 12px; }
-    .row > * { flex: 1; }
-
-    /* 提示框 */
-    .hint {
-      background: rgba(88, 166, 255, 0.08);
-      border: 1px solid rgba(88, 166, 255, 0.3);
-      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
-      color: var(--color-text);
-    }
-    .warn {
-      background: rgba(210, 153, 34, 0.08);
-      border: 1px solid rgba(210, 153, 34, 0.35);
-      border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 12px;
-      color: var(--color-text);
-    }
-    .warn strong { color: var(--color-warning); }
-
-    /* 权限表 */
-    table.perm-table {
-      width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px;
-    }
-    .perm-table th, .perm-table td {
-      text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--color-border);
-    }
-    .perm-table th { color: var(--color-text-secondary); font-weight: 500; }
-    .perm-table code { background: var(--color-bg); color: var(--color-primary); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
-
-    /* 权限体检 */
-    .perm-block { margin-bottom: 12px; }
-    .perm-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-    .perm-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-    }
-    .perm-ok { background: rgba(63, 185, 80, 0.1); border-color: rgba(63, 185, 80, 0.4); color: var(--color-primary); }
-    .perm-warn { background: rgba(210, 153, 34, 0.1); border-color: rgba(210, 153, 34, 0.4); color: var(--color-warning); }
-    .perm-bad { background: rgba(248, 81, 73, 0.1); border-color: rgba(248, 81, 73, 0.4); color: var(--color-error); }
-
-    /* 卸载 */
-    .uninstall-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px;
-      margin-bottom: 6px; font-size: 13px; cursor: pointer; color: var(--color-text);
-    }
-    .uninstall-item:hover { background: var(--color-bg-subtle); }
-    .uninstall-item input { margin: 0; width: auto; accent-color: var(--color-primary); }
-    .uninstall-item.removed { opacity: 0.45; text-decoration: line-through; }
-
-    /* 日志 */
-    .log {
-      font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
-      background: var(--color-bg); color: var(--color-primary);
-      border: 1px solid var(--color-border);
-      border-radius: 6px; padding: 14px;
-      white-space: pre-wrap; max-height: 260px; overflow-y: auto; display: none;
-    }
-    .log::before { content: "$ tail -f deploy.log"; display: block; color: var(--color-text-secondary); margin-bottom: 8px; }
-
-    /* 结果 */
-    .result { display: none; }
-    .result .url {
-      background: var(--color-bg); border: 1px solid var(--color-primary-hover); border-radius: 6px;
-      padding: 12px 16px; font-family: ui-monospace, Menlo, Consolas, monospace;
-      font-size: 15px; font-weight: 600; color: var(--color-primary);
-    }
-    .hidden { display: none; }
-    code { background: var(--color-bg); color: var(--color-primary); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-    .muted { color: var(--color-text-secondary); }
-    ul { margin: 8px 0 12px; padding-left: 20px; color: var(--color-text-secondary); }
-    li { margin: 4px 0; }
-  </style>
+  <link rel="stylesheet" href="/styles.css?v=7" />
 </head>
-<body class="theme-dark">
+<body class="theme-light">
 <header class="topbar">
   <div class="topbar-inner">
     <a class="logo" href="/"><svg class="logo-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g><path d="m29.84 8.64v.48l-12.71 8a2.0997 2.0997 0 0 1 -2.26 0l-12.71-8a3.02176 3.02176 0 0 1 2.96005-3.43h21.76a2.9512 2.9512 0 0 1 2.95995 2.95zm-13.84 10.81a4.1535 4.1535 0 0 1 -2.2-.63l-11.64-7.34v11.88a2.9512 2.9512 0 0 0 2.96 2.95h21.76a2.9512 2.9512 0 0 0 2.96-2.95v-11.88l-11.64 7.34a4.1535 4.1535 0 0 1 -2.2.63z"></path></g></svg><span class="logo-text">MailEdge</span><span class="logo-dot"></span></a>
@@ -185,14 +24,13 @@
   </div>
 </header>
 <main class="container">
-  <h1>一键部署</h1>
+  <h1 style="font-size:32px;margin:48px 0 8px">一键部署</h1>
   <p class="lead">在你的 Cloudflare 账户里自动创建数据库、存储与 Worker，部署完成得到专属邮箱系统。</p>
 
   <!-- 第 1 步 -->
   <div class="card" id="step1">
-    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — token</span></div>
     <div class="term-body">
-      <h2><span class="step-no">[1]</span>创建并粘贴 Cloudflare API Token</h2>
+      <h2>创建并粘贴 Cloudflare API Token</h2>
       <div class="hint">
         部署全程只使用你这次创建的 <strong>一次性 Token</strong>，部署完成后请删除它。
         我们不会保存它，也看不到你的账号密码。
@@ -222,9 +60,8 @@
 
   <!-- 第 2 步 -->
   <div class="card hidden" id="step2">
-    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — configure</span></div>
     <div class="term-body">
-      <h2><span class="step-no">[2]</span>选择账户并一键部署</h2>
+      <h2>选择账户并一键部署</h2>
       <div id="permReport"></div>
       <label for="account">Cloudflare 账户</label>
       <select id="account"></select>
@@ -237,17 +74,15 @@
 
   <!-- 部署日志 -->
   <div class="card hidden" id="logCard">
-    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — deploy.log</span></div>
-    <div class="term-body" style="padding:14px">
+    <div class="term-body">
       <div class="log" id="log"></div>
     </div>
   </div>
 
   <!-- 卸载 -->
   <div class="card" id="uninstallCard">
-    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — uninstall</span></div>
     <div class="term-body">
-      <h2><span class="step-no">[✕]</span>卸载已部署的 MailEdge</h2>
+      <h2>卸载已部署的 MailEdge</h2>
       <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
       <input type="password" id="uninstallToken" placeholder="$ TOKEN = …" autocomplete="off" />
       <div class="row">
@@ -260,9 +95,8 @@
 
   <!-- 结果 -->
   <div class="card result" id="resultCard">
-    <div class="term-bar"><span class="tb-dot tb-r"></span><span class="tb-dot tb-y"></span><span class="tb-dot tb-g"></span><span class="tb-title">~/mailedge — done</span></div>
     <div class="term-body">
-      <h2><span class="step-no">[✓]</span>部署完成</h2>
+      <h2>部署完成</h2>
       <p>你的 MailEdge 管理面板：</p>
       <div class="url" id="resultUrl"></div>
       <p style="margin-top:12px">首次打开会进入初始化页，创建管理员账号。</p>
