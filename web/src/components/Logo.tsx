@@ -8,7 +8,7 @@ export default function Logo({ size = 20, style }: { size?: number; style?: CSSP
       height={size}
       viewBox="0 0 32 32"
       xmlns="http://www.w3.org/2000/svg"
-      fill="#111827"
+      fill="#2563eb"
       style={style}
       aria-hidden="true"
     >
