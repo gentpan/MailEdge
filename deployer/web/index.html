@@ -50,8 +50,23 @@
       <p class="muted">模板已含 Workers Scripts / R2 / KV 等权限，无需重复添加。<br />
       提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签，D1 在 <code>Account</code> 下。<strong>部署不需要域名与 Email 权限</strong>——收件地址部署完成后在 MailEdge 设置页自行添加。</p>
       <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
-      <input type="password" id="token" placeholder="$ TOKEN = …" autocomplete="off" />
-      <button type="button" class="btn btn-primary" id="verifyBtn"><span class="spinner"></span><span class="btn-label">验证 Token</span></button>
+      <div style="display:flex;gap:12px;align-items:stretch">
+        <input
+          type="password"
+          id="token"
+          placeholder="cfut_…"
+          autocomplete="off"
+          style="margin-bottom:0;flex:1;min-width:0"
+        />
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="verifyBtn"
+          style="white-space:nowrap;flex:none"
+        >
+          <span class="spinner"></span><span class="btn-label">验证 Token</span>
+        </button>
+      </div>
       <div id="step1Msg"></div>
     </div>
   </div>
