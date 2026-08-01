@@ -262,8 +262,8 @@ pre code { background: none; padding: 0; }
 .social-links a svg { width: 18px; height: 18px; display: block; }
 .social-links a:hover { transform: scale(1.5); color: var(--color-text); }
 /* Cloudflare：默认与前三个同为次级灰，悬浮时只有圆形背景转橙，白风暴不变 */
-.social-links a.cf-logo .cf-circle { fill: var(--color-text-secondary); transition: fill 0.15s ease; }
-.social-links a.cf-logo:hover .cf-circle { fill: #F38020; }
+.social-links a.cf-logo .cf-circle { fill: #F38020; transition: fill 0.15s ease; }
+.social-links a.cf-logo:hover .cf-circle { fill: #e06c00; }
 
 /* ---------- 通用工具 ---------- */
 .hidden { display: none; }
