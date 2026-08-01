@@ -286,14 +286,36 @@
         body: JSON.stringify({ token, accountId: acct }),
       });
       const data = await res.json();
-      const deployed = Boolean(data.deployed);
-      el("deployBtn").querySelector(".btn-label").textContent = deployed ? "一键重新部署（更新）" : "一键部署";
+      const btn = el("deployBtn");
       const hint = el("deployStatusHint");
-      if (deployed) {
-        hint.textContent = "检测到该账户已有 MailEdge 部署。重新部署会保留邮件数据和配置，只更新代码。";
+
+      if (data.complete) {
+        // Worker + D1 都在：已部署过 → 更新模式（复用资源，保留数据）
+        btn.querySelector(".btn-label").textContent = "一键重新部署（更新）";
+        hint.textContent =
+          "已检测到该账户存在完整的 MailEdge 部署（Worker + D1 + R2）。重新部署会保留邮件数据与配置，只更新代码。";
+        hint.className = "warn";
+        hint.style.display = "block";
+      } else if (data.deployed) {
+        // 部分资源存在：可能是残留或重名冲突，提示确认
+        const parts = [];
+        if (data.resources.worker) parts.push("Worker：mailedge");
+        if (data.resources.d1) parts.push("D1：mailedge");
+        if (data.resources.r2) parts.push("R2：mailedge-attachments");
+        if (data.resources.emailRules) parts.push("Email 路由规则");
+        btn.querySelector(".btn-label").textContent = "一键部署";
+        hint.textContent =
+          "检测到同名资源：\n" +
+          parts.join("、") +
+          "\n这可能是之前部署的残留，或与其他项目重名。若确认是 MailEdge 的旧部署，可直接部署（复用已有资源）；若不是，请先在下方「卸载」清理，或更换账户。";
+        hint.className = "warn";
         hint.style.display = "block";
       } else {
-        hint.style.display = "none";
+        // 无同名资源：首次部署
+        btn.querySelector(".btn-label").textContent = "一键部署";
+        hint.textContent = "该账户未检测到同名资源，可安全进行首次部署。";
+        hint.className = "hint";
+        hint.style.display = "block";
       }
     } catch {
       // 忽略检测失败，保持默认文案

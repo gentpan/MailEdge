@@ -159,15 +159,23 @@ app.post("/api/verify-token", async (c) => {
   return c.json({ ok: true, accounts: checked });
 });
 
-/** 检测账户是否已部署过 MailEdge（用于提示「重新部署/更新」） */
+/** 部署前检测：扫描该账户是否已存在同名的 Worker/D1/R2/Email 规则，避免误覆盖 */
 app.post("/api/deploy/status", async (c) => {
   const body = await c.req
     .json<{ token: string; accountId: string }>()
     .catch(() => null);
   if (!body || !body.token?.trim() || !body.accountId) return c.json({ error: "缺少必要参数" }, 400);
   const resources = await listMailEdgeResources(body.token.trim(), body.accountId);
-  const deployed = resources.some((r) => r.kind === "worker" || r.kind === "d1");
-  return c.json({ deployed });
+  const has = (kind: string) => resources.some((r) => r.kind === kind);
+  const worker = has("worker");
+  const d1 = has("d1");
+  const r2 = has("r2");
+  const emailRules = resources.filter((r) => r.kind === "emailRule").length;
+  return c.json({
+    deployed: worker || d1,
+    complete: worker && d1,
+    resources: { worker, d1, r2, emailRules },
+  });
 });
 
 /** 第二步：发起一键部署（后台异步执行，只建资源，不配置收信） */
