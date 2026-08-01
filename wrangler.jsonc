@@ -66,7 +66,9 @@
     "MAX_EMAIL_SIZE": "4718592",
     // R2 下载链接有效期
     "ATTACHMENT_LINK_TTL_DAYS": "7",
-    "APP_URL": "https://mailedge.example.com"
+    "APP_URL": "https://mailedge.example.com",
+    // 安装向导（deployer）地址，界面内一键更新走这里；留空则设置页隐藏更新功能
+    "DEPLOYER_URL": "https://mailedge.sh"
   },
 
   "observability": {

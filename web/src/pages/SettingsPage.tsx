@@ -1,4 +1,4 @@
-import { ArrowLeft, AtSign, Loader2, Send, Sparkles, User as UserIcon } from "lucide-react";
+import { ArrowLeft, AtSign, Loader2, RefreshCw, Send, Sparkles, User as UserIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSession } from "../App";
@@ -7,17 +7,19 @@ import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
 import ProvidersPanel from "../components/settings/ProvidersPanel";
+import UpdatePanel from "../components/settings/UpdatePanel";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
 import type { Mailbox, ProviderView } from "../lib/api";
 import { api } from "../lib/api";
 
-type Category = "providers" | "ai" | "mailboxes" | "account";
+type Category = "providers" | "ai" | "mailboxes" | "update" | "account";
 
 const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> =
   [
     { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
     { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
+    { key: "update", labelKey: "settings.nav.update", icon: RefreshCw, adminOnly: true },
     { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
     { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
   ];
@@ -116,6 +118,8 @@ export default function SettingsPage() {
           <ProvidersPanel providers={providers} mailboxes={mailboxes} onChanged={() => void load()} />
         ) : category === "ai" ? (
           <AiPanel />
+        ) : category === "update" ? (
+          <UpdatePanel />
         ) : category === "mailboxes" ? (
           <MailboxesPanel mailboxes={mailboxes} onChanged={() => void reloadAll()} />
         ) : (

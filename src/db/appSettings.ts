@@ -60,3 +60,58 @@ export function redactTelegram(config: TelegramConfig) {
     onlyCategories: config.onlyCategories,
   };
 }
+
+// ---------------------------------------------------------------------------
+// 界面内一键更新的配置：更新 Token（加密）+ 目标账户 ID
+// ---------------------------------------------------------------------------
+
+export interface UpdateConfig {
+  tokenEncrypted: string | null;
+  accountId: string | null;
+}
+
+const UPDATE_KEY = "update_config";
+
+export async function getUpdateConfig(env: Env): Promise<UpdateConfig> {
+  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`)
+    .bind(UPDATE_KEY)
+    .first<{ value: string }>();
+  if (!row) return { tokenEncrypted: null, accountId: null };
+  try {
+    const parsed = JSON.parse(row.value) as Partial<UpdateConfig>;
+    return {
+      tokenEncrypted: typeof parsed.tokenEncrypted === "string" ? parsed.tokenEncrypted : null,
+      accountId: typeof parsed.accountId === "string" ? parsed.accountId : null,
+    };
+  } catch {
+    return { tokenEncrypted: null, accountId: null };
+  }
+}
+
+/** 保存更新配置。token 传 undefined 表示保持原样，传空字符串表示清除。 */
+export async function saveUpdateConfig(
+  env: Env,
+  patch: { token?: string; accountId?: string },
+): Promise<UpdateConfig> {
+  const existing = await getUpdateConfig(env);
+
+  let tokenEncrypted = existing.tokenEncrypted;
+  if (patch.token !== undefined) {
+    tokenEncrypted = patch.token ? await encryptJson(env.ENCRYPTION_KEY, patch.token) : null;
+  }
+  const accountId = patch.accountId !== undefined ? patch.accountId || null : existing.accountId;
+
+  const next = { tokenEncrypted, accountId };
+  await env.DB.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+     ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3`,
+  )
+    .bind(UPDATE_KEY, JSON.stringify(next), new Date().toISOString())
+    .run();
+  return next;
+}
+
+/** 解密更新 Token（仅服务端用于发起更新，绝不回传） */
+export async function decryptUpdateToken(env: Env, tokenEncrypted: string): Promise<string> {
+  return decryptJson<string>(env.ENCRYPTION_KEY, tokenEncrypted);
+}

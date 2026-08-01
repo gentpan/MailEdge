@@ -6,6 +6,7 @@ import download from "./api/download";
 import messages from "./api/messages";
 import providers from "./api/providers";
 import send from "./api/send";
+import update from "./api/update";
 import { listMailboxes, mailboxStub } from "./db/mailboxes";
 import { listRetryable, loadPayload } from "./db/outbound";
 import { handleInboundEmail } from "./email/inbound";
@@ -23,6 +24,7 @@ app.route("/api/auth", auth);
 app.route("/api/mail", send);
 app.route("/api/providers", providers);
 app.route("/api/ai", ai);
+app.route("/api/update", update);
 app.route("/api", messages);
 app.route("/", download);
 

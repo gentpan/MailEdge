@@ -21,6 +21,8 @@ export interface Env {
   MAX_EMAIL_SIZE: string;
   ATTACHMENT_LINK_TTL_DAYS: string;
   APP_URL: string;
+  /** 安装向导（deployer）地址，用于界面内一键更新 */
+  DEPLOYER_URL: string;
 }
 
 export function numberVar(value: string | undefined, fallback: number): number {

@@ -215,6 +215,21 @@ export const api = {
     request<{ telegram: TelegramView }>("/api/ai/telegram", { method: "POST", body: JSON.stringify(body) }),
   testTelegram: () => request<{ ok: boolean; error?: string }>("/api/ai/telegram/test", { method: "POST" }),
 
+  // 界面内一键更新
+  updateConfig: () => request<{ hasToken: boolean; accountId: string | null }>("/api/update/config"),
+  saveUpdateConfig: (body: { token?: string; accountId?: string }) =>
+    request<{ hasToken: boolean; accountId: string | null }>("/api/update/config", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  runUpdate: (body: { token?: string; accountId?: string }) =>
+    request<{ jobId: string; deployerUrl: string }>("/api/update/run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateProgress: (jobId: string) =>
+    request<{ status: string; log: string; url?: string; error?: string }>(`/api/update/progress/${jobId}`),
+
   aiReply: (id: string, mailboxId: string, body: { instruction?: string; tone?: string }) =>
     request<{ draft: string }>(`/api/ai/messages/${id}/reply?mailboxId=${mailboxId}`, {
       method: "POST",

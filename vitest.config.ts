@@ -27,6 +27,7 @@ export default defineConfig({
           MAX_EMAIL_SIZE: "4718592",
           ATTACHMENT_LINK_TTL_DAYS: "7",
           APP_URL: "https://mailedge.test",
+          DEPLOYER_URL: "https://mailedge.test/deployer",
         },
       },
     }),
