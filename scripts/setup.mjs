@@ -169,11 +169,29 @@ function checkAuth() {
   }
 }
 
+/** 兼容不同 wrangler 版本的 D1 记录字段名（uuid / database_id） */
+function d1IdOf(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+  return (
+    record.database_id ??
+    record.uuid ??
+    record.result?.database_id ??
+    record.result?.uuid ??
+    null
+  );
+}
+
+/** 从 wrangler 输出里按名字找数据库 ID（`d1 list --json` 是数组） */
+function findDatabaseId(wrangled, name) {
+  const list = wrangled.ok ? extractJson(wrangled.stdout) : null;
+  if (!Array.isArray(list)) return null;
+  const row = list.find((item) => item?.name === name);
+  return row ? d1IdOf(row) : null;
+}
+
 /** 建 D1（或复用已有的），返回 database_id */
 function ensureDatabase(name) {
-  const existing = wranglerCapture(["d1", "info", name, "--json"]);
-  const found = existing.ok ? extractJson(existing.stdout) : null;
-  const existingId = found?.uuid ?? found?.database_id;
+  const existingId = findDatabaseId(wranglerCapture(["d1", "list", "--json"]), name);
 
   if (existingId) {
     log.ok(`D1 数据库 ${name} 已存在`);
@@ -182,15 +200,25 @@ function ensureDatabase(name) {
   }
 
   log.info(`创建 D1 数据库 ${name} …`);
-  wrangler(["d1", "create", name]);
+  // capture 而非直通，便于从输出里提取 database_id；末尾的交互提示一并带走
+  const created = wranglerCapture(["d1", "create", name]);
+  if (!created.ok) {
+    throw new SetupError(`wrangler d1 create ${name} 执行失败`);
+  }
 
-  const created = wranglerCapture(["d1", "info", name, "--json"]);
-  const record = extractJson(created.stdout);
-  const id = record?.uuid ?? record?.database_id;
+  // 优先从 create 输出里提取（wrangler 会打印 database_id 配置片段）
+  const fromCreate = /"database_id"\s*:\s*"([0-9a-fA-F-]{8,})"/.exec(created.stdout)?.[1];
+  let id = fromCreate ?? null;
+
+  // 兜底：重新列表一次
+  if (!id) {
+    id = findDatabaseId(wranglerCapture(["d1", "list", "--json"]), name);
+  }
+
   if (!id) {
     throw new SetupError("数据库已创建，但读不到 database_id", [
       "手动执行下面的命令，把输出里的 database_id 填进 wrangler.jsonc：",
-      `  npx wrangler d1 info ${name}`,
+      `  npx wrangler d1 list`,
     ]);
   }
 
