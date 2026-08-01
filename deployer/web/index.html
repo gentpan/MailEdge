@@ -47,13 +47,13 @@
       <p class="muted">模板已含 Workers Scripts / R2 / KV 等权限，无需重复添加。<br />
       提示：点 "Add more permissions" 后顶部有 <code>Account</code>/<code>Zone</code>/<code>User</code> 三个标签，D1 在 <code>Account</code> 下。<strong>部署不需要域名与 Email 权限</strong>——收件地址部署完成后在 MailEdge 设置页自行添加。</p>
       <div class="row">
-        <button type="button" class="secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
+        <button type="button" class="btn btn-secondary" onclick="window.open('https://dash.cloudflare.com/profile/api-tokens/create','_blank')">
           打开 Cloudflare 创建 Token
         </button>
       </div>
       <p style="margin-top:16px">创建完成后，把 Token 粘贴到下面：</p>
       <input type="password" id="token" placeholder="$ TOKEN = …" autocomplete="off" />
-      <button type="button" id="verifyBtn"><span class="spinner"></span><span class="btn-label">验证 Token</span></button>
+      <button type="button" class="btn btn-primary" id="verifyBtn"><span class="spinner"></span><span class="btn-label">验证 Token</span></button>
       <div id="step1Msg"></div>
     </div>
   </div>
@@ -67,7 +67,7 @@
       <select id="account"></select>
       <p class="muted" style="font-size:12px">部署只创建基础资源（Worker / D1 / R2）。收件地址在部署完成后，到 MailEdge 设置页自行添加管理，可添加多个。</p>
       <p class="warn" id="deployStatusHint" style="display:none"></p>
-      <button type="button" id="deployBtn"><span class="spinner"></span><span class="btn-label">一键部署</span></button>
+      <button type="button" class="btn btn-primary" id="deployBtn"><span class="spinner"></span><span class="btn-label">一键部署</span></button>
       <div id="step2Msg"></div>
     </div>
   </div>
@@ -86,7 +86,7 @@
       <p class="warn"><strong>注意：</strong>删除会永久清空该账户下的 MailEdge 数据（邮件、附件、数据库），不可恢复。请先在下方确认要删除的资源。</p>
       <input type="password" id="uninstallToken" placeholder="$ TOKEN = …" autocomplete="off" />
       <div class="row">
-        <button type="button" class="secondary" id="scanBtn"><span class="spinner"></span><span class="btn-label">扫描该账户的 MailEdge 资源</span></button>
+        <button type="button" class="btn btn-secondary" id="scanBtn"><span class="spinner"></span><span class="btn-label">扫描该账户的 MailEdge 资源</span></button>
       </div>
       <div id="uninstallMsg"></div>
       <div id="uninstallList"></div>
@@ -348,7 +348,7 @@
         escapeHtml(r.label) + "</label>";
     });
     html += '<div class="row" style="margin-top:12px">';
-    html += '<button type="button" class="btn-danger" id="uninstallBtn">确认删除勾选资源</button>';
+    html += '<button type="button" class="btn btn-danger" id="uninstallBtn">确认删除勾选资源</button>';
     html += "</div>";
     box.innerHTML = html;
 
