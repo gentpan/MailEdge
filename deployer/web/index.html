@@ -121,7 +121,7 @@
   </div>
 
   <!-- 结果 -->
-  <div class="card result" id="resultCard">
+  <div class="card hidden" id="resultCard">
     <div class="term-body">
       <h2>部署完成</h2>
       <p>你的 MailEdge 管理面板：</p>
@@ -316,7 +316,7 @@
 
   function showResult(url) {
     el("step2").classList.add("hidden");
-    el("resultCard").style.display = "block";
+    el("resultCard").classList.remove("hidden");
     el("resultUrl").textContent = url || "（部署成功，请在日志中查看地址）";
     if (!url) el("resultUrl").style.fontSize = "14px";
   }
