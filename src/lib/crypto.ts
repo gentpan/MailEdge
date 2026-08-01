@@ -4,7 +4,10 @@
  */
 
 const IV_LENGTH = 12;
-const PBKDF2_ITERATIONS = 210_000;
+// Cloudflare Workers 生产环境对 PBKDF2 迭代次数有 100,000 上限，
+// 超过会抛 "iteration counts above 100000 are not supported"。
+// 本地 workerd 测试没有此限制，所以高于上限在测试里能过、上生产必炸。
+const PBKDF2_ITERATIONS = 100_000;
 
 function importedKeyCache(): Map<string, Promise<CryptoKey>> {
   // 同一 isolate 内复用，避免每次请求都做一次 importKey
