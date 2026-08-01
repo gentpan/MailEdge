@@ -48,7 +48,7 @@ export type FailureKind = "transient" | "permanent";
 
 /** Provider 配置（解密后的形态） */
 export type MailProviderConfig =
-  | { type: "cloudflare"; defaultDomain?: string }
+  | { type: "cloudflare" }
   | { type: "resend"; apiKey: string; verifiedDomains?: string[]; fromName?: string }
   | {
       type: "sendflare";

@@ -160,8 +160,6 @@ export const DICT = {
     "providers.smtp.password": "密码",
     "providers.smtp.password.hint": "Gmail 请填应用专用密码",
     "providers.smtp.preset": "Gmail 预设",
-    "providers.cf.domain": "发信域名",
-    "providers.cf.domain.hint": "需已在 Cloudflare 完成验证",
     "providers.cf.ready": "Workers 绑定已就绪，无需密钥（部署即授权）",
     "providers.cf.unavailable": "未检测到 send_email 绑定，需 Workers Paid 且 wrangler.jsonc 配置 send_email",
     "providers.cf.connect": "一键连接",
@@ -421,8 +419,6 @@ export const DICT = {
     "providers.smtp.password": "Password",
     "providers.smtp.password.hint": "Use an app password for Gmail",
     "providers.smtp.preset": "Gmail preset",
-    "providers.cf.domain": "Sending domain",
-    "providers.cf.domain.hint": "Must be verified in Cloudflare",
     "providers.cf.ready": "Workers binding ready — no key needed (authorized by deployment)",
     "providers.cf.unavailable":
       "No send_email binding detected — needs Workers Paid and send_email in wrangler.jsonc",

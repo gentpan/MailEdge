@@ -43,7 +43,6 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
   const [token, setToken] = useState("");
   const [secret, setSecret] = useState("");
   const [baseUrl, setBaseUrl] = useState((provider?.config.baseUrl as string) ?? "");
-  const [defaultDomain, setDefaultDomain] = useState((provider?.config.defaultDomain as string) ?? "");
   const [smtpHost, setSmtpHost] = useState((provider?.config.host as string) ?? "");
   const [smtpPort, setSmtpPort] = useState((provider?.config.port as number) ?? 587);
   const [smtpUser, setSmtpUser] = useState((provider?.config.username as string) ?? "");
@@ -87,7 +86,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
         priority,
         config:
           type === "cloudflare"
-            ? { defaultDomain }
+            ? { type: "cloudflare" }
             : type === "resend"
               ? { apiKey, verifiedDomains: domains, fromName }
               : type === "sendflare"
@@ -233,17 +232,6 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
           <FormRow label={t("providers.displayName")}>
             <input className="input" value={name} onChange={(event) => setName(event.target.value)} />
           </FormRow>
-
-          {type === "cloudflare" && (
-            <FormRow label={t("providers.cf.domain")} hint={t("providers.cf.domain.hint")}>
-              <input
-                className="input"
-                value={defaultDomain}
-                placeholder="yourdomain.com"
-                onChange={(event) => setDefaultDomain(event.target.value)}
-              />
-            </FormRow>
-          )}
 
           {type === "resend" && (
             <FormRow label="API Key" hint={configured ? t("providers.keepSecret") : undefined}>

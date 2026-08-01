@@ -146,7 +146,7 @@ export function redactProvider(record: MailProviderRecord) {
   const redacted: Record<string, unknown> = { type: config.type };
 
   if (config.type === "cloudflare") {
-    redacted.defaultDomain = config.defaultDomain ?? null;
+    // Cloudflare 渠道走 Workers 绑定，无任何密钥配置
   } else if (config.type === "resend") {
     redacted.apiKey = maskSecret(config.apiKey);
     redacted.verifiedDomains = config.verifiedDomains ?? [];

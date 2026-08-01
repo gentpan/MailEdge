@@ -143,12 +143,7 @@ async function normalizeConfig(
   };
 
   if (type === "cloudflare") {
-    return {
-      value: {
-        type: "cloudflare",
-        defaultDomain: typeof raw.defaultDomain === "string" ? raw.defaultDomain.trim() : undefined,
-      },
-    };
+    return { value: { type: "cloudflare" } };
   }
 
   if (type === "resend") {
