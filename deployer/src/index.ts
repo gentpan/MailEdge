@@ -12,14 +12,19 @@ import { getJob, startDeploy } from "./deploy";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PORT ?? 8788);
 
-/** 站点统计（umami 风格，经 giantaccell 反代）——统一注入所有页面，无需逐个 HTML 添加 */
-const ANALYTICS = `<script defer src="https://tongji.giantaccel.com/script.js" data-website-id="5b892cd4-4c02-4bdd-8888-83c1e5310fb4"></script>`;
+/** 站点统计：按域名区分统计 ID，统一注入所有页面 */
+function analyticsFor(host: string): string {
+  const websiteId = host.includes("mailedge.sh")
+    ? "0498c3f8-d7f1-4711-b02f-48a52cf36bf8"
+    : "5b892cd4-4c02-4bdd-8888-83c1e5310fb4";
+  return `<script defer src="https://tongji.giantaccel.com/script.js" data-website-id="${websiteId}"></script>`;
+}
 
 const app = new Hono();
 
-function page(name: string): string {
+function page(name: string, host = ""): string {
   const html = readFileSync(resolve(ROOT, "web", name), "utf8");
-  return html.replace("</head>", `${ANALYTICS}\n</head>`);
+  return html.replace("</head>", `${analyticsFor(host)}\n</head>`);
 }
 
 function staticFile(c: Context, name: string, mime: string): Response {
@@ -33,21 +38,21 @@ function staticFile(c: Context, name: string, mime: string): Response {
  */
 app.get("/", (c) => {
   const host = (c.req.header("host") ?? "").toLowerCase();
-  if (host.includes("mailedge.sh")) return c.html(page("index.html"));
-  return c.html(page("landing.html"));
+  if (host.includes("mailedge.sh")) return c.html(page("index.html", c.req.header("host")));
+  return c.html(page("landing.html", c.req.header("host")));
 });
 
 /** 安装向导（mailedge.sh 根路径已直接返回；/install 兼容保留） */
-app.get("/install", (c) => c.html(page("index.html")));
+app.get("/install", (c) => c.html(page("index.html", c.req.header("host"))));
 
 /** 开发者文档 */
-app.get("/developers", (c) => c.html(page("developers.html")));
+app.get("/developers", (c) => c.html(page("developers.html", c.req.header("host"))));
 
 /** 文档页：使用说明 / 隐私 / 版权 / 更新日志 */
-app.get("/usage", (c) => c.html(page("usage.html")));
-app.get("/privacy", (c) => c.html(page("privacy.html")));
-app.get("/license", (c) => c.html(page("license.html")));
-app.get("/changelog", (c) => c.html(page("changelog.html")));
+app.get("/usage", (c) => c.html(page("usage.html", c.req.header("host"))));
+app.get("/privacy", (c) => c.html(page("privacy.html", c.req.header("host"))));
+app.get("/license", (c) => c.html(page("license.html", c.req.header("host"))));
+app.get("/changelog", (c) => c.html(page("changelog.html", c.req.header("host"))));
 
 /** 共享样式 */
 app.get("/styles.css", (c) => staticFile(c, "styles.css", "text/css; charset=utf-8"));
