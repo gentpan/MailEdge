@@ -1,9 +1,5 @@
 import { Hono } from "hono";
-import {
-  decryptUpdateToken,
-  getUpdateConfig,
-  saveUpdateConfig,
-} from "../db/appSettings";
+import { decryptUpdateToken, getUpdateConfig, saveUpdateConfig } from "../db/appSettings";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -36,9 +32,7 @@ update.post("/config", async (c) => {
 
 /** 一键更新：请求安装向导部署最新代码（幂等，复用资源） */
 update.post("/run", async (c) => {
-  const body = await c.req
-    .json<{ token?: string; accountId?: string }>()
-    .catch(() => null);
+  const body = await c.req.json<{ token?: string; accountId?: string }>().catch(() => null);
 
   const cfg = await getUpdateConfig(c.env);
   let token = body?.token?.trim() || null;

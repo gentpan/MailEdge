@@ -172,13 +172,7 @@ function checkAuth() {
 /** 兼容不同 wrangler 版本的 D1 记录字段名（uuid / database_id） */
 function d1IdOf(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return null;
-  return (
-    record.database_id ??
-    record.uuid ??
-    record.result?.database_id ??
-    record.result?.uuid ??
-    null
-  );
+  return record.database_id ?? record.uuid ?? record.result?.database_id ?? record.result?.uuid ?? null;
 }
 
 /** 从 wrangler 输出里按名字找数据库 ID（`d1 list --json` 是数组） */

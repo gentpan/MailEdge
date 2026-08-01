@@ -121,7 +121,8 @@ export const DICT = {
     "settings.nav.mailboxes": "收件地址",
     "settings.nav.account": "账户",
     "update.title": "一键更新",
-    "update.desc": "把本项目的最新代码部署到你的 Cloudflare 账户。部署是幂等的：复用已有数据库、存储与配置，只更新 Worker 代码，不影响你的邮件数据。",
+    "update.desc":
+      "把本项目的最新代码部署到你的 Cloudflare 账户。部署是幂等的：复用已有数据库、存储与配置，只更新 Worker 代码，不影响你的邮件数据。",
     "update.token": "更新 Token",
     "update.token.hint": "有 Workers Scripts 权限的 Cloudflare API Token，AES-GCM 加密保存",
     "update.token.saved": "已保存（内容不外泄），留空则保持不变",
@@ -397,7 +398,8 @@ export const DICT = {
     "settings.nav.mailboxes": "Addresses",
     "settings.nav.account": "Account",
     "update.title": "One-click update",
-    "update.desc": "Deploy the latest code to your Cloudflare account. The process is idempotent: it reuses your existing database, storage and config, only updating the Worker code — your mail data is untouched.",
+    "update.desc":
+      "Deploy the latest code to your Cloudflare account. The process is idempotent: it reuses your existing database, storage and config, only updating the Worker code — your mail data is untouched.",
     "update.token": "Update token",
     "update.token.hint": "A Cloudflare API token with Workers Scripts access, stored AES-GCM encrypted",
     "update.token.saved": "Saved (never exposed); leave blank to keep it",
