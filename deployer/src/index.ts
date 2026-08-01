@@ -23,10 +23,17 @@ function staticFile(c: Context, name: string, mime: string): Response {
   return c.body(readFileSync(resolve(ROOT, "web", name)));
 }
 
-/** 宣传首页 */
-app.get("/", (c) => c.html(page("landing.html")));
+/** 按域名分流：
+ *  mailedge.io  → 官网首页（landing）
+ *  mailedge.sh  → 部署站（根路径直接是安装向导）
+ */
+app.get("/", (c) => {
+  const host = (c.req.header("host") ?? "").toLowerCase();
+  if (host.includes("mailedge.sh")) return c.html(page("index.html"));
+  return c.html(page("landing.html"));
+});
 
-/** 安装向导 */
+/** 安装向导（mailedge.sh 根路径已直接返回；/install 兼容保留） */
 app.get("/install", (c) => c.html(page("index.html")));
 
 /** 开发者文档 */
