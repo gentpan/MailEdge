@@ -32,8 +32,17 @@ app.get("/install", (c) => c.html(page("index.html")));
 /** 开发者文档 */
 app.get("/developers", (c) => c.html(page("developers.html")));
 
+/** 文档页：使用说明 / 隐私 / 版权 / 更新日志 */
+app.get("/usage", (c) => c.html(page("usage.html")));
+app.get("/privacy", (c) => c.html(page("privacy.html")));
+app.get("/license", (c) => c.html(page("license.html")));
+app.get("/changelog", (c) => c.html(page("changelog.html")));
+
 /** 共享样式 */
 app.get("/styles.css", (c) => staticFile(c, "styles.css", "text/css; charset=utf-8"));
+
+/** 文档页样式 */
+app.get("/doc.css", (c) => staticFile(c, "doc.css", "text/css; charset=utf-8"));
 
 /** favicon 系列 */
 app.get("/favicon.svg", (c) => staticFile(c, "favicon.svg", "image/svg+xml"));

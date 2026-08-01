@@ -87,6 +87,7 @@ code, pre, .mono {
   padding-top: 14px; padding-bottom: 14px;
 }
 .topbar-links { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+.topbar-links a.active { color: var(--color-text); font-weight: 500; }
 
 /* ---------- Logo（统一） ---------- */
 .logo {
