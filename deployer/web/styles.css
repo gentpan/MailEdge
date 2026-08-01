@@ -15,7 +15,6 @@
   --color-cream: #f9f8f6;
   --color-gray: #7d8187;
   --color-gray-deep: #59534d;
-  --color-accent: #bc97ff;
   --color-error: #d73a49;
   --color-success: #28c840;
 
@@ -181,8 +180,8 @@ input, select, textarea {
   font-family: inherit;
 }
 input:focus, select:focus, textarea:focus {
-  border-color: rgba(10, 10, 10, 0.2);
-  outline: 2px solid var(--color-accent);
+  border-color: var(--color-text);
+  outline: 2px solid rgba(10, 10, 10, 0.25);
 }
 select option { background: var(--color-bg); }
 .row { display: flex; gap: 12px; }
