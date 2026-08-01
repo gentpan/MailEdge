@@ -1,5 +1,5 @@
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import { api } from "../../lib/api";
 import FormRow from "./FormRow";
@@ -20,17 +20,17 @@ export default function UpdatePanel() {
   const [log, setLog] = useState("");
   const [resultUrl, setResultUrl] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setCfg(await api.updateConfig());
     } catch {
       setCfg(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function save() {
     setBusy(true);
@@ -145,7 +145,12 @@ export default function UpdatePanel() {
           {busy ? t("common.saving") : t("common.save")}
         </button>
         {cfg.hasToken && (
-          <button className="btn btn--ghost" type="button" onClick={() => void clear()} disabled={busy || updating}>
+          <button
+            className="btn btn--ghost"
+            type="button"
+            onClick={() => void clear()}
+            disabled={busy || updating}
+          >
             {t("update.clear")}
           </button>
         )}

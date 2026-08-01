@@ -78,11 +78,16 @@ export async function listMailEdgeResources(
       token,
       `/zones?account.id=${accountId}&per_page=100&status=active`,
     );
-    for (const zone of zones) {
-      const rules = await cfRequest<
-        Array<{ tag: string; actions?: Array<{ type: string; worker?: string }>; matchers?: Array<{ type?: string }> }>
-      >(token, `/zones/${zone.id}/email/routing/rules`).catch(() => []);
-      for (const rule of rules) {
+    // 并行查询每个 zone 的路由规则，避免串行导致扫描卡住
+    const rulesByZone = await Promise.all(
+      zones.map((zone) =>
+        cfRequest<
+          Array<{ tag: string; actions?: Array<{ type: string; worker?: string }>; matchers?: Array<{ type?: string }> }>
+        >(token, `/zones/${zone.id}/email/routing/rules`).catch(() => []),
+      ),
+    );
+    for (const [index, zone] of zones.entries()) {
+      for (const rule of rulesByZone[index] ?? []) {
         const sendsToWorker = rule.actions?.some(
           (a) => a.type === "send_to_worker" && a.worker === "mailedge",
         );

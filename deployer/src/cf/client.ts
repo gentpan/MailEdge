@@ -25,17 +25,32 @@ interface CfEnvelope<T> {
 
 /**
  * 底层请求。token 是用户提供的一次性 API Token，只在本请求内使用，不落库。
+ * 默认 15 秒超时，避免某个 CF 请求挂起导致整个扫描/部署流程卡住。
  */
 export async function cfRequest<T>(
   token: string,
   path: string,
   init: RequestInit = {},
+  timeoutMs = 15_000,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...init, headers, signal: controller.signal });
+  } catch (error) {
+    throw new CfError(
+      error instanceof Error && error.name === "AbortError"
+        ? "Cloudflare 请求超时，请重试"
+        : `Cloudflare 请求失败：${error instanceof Error ? error.message : String(error)}`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
   let envelope: CfEnvelope<T> | null = null;
   try {
