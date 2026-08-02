@@ -259,6 +259,12 @@
   color: var(--color-primary);
 }
 
+.sidebar__brand img,
+.auth__brand img {
+  border: 1px solid var(--color-logo-border);
+  border-radius: var(--radius-md);
+}
+
 .sidebar__section {
   display: flex;
   flex-direction: column;

@@ -32,6 +32,7 @@
   --color-bg-subtle: #f8f9fa;
   --color-border: #e5e7eb;
   --color-border-strong: #d1d5db;
+  --color-logo-border: #d1d5db;
 
   /* 字号 */
   --text-xs: 12px;
@@ -101,6 +102,7 @@
   --color-bg-subtle: #16181d;
   --color-border: #262a32;
   --color-border-strong: #333842;
+  --color-logo-border: #4b5563;
 
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.6);
