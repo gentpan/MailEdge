@@ -1,6 +1,5 @@
-import { Hono } from "hono";
 import type { Context } from "hono";
-import { clearStagedAttachments, readStagedAttachment } from "./attachment";
+import { Hono } from "hono";
 import { findByAddress, listMailboxes, mailboxStub } from "../db/mailboxes";
 import { createOutbound, getOutbound, listOutbound, loadPayload, savePayload } from "../db/outbound";
 import { getSendChain } from "../db/providers";
@@ -13,6 +12,7 @@ import { appendShareSection, prepareAttachments } from "../mail/attachments";
 import { dispatch } from "../mail/dispatcher";
 import type { MailAddress, SendMailInput } from "../mail/types";
 import { markdownToEmailHtml } from "../shared/markdown";
+import { clearStagedAttachments, readStagedAttachment } from "./attachment";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -26,107 +26,110 @@ send.post("/send", async (c) => {
 
   const { input, attachments, providerId, stagedTokens } = parsed;
   try {
+    // 发件地址必须是本人持有的信箱，避免任意伪造 From
+    const mailboxes = await listMailboxes(c.env, user.id);
+    const mailbox = mailboxes.find((item) => item.address === input.from.email.toLowerCase());
+    if (!mailbox) return c.json({ error: `发件地址 ${input.from.email} 不属于当前账户` }, 403);
 
-  // 发件地址必须是本人持有的信箱，避免任意伪造 From
-  const mailboxes = await listMailboxes(c.env, user.id);
-  const mailbox = mailboxes.find((item) => item.address === input.from.email.toLowerCase());
-  if (!mailbox) return c.json({ error: `发件地址 ${input.from.email} 不属于当前账户` }, 403);
+    if (!input.to.length) return c.json({ error: "收件人不能为空" }, 400);
+    if (!input.html && !input.text) return c.json({ error: "邮件正文不能为空" }, 400);
 
-  if (!input.to.length) return c.json({ error: "收件人不能为空" }, 400);
-  if (!input.html && !input.text) return c.json({ error: "邮件正文不能为空" }, 400);
+    // 未指定显示名时的兜底：优先信箱名称，其次所选渠道配置的发件人名称，
+    // 避免收件方只看到一串裸地址
+    if (!input.from.name) {
+      const name = mailbox.displayName || (await providerFromName(c.env, providerId));
+      if (name) input.from = { ...input.from, name };
+    }
 
-  // 未指定显示名时的兜底：优先信箱名称，其次所选渠道配置的发件人名称，
-  // 避免收件方只看到一串裸地址
-  if (!input.from.name) {
-    const name = mailbox.displayName || (await providerFromName(c.env, providerId));
-    if (name) input.from = { ...input.from, name };
-  }
+    const internalId = newMessageId();
+    const bodySize = new TextEncoder().encode((input.html ?? "") + (input.text ?? "")).byteLength;
 
-  const internalId = newMessageId();
-  const bodySize = new TextEncoder().encode((input.html ?? "") + (input.text ?? "")).byteLength;
+    // 智能附件：小文件真发，大文件转 R2 下载链接
+    const prepared = await prepareAttachments(c.env, {
+      messageId: internalId,
+      userId: user.id,
+      mailboxId: mailbox.id,
+      attachments,
+      bodySize,
+    });
 
-  // 智能附件：小文件真发，大文件转 R2 下载链接
-  const prepared = await prepareAttachments(c.env, {
-    messageId: internalId,
-    userId: user.id,
-    mailboxId: mailbox.id,
-    attachments,
-    bodySize,
-  });
+    const finalInput = appendShareSection({ ...input, attachments: prepared.inline }, prepared.shared);
 
-  const finalInput = appendShareSection({ ...input, attachments: prepared.inline }, prepared.shared);
+    const payload = await savePayload(c.env, internalId, finalInput, mailbox.id);
+    await createOutbound(c.env, {
+      id: internalId,
+      userId: user.id,
+      mailboxId: mailbox.id,
+      input: finalInput,
+      payloadKey: payload.key,
+    });
 
-  const payload = await savePayload(c.env, internalId, finalInput, mailbox.id);
-  await createOutbound(c.env, {
-    id: internalId,
-    userId: user.id,
-    mailboxId: mailbox.id,
-    input: finalInput,
-    payloadKey: payload.key,
-  });
+    const result = await dispatch(c.env, { internalId, input: finalInput, preferredProviderId: providerId });
 
-  const result = await dispatch(c.env, { internalId, input: finalInput, preferredProviderId: providerId });
-
-  // 在「已发送」里留底
-  const stub = mailboxStub(c.env, mailbox);
-  await stub.store({
-    id: newId("msg"),
-    internalId,
-    direction: "outbound",
-    folder: "sent",
-    from: input.from,
-    to: input.to,
-    cc: input.cc,
-    bcc: input.bcc,
-    replyTo: input.replyTo ?? null,
-    subject: input.subject,
-    html: finalInput.html ?? null,
-    text: finalInput.text ?? null,
-    headers: finalInput.headers,
-    size: bodySize,
-    isRead: true,
-    status: result.status,
-    provider: result.provider,
-    error: result.error ?? null,
-    attachments: [
-      ...prepared.inline.map((item, index) => ({
-        id: newId("att"),
-        filename: item.filename,
-        contentType: item.contentType,
-        size: item.content.byteLength,
-        mode: "inline" as const,
-        // 留底引用 outbound 载荷里的附件键，前端才能下载
-        r2Key: payload.attachments[index]?.r2Key ?? null,
-        token: null,
-      })),
-      ...prepared.shared.map((item) => ({
-        id: newId("att"),
-        filename: item.filename,
-        contentType: item.contentType,
-        size: item.size,
-        mode: "link" as const,
-        r2Key: null,
-        token: item.token,
-      })),
-    ],
-  });
-
-  return c.json(
-    {
+    // 在「已发送」里留底
+    const stub = mailboxStub(c.env, mailbox);
+    await stub.store({
+      id: newId("msg"),
       internalId,
+      direction: "outbound",
+      folder: "sent",
+      from: input.from,
+      to: input.to,
+      cc: input.cc,
+      bcc: input.bcc,
+      replyTo: input.replyTo ?? null,
+      subject: input.subject,
+      html: finalInput.html ?? null,
+      text: finalInput.text ?? null,
+      headers: finalInput.headers,
+      size: bodySize,
+      isRead: true,
       status: result.status,
       provider: result.provider,
-      providerMessageId: result.providerMessageId,
-      success: result.success,
-      error: result.error,
-      attempts: result.attempts,
-      smartAttachments: {
-        inline: prepared.inline.map((item) => ({ filename: item.filename, size: item.content.byteLength })),
-        shared: prepared.shared.map((item) => ({ filename: item.filename, size: item.size, url: item.url })),
+      error: result.error ?? null,
+      attachments: [
+        ...prepared.inline.map((item, index) => ({
+          id: newId("att"),
+          filename: item.filename,
+          contentType: item.contentType,
+          size: item.content.byteLength,
+          mode: "inline" as const,
+          // 留底引用 outbound 载荷里的附件键，前端才能下载
+          r2Key: payload.attachments[index]?.r2Key ?? null,
+          token: null,
+        })),
+        ...prepared.shared.map((item) => ({
+          id: newId("att"),
+          filename: item.filename,
+          contentType: item.contentType,
+          size: item.size,
+          mode: "link" as const,
+          r2Key: null,
+          token: item.token,
+        })),
+      ],
+    });
+
+    return c.json(
+      {
+        internalId,
+        status: result.status,
+        provider: result.provider,
+        providerMessageId: result.providerMessageId,
+        success: result.success,
+        error: result.error,
+        attempts: result.attempts,
+        smartAttachments: {
+          inline: prepared.inline.map((item) => ({ filename: item.filename, size: item.content.byteLength })),
+          shared: prepared.shared.map((item) => ({
+            filename: item.filename,
+            size: item.size,
+            url: item.url,
+          })),
+        },
       },
-    },
-    result.success ? 200 : result.status === "deferred" ? 202 : 502,
-  );
+      result.success ? 200 : result.status === "deferred" ? 202 : 502,
+    );
   } finally {
     // 无论成败，清理本次写信暂存的附件
     if (stagedTokens?.length) {

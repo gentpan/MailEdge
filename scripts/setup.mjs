@@ -224,13 +224,33 @@ function ensureDatabase(name) {
 function ensureBucket(name) {
   const list = wranglerCapture(["r2", "bucket", "list"]);
 
-  if (list.ok && hasBucket(list.stdout, name)) {
+  if (!list.ok) {
+    throw new SetupError(`无法读取 R2 存储桶列表：${name}`, [
+      "请确认一次性 Token 包含 R2 编辑权限，并在同一 Cloudflare 账户下重试：",
+      "  npx wrangler r2 bucket list",
+    ]);
+  }
+
+  if (hasBucket(list.stdout, name)) {
     log.ok(`R2 存储桶 ${name} 已存在`);
     return;
   }
 
   log.info(`创建 R2 存储桶 ${name} …`);
-  wrangler(["r2", "bucket", "create", name]);
+  const created = wrangler(["r2", "bucket", "create", name], { allowFailure: true });
+  if (!created) {
+    throw new SetupError(`R2 存储桶 ${name} 创建失败`, [
+      "请检查 Token 的 R2 编辑权限、Cloudflare 账户和存储桶名称后重试。",
+    ]);
+  }
+
+  // Wrangler 返回成功后再列一次，避免命令输出成功但实际账户中没有桶时继续部署。
+  const verified = wranglerCapture(["r2", "bucket", "list"]);
+  if (!verified.ok || !hasBucket(verified.stdout, name)) {
+    throw new SetupError(`R2 存储桶 ${name} 创建后校验失败`, [
+      "请在当前 Cloudflare 账户的 R2 页面确认桶是否存在，再重试部署。",
+    ]);
+  }
   log.ok("R2 存储桶已创建");
 }
 
@@ -286,7 +306,17 @@ function ensureSecrets(workerName) {
 }
 
 function deploy() {
-  const result = spawnSync("npm", ["run", "deploy"], {
+  let version = "unknown";
+  try {
+    version = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")).version ?? version;
+  } catch {
+    // 版本号只是 Cloudflare 版本记录的辅助信息，读取失败不应阻断已有部署流程。
+  }
+  const deployArgs = ["run", "deploy"];
+  if (version !== "unknown") {
+    deployArgs.push("--", "--message", `MailEdge v${version}`, "--tag", `mailedge-v${version}`);
+  }
+  const result = spawnSync("npm", deployArgs, {
     cwd: ROOT,
     encoding: "utf8",
     shell: process.platform === "win32",

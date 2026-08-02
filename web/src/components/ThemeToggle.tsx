@@ -1,5 +1,5 @@
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const THEME_KEY = "mailedge-app-theme";
 
@@ -7,18 +7,17 @@ const THEME_KEY = "mailedge-app-theme";
 export default function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
+  const apply = useCallback((isDark: boolean) => {
+    document.body.classList.toggle("theme-dark", isDark);
+    setDark(isDark);
+    localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem(THEME_KEY);
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
     apply(saved ? saved === "dark" : prefersDark);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function apply(isDark: boolean) {
-    document.body.classList.toggle("theme-dark", isDark);
-    setDark(isDark);
-    localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
-  }
+  }, [apply]);
 
   return (
     <button

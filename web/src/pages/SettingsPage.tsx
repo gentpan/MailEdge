@@ -1,26 +1,38 @@
-import { ArrowLeft, AtSign, Loader2, LogOut, RefreshCw, Send, Sparkles, User as UserIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  AtSign,
+  Loader2,
+  LogOut,
+  Paperclip,
+  RefreshCw,
+  Send,
+  Sparkles,
+  User as UserIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { useSession } from "../App";
 import LanguageToggle from "../components/LanguageToggle";
-import ThemeToggle from "../components/ThemeToggle";
 import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
+import AttachmentPanel from "../components/settings/AttachmentPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
 import ProvidersPanel from "../components/settings/ProvidersPanel";
 import UpdatePanel from "../components/settings/UpdatePanel";
+import ThemeToggle from "../components/ThemeToggle";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
 import type { Mailbox, ProviderView } from "../lib/api";
 import { api } from "../lib/api";
 
-type Category = "providers" | "ai" | "mailboxes" | "update" | "account";
+type Category = "providers" | "ai" | "update" | "attachments" | "mailboxes" | "account";
 
 const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> =
   [
     { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
     { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
     { key: "update", labelKey: "settings.nav.update", icon: RefreshCw, adminOnly: true },
+    { key: "attachments", labelKey: "settings.nav.attachments", icon: Paperclip },
     { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
     { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
   ];
@@ -72,7 +84,7 @@ export default function SettingsPage() {
           {t("settings.back")}
         </Link>
 
-        <nav className="sidebar__section">
+        <nav className="sidebar__section settings-nav">
           <span className="sidebar__label">{t("settings.title")}</span>
           {visible.map((item) => {
             const Icon = item.icon;
@@ -80,7 +92,7 @@ export default function SettingsPage() {
               <Link
                 key={item.key}
                 to={`/settings/${item.key}`}
-                className={`nav-item${category === item.key ? " nav-item--active" : ""}`}
+                className={`nav-item settings-nav__item${category === item.key ? " nav-item--active" : ""}`}
               >
                 <Icon size={16} />
                 {t(item.labelKey)}
@@ -133,6 +145,8 @@ export default function SettingsPage() {
           <AiPanel />
         ) : category === "update" ? (
           <UpdatePanel />
+        ) : category === "attachments" ? (
+          <AttachmentPanel />
         ) : category === "mailboxes" ? (
           <MailboxesPanel mailboxes={mailboxes} onChanged={() => void reloadAll()} />
         ) : (

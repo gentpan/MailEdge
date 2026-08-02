@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import packageJson from "../../package.json";
 import { decryptUpdateToken, getUpdateConfig, saveUpdateConfig } from "../db/appSettings";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
@@ -16,6 +17,34 @@ update.use("*", requireAuth);
 update.get("/config", async (c) => {
   const cfg = await getUpdateConfig(c.env);
   return c.json({ hasToken: Boolean(cfg.tokenEncrypted), accountId: cfg.accountId });
+});
+
+/** 当前运行版本，以及安装向导工作副本中可部署的版本。 */
+update.get("/version", async (c) => {
+  const currentVersion = packageJson.version;
+  let availableVersion: string | null = null;
+  let source: "deployer" | null = null;
+
+  if (c.env.DEPLOYER_URL) {
+    try {
+      const res = await fetch(`${c.env.DEPLOYER_URL.replace(/\/+$/, "")}/api/version`);
+      const data = (await res.json().catch(() => null)) as { version?: string } | null;
+      if (res.ok && data?.version && data.version !== "unknown") {
+        availableVersion = data.version;
+        source = "deployer";
+      }
+    } catch {
+      // 版本检测失败不应阻止更新配置和手动更新，前端会显示“暂不可用”。
+    }
+  }
+
+  return c.json({
+    currentVersion,
+    availableVersion,
+    updateAvailable: Boolean(availableVersion && availableVersion !== currentVersion),
+    source,
+    checkedAt: new Date().toISOString(),
+  });
 });
 
 /** 保存更新配置：token 与 accountId 任一不传则保持原样，传空字符串清除 */
@@ -41,7 +70,10 @@ update.post("/accounts", async (c) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token: body.token.trim() }),
   });
-  const data = (await res.json().catch(() => null)) as { accounts?: Array<{ id: string; name: string }>; error?: string } | null;
+  const data = (await res.json().catch(() => null)) as {
+    accounts?: Array<{ id: string; name: string }>;
+    error?: string;
+  } | null;
   if (!res.ok) return c.json({ error: data?.error ?? "获取账户失败" }, 502);
   return c.json({ accounts: data?.accounts ?? [] });
 });

@@ -6,19 +6,20 @@ import {
   Link2,
   LogOut,
   MailQuestion,
-  Mails,
   PenSquare,
   Send,
   SendHorizontal,
   Settings,
   Trash2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { FolderStats, MailFolder } from "../../../src/shared/message";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
 import type { Mailbox, User } from "../lib/api";
 import LanguageToggle from "./LanguageToggle";
+import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 export type MailView = "mail" | "outbox" | "shares";
 
@@ -74,7 +75,7 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <Mails size={20} />
+        <Logo size={30} variant="blue" />
         <span>{t("app.name")}</span>
       </div>
 
@@ -165,16 +166,12 @@ export default function Sidebar({
 
         <div className="sidebar__footer-row">
           <LanguageToggle />
-          <button
-            className="btn btn--secondary btn--sm"
-            type="button"
-            onClick={onSignOut}
-            title={t("nav.signOut")}
-          >
-            <LogOut size={14} />
-            {t("nav.signOut")}
-          </button>
+          <ThemeToggle />
         </div>
+        <button className="btn btn--ghost btn--block sidebar__logout" type="button" onClick={onSignOut}>
+          <LogOut size={14} />
+          {t("nav.signOut")}
+        </button>
       </div>
     </aside>
   );

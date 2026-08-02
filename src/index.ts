@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import ai from "./api/ai";
+import attachment from "./api/attachment";
+import attachments from "./api/attachments";
 import auth from "./api/auth";
 import type { AppContext } from "./api/context";
 import download from "./api/download";
 import messages from "./api/messages";
 import providers from "./api/providers";
-import attachment from "./api/attachment";
 import send from "./api/send";
 import update from "./api/update";
+import { renderBrandSvg } from "./brand";
 import { listMailboxes, mailboxStub } from "./db/mailboxes";
 import { listRetryable, loadPayload } from "./db/outbound";
 import { handleInboundEmail } from "./email/inbound";
@@ -21,9 +23,18 @@ const app = new Hono<AppContext>();
 // 健康检查必须注册在 messages 子应用（挂在 /api 上并带鉴权中间件）之前
 app.get("/api/health", (c) => c.json({ ok: true, service: "MailEdge" }));
 
+/** 动态品牌 SVG：同一套资源可按主题请求蓝色或黑色版本。 */
+app.get("/api/brand/logo.svg", (c) => {
+  const variant = c.req.query("variant") === "black" ? "black" : "blue";
+  c.header("Content-Type", "image/svg+xml; charset=utf-8");
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(renderBrandSvg(variant));
+});
+
 app.route("/api/auth", auth);
 app.route("/api/mail", send);
 app.route("/api/mail/attachment", attachment);
+app.route("/api/attachments", attachments);
 app.route("/api/providers", providers);
 app.route("/api/ai", ai);
 app.route("/api/update", update);

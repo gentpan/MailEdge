@@ -46,6 +46,21 @@ export interface StoreMessageInput {
   }>;
 }
 
+export interface MailboxAttachmentRecord {
+  id: string;
+  messageId: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  mode: "inline" | "link";
+  r2Key: string | null;
+  token: string | null;
+  subject: string;
+  direction: "inbound" | "outbound";
+  folder: MailFolder;
+  receivedAt: string;
+}
+
 /**
  * 一个邮箱地址一个实例，邮件正文存在实例自带的 SQLite 里。
  * 附件二进制不进 SQLite，只存 R2 键或分享 token。
@@ -382,6 +397,54 @@ export class MailboxDO extends DurableObject<Env> {
       r2Key: row.r2_key,
       token: row.token,
     };
+  }
+
+  /** 附件管理：只返回仍有 R2 对象引用的附件，分享附件由 D1 attachment_links 单独管理。 */
+  async listAttachments(limit = 500): Promise<MailboxAttachmentRecord[]> {
+    const rows = this.sql
+      .exec<AttachmentRow & { subject: string; direction: string; folder: string; received_at: string }>(
+        `SELECT a.*, m.subject, m.direction, m.folder, m.received_at
+         FROM attachments a
+         JOIN messages m ON m.id = a.message_id
+         WHERE a.r2_key IS NOT NULL
+         ORDER BY m.received_at DESC
+         LIMIT ?`,
+        Math.min(Math.max(limit, 1), 1000),
+      )
+      .toArray();
+    return rows.map((row) => ({
+      id: row.id,
+      messageId: row.message_id,
+      filename: row.filename,
+      contentType: row.content_type,
+      size: row.size,
+      mode: row.mode === "link" ? "link" : "inline",
+      r2Key: row.r2_key,
+      token: row.token,
+      subject: row.subject,
+      direction: row.direction === "outbound" ? "outbound" : "inbound",
+      folder: row.folder as MailFolder,
+      receivedAt: row.received_at,
+    }));
+  }
+
+  /** 删除邮件附件元数据并返回对应 R2 键；调用方负责删除 R2 对象。 */
+  async deleteAttachment(messageId: string, id: string): Promise<string | null> {
+    const row = this.sql
+      .exec<{ r2_key: string | null }>(
+        `SELECT r2_key FROM attachments WHERE message_id = ? AND id = ?`,
+        messageId,
+        id,
+      )
+      .toArray()[0];
+    if (!row) return null;
+    this.sql.exec(`DELETE FROM attachments WHERE message_id = ? AND id = ?`, messageId, id);
+    return row.r2_key;
+  }
+
+  /** 删除已生成分享链接对应的邮件附件元数据。 */
+  async deleteAttachmentByToken(token: string): Promise<void> {
+    this.sql.exec(`DELETE FROM attachments WHERE token = ?`, token);
   }
 
   /** 发信状态变化后同步「已发送」里的那封 */

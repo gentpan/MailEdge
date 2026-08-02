@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
 import { useSession } from "../App";
 import type { ComposeDraft } from "../components/ComposeModal";
@@ -10,13 +11,15 @@ import SharesView from "../components/SharesView";
 import type { MailView } from "../components/Sidebar";
 import Sidebar from "../components/Sidebar";
 import { useI18n } from "../i18n";
-import type { ProviderView, SendResponse } from "../lib/api";
+import type { ProviderView, SendResponse, StagedAttachment } from "../lib/api";
 import { api } from "../lib/api";
 import { useMailStream } from "../lib/useMailStream";
 
 export default function MailPage() {
   const { user, mailboxes, signOut } = useSession();
   const { t } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // 多个信箱时默认聚合视图，单个信箱就直接用它
   const [mailboxId, setMailboxId] = useState(mailboxes.length > 1 ? "all" : mailboxes[0]?.id);
@@ -39,6 +42,16 @@ export default function MailPage() {
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [composeDraft, setComposeDraft] = useState<ComposeDraft | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // 设置页“添加到邮件”通过一次性的路由 state 把 R2 附件交给写信框，
+  // 消费后立即清掉 state，刷新页面不会重复打开或重复添加附件。
+  useEffect(() => {
+    const staged = (location.state as { composeStagedAttachment?: StagedAttachment } | null)
+      ?.composeStagedAttachment;
+    if (!staged) return;
+    setComposeDraft({ stagedAttachment: staged });
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   // 竞态守卫：列表与详情的请求可能交错返回，用自增序号只接受最后一次的结果
   const listSeqRef = useRef(0);

@@ -89,6 +89,47 @@ export interface AiConfigResponse {
   categories: Record<string, string>;
 }
 
+export interface UpdateVersionView {
+  currentVersion: string;
+  availableVersion: string | null;
+  updateAvailable: boolean;
+  source: "deployer" | null;
+  checkedAt: string;
+}
+
+export interface ManagedAttachmentView {
+  id: string;
+  source: "message" | "share";
+  mailboxId: string | null;
+  mailboxAddress: string | null;
+  messageId: string | null;
+  messageSubject: string | null;
+  filename: string;
+  contentType: string;
+  size: number;
+  direction: "inbound" | "outbound";
+  folder: MailFolder;
+  mode: "inline" | "link";
+  uploadedAt: string;
+  downloadUrl: string;
+  token: string | null;
+  downloads?: number;
+  expiresAt?: string | null;
+  expired?: boolean;
+  revoked?: boolean;
+}
+
+export type ManagedAttachmentRef =
+  | { source: "message"; mailboxId: string; messageId: string; attachmentId: string }
+  | { source: "share"; token: string };
+
+export interface StagedAttachment {
+  token: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -191,7 +232,12 @@ export const api = {
       };
       xhr.onload = () => {
         try {
-          const data = JSON.parse(xhr.responseText) as { token: string; filename: string; size: number; error?: string };
+          const data = JSON.parse(xhr.responseText) as {
+            token: string;
+            filename: string;
+            size: number;
+            error?: string;
+          };
           if (xhr.status >= 200 && xhr.status < 300) resolve(data);
           else reject(new Error(data.error ?? "上传失败"));
         } catch {
@@ -202,7 +248,21 @@ export const api = {
       xhr.send(form);
     }),
 
-  deleteAttachment: (token: string) => request<{ ok: true }>(`/api/mail/attachment/${token}`, { method: "DELETE" }),
+  deleteAttachment: (token: string) =>
+    request<{ ok: true }>(`/api/mail/attachment/${token}`, { method: "DELETE" }),
+
+  // R2 附件管理
+  attachments: () => request<{ attachments: ManagedAttachmentView[]; total: number }>("/api/attachments"),
+  stageAttachment: (ref: ManagedAttachmentRef) =>
+    request<StagedAttachment>("/api/attachments/stage", {
+      method: "POST",
+      body: JSON.stringify(ref),
+    }),
+  deleteManagedAttachment: (ref: ManagedAttachmentRef) =>
+    request<{ ok: true }>("/api/attachments", {
+      method: "DELETE",
+      body: JSON.stringify(ref),
+    }),
 
   outbox: () => request<{ messages: OutboundView[] }>("/api/mail/outbox"),
   retry: (id: string) =>
@@ -238,6 +298,7 @@ export const api = {
 
   // 界面内一键更新
   updateConfig: () => request<{ hasToken: boolean; accountId: string | null }>("/api/update/config"),
+  updateVersion: () => request<UpdateVersionView>("/api/update/version"),
   updateAccounts: (token: string) =>
     request<{ accounts: Array<{ id: string; name: string }> }>("/api/update/accounts", {
       method: "POST",

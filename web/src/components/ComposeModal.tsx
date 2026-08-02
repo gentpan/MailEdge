@@ -2,7 +2,7 @@ import { Paperclip, Send, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { markdownToEmailHtml } from "../../../src/shared/markdown";
 import { useI18n } from "../i18n";
-import type { Mailbox, ProviderView, SendResponse } from "../lib/api";
+import type { Mailbox, ProviderView, SendResponse, StagedAttachment } from "../lib/api";
 import { api } from "../lib/api";
 import { formatSize, PROVIDER_LABELS } from "../lib/format";
 
@@ -12,6 +12,7 @@ export interface ComposeDraft {
   cc?: string;
   subject?: string;
   text?: string;
+  stagedAttachment?: StagedAttachment;
 }
 
 // 模块级常量：避免每次渲染新建空数组导致 useMemo 依赖不稳定
@@ -56,7 +57,21 @@ export default function ComposeModal({
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState(draft?.text ?? "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
-  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const stagedAttachment = draft?.stagedAttachment;
+  const [attachments, setAttachments] = useState<AttachmentItem[]>(() =>
+    stagedAttachment
+      ? [
+          {
+            id: `staged-${stagedAttachment.token}`,
+            name: stagedAttachment.filename,
+            size: stagedAttachment.size,
+            status: "done",
+            progress: 100,
+            token: stagedAttachment.token,
+          },
+        ]
+      : [],
+  );
   const [providerId, setProviderId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,7 +103,9 @@ export default function ComposeModal({
         .catch((err) => {
           setAttachments((prev) =>
             prev.map((a) =>
-              a.id === id ? { ...a, status: "error", error: err instanceof Error ? err.message : "上传失败" } : a,
+              a.id === id
+                ? { ...a, status: "error", error: err instanceof Error ? err.message : "上传失败" }
+                : a,
             ),
           );
         });
@@ -169,7 +186,12 @@ export default function ComposeModal({
       <div className="modal">
         <div className="modal__header">
           <h3>{t("compose.title")}</h3>
-          <button className="btn btn--icon" type="button" onClick={cleanupAndClose} aria-label={t("compose.cancel")}>
+          <button
+            className="btn btn--icon"
+            type="button"
+            onClick={cleanupAndClose}
+            aria-label={t("compose.cancel")}
+          >
             <X size={16} />
           </button>
         </div>
