@@ -1,9 +1,12 @@
+import { client } from "@passwordless-id/webauthn";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useI18n } from "../../i18n";
 import type { User } from "../../lib/api";
 import { api } from "../../lib/api";
-import { formatDateTime } from "../../lib/format";
 import FormRow from "./FormRow";
+import SettingsPanel from "./SettingsPanel";
+import { useSettingsToast } from "./SettingsToast";
 
 interface Props {
   user: User;
@@ -13,31 +16,52 @@ export default function AccountPanel({ user }: Props) {
   const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const { showToast, dismissToast } = useSettingsToast();
   const [busy, setBusy] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   async function update() {
     setBusy(true);
-    setMessage(null);
+    dismissToast();
     try {
       await api.changePassword({ currentPassword, newPassword });
-      setMessage({ kind: "success", text: t("account.newPassword.hint") });
+      showToast({ kind: "success", text: t("account.newPassword.hint") });
       setCurrentPassword("");
       setNewPassword("");
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
+      showToast({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <div className="settings-panel">
-      <header className="panel-head">
-        <h1 className="panel-head__title">{t("account.title")}</h1>
-        <p className="panel-head__desc">{t("account.desc")}</p>
-      </header>
+  async function addPasskey() {
+    setPasskeyBusy(true);
+    dismissToast();
+    try {
+      if (!client.isAvailable()) throw new Error(t("account.passkey.unavailable"));
+      const options = await api.passkeyRegisterOptions();
+      const registration = await client.register({
+        challenge: options.challenge,
+        domain: options.domain,
+        user: options.user,
+        userVerification: "required",
+        discoverable: "required",
+      });
+      await api.passkeyRegisterVerify({ challenge: options.challenge, registration });
+      showToast({ kind: "success", text: t("account.passkey.success") });
+    } catch (error) {
+      showToast({
+        kind: "error",
+        text: error instanceof Error ? error.message : t("account.passkey.failed"),
+      });
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
 
+  return (
+    <SettingsPanel title={t("account.title")} description={t("account.desc")}>
       <FormRow label={t("account.email")}>
         <p className="text-sm">{user.email}</p>
       </FormRow>
@@ -51,12 +75,6 @@ export default function AccountPanel({ user }: Props) {
           {user.role === "admin" ? t("account.role.admin") : t("account.role.user")}
         </span>
       </FormRow>
-
-      <FormRow label={t("account.createdAt")}>
-        <p className="text-sm text-secondary">{formatDateTime(user.createdAt)}</p>
-      </FormRow>
-
-      {message && <div className={`alert alert--${message.kind}`}>{message.text}</div>}
 
       <FormRow label={t("account.currentPassword")}>
         <input
@@ -88,6 +106,33 @@ export default function AccountPanel({ user }: Props) {
           {busy ? t("common.saving") : t("account.updatePassword")}
         </button>
       </div>
-    </div>
+
+      <section className="account-passkey-card" aria-labelledby="account-passkey-title">
+        <div className="account-passkey-card__icon" aria-hidden="true">
+          <KeyRound size={22} />
+        </div>
+        <div className="account-passkey-card__body">
+          <div className="account-passkey-card__header">
+            <div>
+              <h2 id="account-passkey-title">{t("account.passkey.title")}</h2>
+              <p>{t("account.passkey.hint")}</p>
+            </div>
+            <button
+              className="btn btn--secondary"
+              type="button"
+              onClick={() => void addPasskey()}
+              disabled={passkeyBusy}
+            >
+              <KeyRound size={16} />
+              {passkeyBusy ? t("account.passkey.busy") : t("account.passkey.add")}
+            </button>
+          </div>
+          <div className="account-passkey-card__note">
+            <ShieldCheck size={15} aria-hidden="true" />
+            <span>{t("account.passkey.note")}</span>
+          </div>
+        </div>
+      </section>
+    </SettingsPanel>
   );
 }

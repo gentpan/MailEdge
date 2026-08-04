@@ -23,7 +23,7 @@
 > 完整的产品介绍、界面截图与图文部署教程见 [docs/blog.md](docs/blog.md)。
 
 ```
-收件：Email Routing → Email Worker → Durable Object (SQLite) + R2
+收件：Email Routing → Email Worker → Durable Object (SQLite) + R2 / KV
 发件：统一 MailProvider 接口 → Cloudflare Email Service / Sendflare / Resend
 配置：D1（账户、渠道配置、发信状态机）
 ```
@@ -34,31 +34,33 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 
 - **发信不绑死单一服务商**。`MailProvider` 是一层抽象，Cloudflare Email Service、Sendflare、Resend 三家开箱即用，新增 SES / Mailgun / Postmark / SMTP 只需要加一个类。
 - **主备切换不会重复发信**。只有网络故障、429、5xx 这类临时错误才切换渠道；域名未验证、地址非法、内容被拒等永久性错误立即失败。否则一封被拒的邮件会在三个平台各发一次。
-- **绕开 5 MiB 附件上限**。小附件正常发，大附件自动上传 R2 并在正文插入下载链接，可统计下载次数、设置过期、随时撤销。用户感觉不到区别。
+- **绕开 5 MiB 附件上限**。小附件正常发，大附件自动上传到所选的 R2 或 KV，并在正文插入下载链接，可统计下载次数、设置过期、随时撤销。用户感觉不到区别。
 - **邮件分片存储**。每个地址一个 Durable Object，各自带一份 SQLite，不存在单库瓶颈。
 
 ## 功能
 
 - 收件箱 / 已发送 / 归档 / 回收站，搜索、分页、星标、未读计数
+- 左侧可创建自定义文件夹并移动邮件；文件夹删除时邮件会安全迁回收件箱
 - 多信箱聚合视图；未精确登记、靠兜底兜进来的信单独归入「其他地址」
+- 每个收件地址可设置独立的左侧显示名称；显示名称不会改变 Cloudflare Email Routing 使用的实际地址
 - 写信支持 Markdown（发送时转成邮件安全 HTML）、抄送、密送、多附件；管理员可指定发信渠道
 - 设置页在线配置三个渠道，支持测试发送、设为默认、备用优先级
 - 渠道密钥 AES-GCM 加密后存 D1，接口只返回脱敏值
 - 发信记录带完整重试链路，可手动重试；`deferred` 状态由 Cron 指数退避自动重试
-- HTML 正文在 `sandbox=""` 的 iframe 中渲染，脚本、表单、同源访问全部禁用
+- HTML 正文在沙箱 iframe 中渲染，脚本、表单和顶层导航全部禁用；仅允许前端读取文档高度，让完整正文由详情面板统一滚动
 - 界面中/英双语，跟随浏览器语言自动选择，可随时切换
 - 新信实时推送：每个信箱 Durable Object 持有前端 WebSocket（Hibernation，空闲不计费），收信秒级到达；断线自动重连，另有 60 秒轮询兜底
 
 ### AI 助手（可选）
 
-统一走 OpenAI 兼容接口，可接 OpenAI、DeepSeek、Kimi、智谱、硅基流动、Ollama 等（设置页有一键预设，也可自填 baseURL + 模型名）。Key 同样 AES-GCM 加密存 D1。
+统一走 OpenAI 兼容接口，可接 OpenAI、DeepSeek、Kimi、智谱、硅基流动、Ollama 等，也可自填 baseURL + 模型名。Key 同样 AES-GCM 加密存 D1。
 
 - **AI 回复**：针对来信生成回复草稿，直接填入写信框
 - **AI 总结**：长邮件一键摘要，结果缓存进 Durable Object
-- **AI 分类**：收信时自动打标签（重要 / 更新 / 营销 / 社交 / 其他），收件箱按分类分栏
+- **邮件分类**：默认用本地规则零成本分类；启用 AI 并配置 Key 后，使用 AI 增强分类（重要 / 更新 / 推广 / 验证码 / 社交 / 其他）
 - **Telegram 推送**：新信到达推送到 Telegram Bot，可只推指定分类
 
-分类与推送挂在收信 Worker 上，都在 `waitUntil` 里异步执行，且各自 try/catch 隔离——AI 或推送出问题绝不影响邮件入库。
+分类与推送挂在收信 Worker 上，都在 `waitUntil` 里异步执行，且各自 try/catch 隔离——本地规则、AI 或推送出问题绝不影响邮件入库。
 
 ## 技术栈
 
@@ -72,7 +74,7 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 | SMTP | `cloudflare:sockets` | `connect()` 裸 TCP，手写 SMTP 会话（587/465） |
 | 账户 · 配置 · 发信状态机 | D1（SQLite） | 需要跨信箱查询的数据 |
 | 邮件正文 | Durable Objects + 内置 SQLite | 一地址一实例，天然分片 |
-| 附件 | R2 | 出口流量免费，按信箱/年月分区 |
+| 附件 | R2 / KV | 后台可选；KV 无需支付方式但单个对象上限 25MB |
 | 定时任务 | Cron Triggers | 重试 deferred 邮件、清理过期分享 |
 | 加密 | Web Crypto（AES-GCM / PBKDF2） | 渠道密钥加密、口令哈希、会话签名 |
 | API 框架 | Hono | 轻量路由，贴合 Workers |
@@ -88,7 +90,7 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 | --- | --- |
 | 收件 | Cloudflare Email Routing → `email()` handler → `postal-mime` 解析 |
 | 邮件存储 | 每个地址一个 Durable Object，实例内置 SQLite |
-| 附件 | R2；原始报文 `.eml` 一并留档 |
+| 附件 | R2 / KV；原始报文 `.eml` 一并留档 |
 | 账户 / 渠道配置 / 发信状态机 | D1 |
 | 发信 | `MailProvider` 抽象，三个实现 + 主备切换 |
 | 前端 | React + Vite，通过 Workers Assets 托管 |
@@ -128,10 +130,12 @@ queued → sending → sent
 
 ```
 附件 ≤ 3 MB（且整封不超上限） → 真 Email Attachment
-附件 > 3 MB                    → 上传 R2 → 正文插入下载链接
+附件 > 3 MB                    → 上传 R2 / KV → 正文插入下载链接
 ```
 
-下载走 `/d/:token`，由 Worker 校验 token、有效期与撤销状态后从 R2 出流，支持统计下载次数、7 天过期、随时撤销。内嵌图片（`cid:`）始终留在邮件里，避免正文裂图。阈值由 `SMART_ATTACHMENT_THRESHOLD` 控制。
+下载走 `/d/:token`，由 Worker 校验 token、有效期与撤销状态后从对象存储出流，支持统计下载次数、7 天过期、随时撤销。内嵌图片（`cid:`）始终留在邮件里，避免正文裂图。阈值由 `SMART_ATTACHMENT_THRESHOLD` 控制。
+
+后台「设置 → 存储」可以在 R2 与 KV 之间切换。读取和删除会兼容两个后端，切换不会删除历史附件；KV 单个值限制为 25MB。
 
 ### R2 目录结构
 
@@ -175,7 +179,7 @@ npx wrangler login
 npm run setup
 ```
 
-脚本会列出计划、等你确认，再依次完成：建 D1 → 把 `database_id` 回填进 wrangler.jsonc（保留注释）→ 建 R2 → 建表 → 部署 → 生成并写入两个机密 → 把 `APP_URL` 回填成实际地址。
+脚本会列出计划、等你确认，再依次完成：建 D1 → 创建或复用 KV → 尝试创建 R2（未开通付费时自动使用 KV）→ 回填绑定 → 建表 → 部署 → 生成并写入两个机密 → 把 `APP_URL` 回填成实际地址。
 
 全程幂等，中途失败修好后重跑即可，已完成的步骤自动跳过。**已存在的 `ENCRYPTION_KEY` 绝不会被覆盖**——它是渠道密钥的主密钥，换掉等于作废所有已保存的发信配置。
 
@@ -193,6 +197,12 @@ npx wrangler d1 create mailedge
 
 ```bash
 npx wrangler r2 bucket create mailedge-attachments
+```
+
+如果账户未开通 R2，改为创建 KV namespace，并把返回的 ID 填入 `wrangler.jsonc` 的 `kv_namespaces[0].id`：
+
+```bash
+npx wrangler kv namespace create mailedge-attachments
 ```
 
 把 `d1 create` 输出的 `database_id` 填进 [wrangler.jsonc](wrangler.jsonc)，同时把 `APP_URL` 改成你的正式域名（下载链接会用它拼绝对地址）。
@@ -300,6 +310,8 @@ npm run verify
 | `POST` | `/api/auth/login` `/logout` `/password` | 会话 |
 | `GET` | `/api/auth/me` | 当前用户与信箱 |
 | `GET/POST/DELETE` | `/api/mailboxes` | 收件地址管理 |
+| `PATCH` | `/api/mailboxes/:id` | 更新左侧显示名称（不改变路由地址） |
+| `GET/POST/PATCH/DELETE` | `/api/folders` `/api/folders/:id` | 自定义文件夹管理 |
 | `GET` | `/api/messages` | 列表，支持 `folder` `q` `before` 分页 |
 | `GET/PATCH/DELETE` | `/api/messages/:id` | 详情、已读/星标/移动、删除（先进回收站） |
 | `GET` | `/api/messages/:id/attachments/:attachmentId` | 收件附件下载 |
@@ -332,5 +344,5 @@ curl -X POST https://your-domain/api/mail/send -b cookie.txt -F 'payload={"from"
 
 - Cloudflare 的 Workers Binding 收的是原始 MIME，报文由 [src/mail/mime.ts](src/mail/mime.ts) 自行构建（抄送、密送、回复地址、自定义头、附件、内嵌图片都已覆盖）。绑定按信封收件人逐个投递，因此收件人多时会调用多次 `send()`；若中途失败可能出现部分投递。
 - Sendflare 的字段名与签名头以其当前 API Reference 为准，如有调整只需要改 [src/mail/providers/sendflare.ts](src/mail/providers/sendflare.ts)，不影响上层抽象。
-- HTML 正文在前端用 `sandbox=""` 的 iframe 渲染，脚本、表单、同源访问全部禁用。
+- HTML 正文在前端用沙箱 iframe 渲染，脚本、表单和顶层导航全部禁用；前端仅读取文档高度，避免长正文被固定视口裁断。
 - 邮件按地址分片存储在各自的 Durable Object 中，跨信箱的全局搜索需要另做索引。

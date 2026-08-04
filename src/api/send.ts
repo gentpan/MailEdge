@@ -44,7 +44,7 @@ send.post("/send", async (c) => {
     const internalId = newMessageId();
     const bodySize = new TextEncoder().encode((input.html ?? "") + (input.text ?? "")).byteLength;
 
-    // 智能附件：小文件真发，大文件转 R2 下载链接
+    // 智能附件：小文件真发，大文件转对象存储下载链接
     const prepared = await prepareAttachments(c.env, {
       messageId: internalId,
       userId: user.id,
@@ -250,7 +250,7 @@ async function parseSendRequest(c: Context<AppContext>): Promise<ParsedSend> {
   const attachments: IncomingAttachment[] = [];
   const stagedTokens: string[] = [];
   for (const item of body.attachments ?? []) {
-    // 先暂存后提交的附件：从 R2 staging 读取内容
+    // 先暂存后提交的附件：从对象存储 staging 读取内容
     if (item.token) {
       const staged = await readStagedAttachment(c.env, user.id, item.token);
       if (!staged) return { error: `附件「${item.filename}」已过期，请重新添加` };

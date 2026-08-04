@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "../env";
+import { r2Key } from "../lib/r2key";
 import type {
   FolderStats,
   MailFolder,
@@ -9,6 +10,7 @@ import type {
   MessageSummary,
 } from "../shared/message";
 import { stripHtml } from "../shared/text";
+import { createObjectStorage, type StorageObjectBody } from "../storage";
 
 export interface StoreMessageInput {
   id: string;
@@ -62,12 +64,16 @@ export interface MailboxAttachmentRecord {
 }
 
 /**
- * 一个邮箱地址一个实例，邮件正文存在实例自带的 SQLite 里。
- * 附件二进制不进 SQLite，只存 R2 键或分享 token。
+ * 一个邮箱地址一个实例，列表元数据存在实例自带的 SQLite 里；正文和完整邮件头会在保留期后归档到对象存储。
+ * 附件二进制不进 SQLite，只存对象存储键或分享 token。
  */
 export class MailboxDO extends DurableObject<Env> {
+  private readonly environment: Env;
+  private ftsEnabled = false;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.environment = env;
     ctx.blockConcurrencyWhile(async () => {
       this.migrate();
     });
@@ -151,6 +157,8 @@ export class MailboxDO extends DurableObject<Env> {
         error        TEXT,
         category     TEXT,
         ai_summary   TEXT,
+        body_r2_key  TEXT,
+        body_archived_at TEXT,
         received_at  TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_messages_folder ON messages(folder, received_at DESC);
@@ -170,9 +178,9 @@ export class MailboxDO extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
     `);
 
-    // 存量 DO 的补列：category / ai_summary 是后加的，ADD COLUMN 幂等靠 catch 兜住。
+    // 存量 DO 的补列：新增列是后加的，ADD COLUMN 幂等靠 catch 兜住。
     // 必须在依赖这些列的索引之前执行——否则存量表上的 CREATE INDEX 会因列不存在而抛错。
-    for (const column of ["category TEXT", "ai_summary TEXT"]) {
+    for (const column of ["category TEXT", "ai_summary TEXT", "body_r2_key TEXT", "body_archived_at TEXT"]) {
       try {
         this.sql.exec(`ALTER TABLE messages ADD COLUMN ${column}`);
       } catch {
@@ -180,6 +188,45 @@ export class MailboxDO extends DurableObject<Env> {
       }
     }
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_messages_category ON messages(category)`);
+
+    // FTS5 在支持的 SQLite 实例上用于主题、摘要、发件人和正文搜索；不支持时保留 LIKE 回退。
+    try {
+      this.sql.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+          message_id UNINDEXED,
+          subject,
+          snippet,
+          from_email,
+          text
+        )
+      `);
+      const count = this.sql
+        .exec<{ count: number }>(`SELECT COUNT(*) AS count FROM messages_fts`)
+        .toArray()[0]?.count;
+      if (!count) {
+        this.sql.exec(
+          `INSERT INTO messages_fts (message_id, subject, snippet, from_email, text)
+           SELECT id, subject, snippet, from_email, COALESCE(text, '') FROM messages`,
+        );
+      }
+      this.sql.exec(`
+        CREATE TRIGGER IF NOT EXISTS messages_fts_ai AFTER INSERT ON messages BEGIN
+          INSERT INTO messages_fts (message_id, subject, snippet, from_email, text)
+          VALUES (new.id, new.subject, new.snippet, new.from_email, COALESCE(new.text, ''));
+        END;
+        CREATE TRIGGER IF NOT EXISTS messages_fts_ad AFTER DELETE ON messages BEGIN
+          DELETE FROM messages_fts WHERE message_id = old.id;
+        END;
+        CREATE TRIGGER IF NOT EXISTS messages_fts_au AFTER UPDATE ON messages BEGIN
+          DELETE FROM messages_fts WHERE message_id = old.id;
+          INSERT INTO messages_fts (message_id, subject, snippet, from_email, text)
+          VALUES (new.id, new.subject, new.snippet, new.from_email, COALESCE(new.text, ''));
+        END;
+      `);
+      this.ftsEnabled = true;
+    } catch {
+      this.ftsEnabled = false;
+    }
   }
 
   async store(input: StoreMessageInput): Promise<void> {
@@ -254,7 +301,7 @@ export class MailboxDO extends DurableObject<Env> {
     before?: string;
     search?: string;
   }): Promise<{ items: MessageSummary[]; nextCursor: string | null }> {
-    const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
+    const limit = Math.min(Math.max(params.limit ?? 25, 1), 200);
     const conditions: string[] = [];
     const values: unknown[] = [];
 
@@ -270,25 +317,34 @@ export class MailboxDO extends DurableObject<Env> {
       conditions.push("received_at < ?");
       values.push(params.before);
     }
-    if (params.search) {
-      conditions.push(
-        "(subject LIKE ? ESCAPE '\\' OR snippet LIKE ? ESCAPE '\\' OR from_email LIKE ? ESCAPE '\\' OR text LIKE ? ESCAPE '\\')",
-      );
-      // 转义 LIKE 通配符，否则输入里的 %/_ 会把普通字符当通配符
-      const escaped = params.search.replace(/[\\%_]/g, (m) => `\\${m}`);
-      const pattern = `%${escaped}%`;
-      values.push(pattern, pattern, pattern, pattern);
+    if (params.search?.trim()) {
+      if (this.ftsEnabled) {
+        conditions.push(`m.id IN (SELECT message_id FROM messages_fts WHERE messages_fts MATCH ?)`);
+        values.push(buildFtsQuery(params.search));
+      } else {
+        addLikeSearch(conditions, values, params.search);
+      }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const rows = this.sql
-      .exec<MessageRow>(
-        `SELECT m.*, (SELECT COUNT(*) FROM attachments a WHERE a.message_id = m.id) AS attachment_count
-         FROM messages m ${where} ORDER BY received_at DESC LIMIT ?`,
-        ...values,
-        limit + 1,
-      )
-      .toArray();
+    let rows: MessageRow[];
+    try {
+      rows = this.sql
+        .exec<MessageRow>(
+          `SELECT m.*, (SELECT COUNT(*) FROM attachments a WHERE a.message_id = m.id) AS attachment_count
+           FROM messages m ${where} ORDER BY received_at DESC LIMIT ?`,
+          ...values,
+          limit + 1,
+        )
+        .toArray();
+    } catch (error) {
+      // 某些旧实例可能在 FTS5 初始化后仍拒绝 MATCH；降级一次即可继续使用搜索。
+      if (this.ftsEnabled && params.search?.trim()) {
+        this.ftsEnabled = false;
+        return this.list(params);
+      }
+      throw error;
+    }
 
     const hasMore = rows.length > limit;
     const items = rows.slice(0, limit).map(toSummary);
@@ -310,14 +366,34 @@ export class MailboxDO extends DurableObject<Env> {
       .toArray()
       .map(toAttachmentView);
 
+    let html = row.html;
+    let text = row.text;
+    let headers = safeParse<Record<string, string>>(row.headers_json, {});
+    if (row.body_r2_key && html === null && text === null) {
+      let archived: StorageObjectBody | null = null;
+      try {
+        archived = await (await createObjectStorage(this.environment)).get(row.body_r2_key);
+      } catch {
+        // 对象存储暂时不可用时仍返回列表元数据，不让整封邮件读取失败。
+      }
+      if (archived) {
+        const body = await archived.json<ArchivedMessageBody>().catch(() => null);
+        if (body) {
+          html = body.html ?? null;
+          text = body.text ?? null;
+          headers = body.headers ?? {};
+        }
+      }
+    }
+
     return {
       ...toSummary(row),
       cc: parseAddresses(row.cc_json),
       bcc: parseAddresses(row.bcc_json),
       replyTo: row.reply_to_json ? safeParse<MessageAddress>(row.reply_to_json, { email: "" }) : null,
-      html: row.html,
-      text: row.text,
-      headers: safeParse<Record<string, string>>(row.headers_json, {}),
+      html,
+      text,
+      headers,
       size: row.size,
       messageId: row.message_id,
       inReplyTo: row.in_reply_to,
@@ -341,6 +417,11 @@ export class MailboxDO extends DurableObject<Env> {
     this.sql.exec(`UPDATE messages SET is_read = ? WHERE id = ?`, isRead ? 1 : 0, id);
   }
 
+  async markAllRead(folder: MailFolder): Promise<void> {
+    this.sql.exec(`UPDATE messages SET is_read = 1 WHERE folder = ?`, folder);
+    this.broadcast({ type: "mail", folder, direction: "inbound" });
+  }
+
   async setStarred(id: string, isStarred: boolean): Promise<void> {
     this.sql.exec(`UPDATE messages SET is_starred = ? WHERE id = ?`, isStarred ? 1 : 0, id);
   }
@@ -349,17 +430,110 @@ export class MailboxDO extends DurableObject<Env> {
     this.sql.exec(`UPDATE messages SET folder = ? WHERE id = ?`, folder, id);
   }
 
-  /** 从回收站彻底删除，返回需要一并清理的 R2 键 */
+  /** 删除用户文件夹时，把其中邮件安全地移回系统收件箱。 */
+  async moveFolder(source: string, target: MailFolder = "inbox"): Promise<void> {
+    this.sql.exec(`UPDATE messages SET folder = ? WHERE folder = ?`, target, source);
+    this.broadcast({ type: "mail", folder: target, direction: "inbound" });
+  }
+
+  /** 从回收站彻底删除，返回需要一并清理的对象存储键 */
   async purge(id: string): Promise<string[]> {
-    const keys = this.sql
+    const attachmentKeys = this.sql
       .exec<{ r2_key: string | null }>(`SELECT r2_key FROM attachments WHERE message_id = ?`, id)
       .toArray()
       .map((row) => row.r2_key)
       .filter((key): key is string => Boolean(key));
+    const bodyKeys = this.sql
+      .exec<{ body_r2_key: string | null }>(`SELECT body_r2_key FROM messages WHERE id = ?`, id)
+      .toArray()
+      .map((row) => row.body_r2_key)
+      .filter((key): key is string => Boolean(key));
 
     this.sql.exec(`DELETE FROM attachments WHERE message_id = ?`, id);
     this.sql.exec(`DELETE FROM messages WHERE id = ?`, id);
-    return keys;
+    return [...attachmentKeys, ...bodyKeys];
+  }
+
+  /** 将达到保留期限的正文和完整邮件头移到对象存储，DO SQLite 只留列表字段和对象路径。 */
+  async archiveOldMessages(
+    mailboxId: string,
+    cutoffIso: string,
+    limit = 50,
+  ): Promise<{ archived: number; hasMore: boolean }> {
+    const rows = this.sql
+      .exec<ArchiveRow>(
+        `SELECT id, subject, text, html, headers_json, received_at
+         FROM messages
+         WHERE received_at < ? AND body_r2_key IS NULL
+           AND (html IS NOT NULL OR text IS NOT NULL OR headers_json <> '{}')
+         ORDER BY received_at ASC LIMIT ?`,
+        cutoffIso,
+        Math.min(Math.max(limit, 1), 100),
+      )
+      .toArray();
+    if (!rows.length) return { archived: 0, hasMore: false };
+
+    const objectStorage = await createObjectStorage(this.environment);
+    let archived = 0;
+    const archivedAt = new Date().toISOString();
+    for (const row of rows) {
+      const receivedAt = new Date(row.received_at);
+      const at = Number.isNaN(receivedAt.getTime()) ? new Date() : receivedAt;
+      const key = r2Key.messageBody(mailboxId, row.id, at);
+      await objectStorage.put(
+        key,
+        JSON.stringify({
+          version: 1,
+          messageId: row.id,
+          subject: row.subject,
+          html: row.html,
+          text: row.text,
+          headers: safeParse<Record<string, string>>(row.headers_json, {}),
+        }),
+        { httpMetadata: { contentType: "application/json" } },
+      );
+      this.sql.exec(
+        `UPDATE messages SET html = NULL, text = NULL, headers_json = '{}', body_r2_key = ?, body_archived_at = ?
+         WHERE id = ? AND body_r2_key IS NULL`,
+        key,
+        archivedAt,
+        row.id,
+      );
+      archived += 1;
+    }
+    return { archived, hasMore: rows.length >= limit };
+  }
+
+  /** 返回当前 Durable Object 的近似 SQLite 与邮件使用量。 */
+  async usage(): Promise<MailboxUsage> {
+    const counts = this.sql
+      .exec<{ messages: number; attachments: number; archived: number; body_bytes: number }>(
+        `SELECT
+           (SELECT COUNT(*) FROM messages) AS messages,
+           (SELECT COUNT(*) FROM attachments) AS attachments,
+           (SELECT COUNT(*) FROM messages WHERE body_r2_key IS NOT NULL) AS archived,
+           COALESCE((SELECT SUM(length(COALESCE(html, '') || COALESCE(text, '') || headers_json)) FROM messages), 0) AS body_bytes`,
+      )
+      .toArray()[0];
+    let sqliteBytes: number | null = null;
+    try {
+      const page = this.sql
+        .exec<{ page_count: number; page_size: number }>(
+          `SELECT (SELECT page_count FROM pragma_page_count) AS page_count,
+                  (SELECT page_size FROM pragma_page_size) AS page_size`,
+        )
+        .toArray()[0];
+      if (page?.page_count && page.page_size) sqliteBytes = Number(page.page_count) * Number(page.page_size);
+    } catch {
+      // 旧 DO SQLite 不暴露 page_count 时仍返回邮件和附件数量。
+    }
+    return {
+      messages: Number(counts?.messages ?? 0),
+      attachments: Number(counts?.attachments ?? 0),
+      archivedMessages: Number(counts?.archived ?? 0),
+      bodyBytesInSqlite: Number(counts?.body_bytes ?? 0),
+      sqliteBytes,
+    };
   }
 
   async stats(): Promise<FolderStats[]> {
@@ -399,7 +573,7 @@ export class MailboxDO extends DurableObject<Env> {
     };
   }
 
-  /** 附件管理：只返回仍有 R2 对象引用的附件，分享附件由 D1 attachment_links 单独管理。 */
+  /** 附件管理：只返回仍有对象存储引用的附件，分享附件由 D1 attachment_links 单独管理。 */
   async listAttachments(limit = 500): Promise<MailboxAttachmentRecord[]> {
     const rows = this.sql
       .exec<AttachmentRow & { subject: string; direction: string; folder: string; received_at: string }>(
@@ -428,7 +602,7 @@ export class MailboxDO extends DurableObject<Env> {
     }));
   }
 
-  /** 删除邮件附件元数据并返回对应 R2 键；调用方负责删除 R2 对象。 */
+  /** 删除邮件附件元数据并返回对应对象存储键；调用方负责删除对象。 */
   async deleteAttachment(messageId: string, id: string): Promise<string | null> {
     const row = this.sql
       .exec<{ r2_key: string | null }>(
@@ -489,8 +663,36 @@ interface MessageRow extends Record<string, SqlStorageValue> {
   error: string | null;
   category: string | null;
   ai_summary: string | null;
+  body_r2_key: string | null;
+  body_archived_at: string | null;
   received_at: string;
   attachment_count: number;
+}
+
+interface ArchiveRow extends Record<string, SqlStorageValue> {
+  id: string;
+  subject: string;
+  text: string | null;
+  html: string | null;
+  headers_json: string;
+  received_at: string;
+}
+
+interface ArchivedMessageBody {
+  version: number;
+  messageId: string;
+  subject: string;
+  html: string | null;
+  text: string | null;
+  headers: Record<string, string>;
+}
+
+export interface MailboxUsage {
+  messages: number;
+  attachments: number;
+  archivedMessages: number;
+  bodyBytesInSqlite: number;
+  sqliteBytes: number | null;
 }
 
 interface AttachmentRow extends Record<string, SqlStorageValue> {
@@ -557,4 +759,23 @@ function safeParse<T>(raw: string | null, fallback: T): T {
 function buildSnippet(text?: string | null, html?: string | null): string {
   const source = text ?? stripHtml(html ?? "");
   return source.replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function addLikeSearch(conditions: string[], values: unknown[], query: string): void {
+  conditions.push(
+    "(m.subject LIKE ? ESCAPE '\\' OR m.snippet LIKE ? ESCAPE '\\' OR m.from_email LIKE ? ESCAPE '\\' OR m.text LIKE ? ESCAPE '\\')",
+  );
+  // 转义 LIKE 通配符，否则输入里的 %/_ 会把普通字符当通配符
+  const escaped = query.replace(/[\\%_]/g, (m) => `\\${m}`);
+  const pattern = `%${escaped}%`;
+  values.push(pattern, pattern, pattern, pattern);
+}
+
+function buildFtsQuery(query: string): string {
+  return query
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => `"${token.replace(/"/g, '""')}"*`)
+    .join(" AND ");
 }

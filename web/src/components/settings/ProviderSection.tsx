@@ -18,6 +18,7 @@ import { api } from "../../lib/api";
 import { formatDateTime, PROVIDER_LABELS } from "../../lib/format";
 import FormRow from "./FormRow";
 import ProviderLogo from "./ProviderLogo";
+import { useSettingsToast } from "./SettingsToast";
 
 const ICONS: Record<MailProviderType, typeof Cloud> = {
   cloudflare: Cloud,
@@ -55,7 +56,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
 
   const [testTo, setTestTo] = useState("");
   const [testFrom, setTestFrom] = useState(mailboxes[0]?.address ?? "");
-  const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const { showToast, dismissToast } = useSettingsToast();
   const [busy, setBusy] = useState(false);
   const [domains, setDomains] = useState(((provider?.config.verifiedDomains as string[]) ?? []).join(", "));
   const [fromName, setFromName] = useState((provider?.config.fromName as string) ?? "");
@@ -76,7 +77,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
 
   async function save() {
     setBusy(true);
-    setMessage(null);
+    dismissToast();
     try {
       await api.saveProvider({
         id: provider?.id,
@@ -99,14 +100,14 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
                     security: smtpSecurity,
                   },
       });
-      setMessage({ kind: "success", text: t("common.saved") });
+      showToast({ kind: "success", text: t("common.saved") });
       setApiKey("");
       setToken("");
       setSecret("");
       setSmtpPass("");
       onChanged();
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
+      showToast({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -115,17 +116,17 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
   async function fetchDomains() {
     if (!provider) return;
     setFetchingDomains(true);
-    setMessage(null);
+    dismissToast();
     try {
       const result = await api.fetchProviderDomains(provider.id);
       setDomains(result.domains.join(", "));
-      setMessage({
+      showToast({
         kind: "success",
         text: result.domains.length ? result.domains.join("、") : t("providers.domains.empty"),
       });
       onChanged();
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
+      showToast({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setFetchingDomains(false);
     }
@@ -134,16 +135,16 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
   async function test() {
     if (!provider) return;
     setBusy(true);
-    setMessage(null);
+    dismissToast();
     try {
       const { result } = await api.testProvider(provider.id, { from: testFrom, to: testTo });
-      setMessage(
+      showToast(
         result.success
           ? { kind: "success", text: result.providerMessageId ?? "OK" }
           : { kind: "error", text: result.error ?? "error" },
       );
     } catch (error) {
-      setMessage({ kind: "error", text: error instanceof Error ? error.message : "error" });
+      showToast({ kind: "error", text: error instanceof Error ? error.message : "error" });
     } finally {
       setBusy(false);
     }
@@ -197,12 +198,6 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
             </div>
           )}
           <p className="provider-block__desc">{t(`providers.desc.${type}` as TranslationKey)}</p>
-
-          {message && (
-            <div className={`alert alert--${message.kind}`} role="status">
-              {message.text}
-            </div>
-          )}
 
           {provider?.lastError && (
             <div className="alert alert--warning">

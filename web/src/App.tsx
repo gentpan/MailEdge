@@ -1,10 +1,11 @@
 import { Loader2 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import Logo from "./components/Logo";
 import type { Mailbox, User } from "./lib/api";
 import { ApiError, api } from "./lib/api";
 import AuthPage from "./pages/AuthPage";
+import LicensePage from "./pages/LicensePage";
 import MailPage from "./pages/MailPage";
 import SettingsPage from "./pages/SettingsPage";
 
@@ -30,6 +31,7 @@ type State =
   | { phase: "ready"; user: User; mailboxes: Mailbox[] };
 
 export default function App() {
+  const location = useLocation();
   const [state, setState] = useState<State>({ phase: "loading" });
 
   const load = useCallback(async () => {
@@ -55,6 +57,9 @@ export default function App() {
     setState({ phase: "anonymous" });
   }, []);
 
+  // 许可证和第三方来源页不需要登录，便于用户在登录前核对授权信息。
+  if (location.pathname === "/license") return <LicensePage />;
+
   if (state.phase === "loading") {
     return (
       <div className="empty">
@@ -74,10 +79,21 @@ export default function App() {
   return (
     <SessionContext.Provider value={{ user: state.user, mailboxes: state.mailboxes, refresh: load, signOut }}>
       <Routes>
-        <Route path="/" element={<MailPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<MailPage />} />
+        <Route path="/inbox" element={<MailPage />} />
+        <Route path="/sent" element={<MailPage />} />
+        <Route path="/archive" element={<MailPage />} />
+        <Route path="/spam" element={<MailPage />} />
+        <Route path="/trash" element={<MailPage />} />
+        <Route path="/folder/:folderId" element={<MailPage />} />
+        <Route path="/outbox" element={<MailPage />} />
+        <Route path="/shares" element={<Navigate to="/attachments" replace />} />
+        <Route path="/attachments" element={<MailPage />} />
+        <Route path="/contacts" element={<MailPage />} />
         <Route path="/settings" element={<Navigate to="/settings/account" replace />} />
         <Route path="/settings/:category" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </SessionContext.Provider>
   );

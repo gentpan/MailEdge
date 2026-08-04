@@ -46,7 +46,6 @@ ai.post("/config", requireAdmin, async (c) => {
     // 留空或脱敏值表示沿用原 Key
     apiKey: keepSecret(body.apiKey, current.apiKey),
     model: body.model?.trim() || current.model,
-    autoClassify: body.autoClassify ?? current.autoClassify,
   };
   await saveAiConfig(c.env, next);
   return c.json({ ai: redactAi(next) });

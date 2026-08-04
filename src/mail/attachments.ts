@@ -4,6 +4,7 @@ import { randomToken } from "../lib/id";
 import { r2Key } from "../lib/r2key";
 import { trimTrailingSlash } from "../lib/url";
 import { escapeHtml } from "../shared/text";
+import { createObjectStorage, MAX_KV_VALUE_BYTES } from "../storage";
 import type { MailAttachment, SendMailInput } from "./types";
 
 export interface IncomingAttachment {
@@ -25,14 +26,14 @@ export interface SharedAttachment {
 export interface PreparedAttachments {
   /** 真正随邮件发送的附件 */
   inline: MailAttachment[];
-  /** 改为 R2 下载链接的附件 */
+  /** 改为对象存储下载链接的附件 */
   shared: SharedAttachment[];
 }
 
 /**
  * 智能附件：
  *   ≤ 阈值（默认 3 MB）且整封邮件不超过 Provider 上限 → 真 Email Attachment
- *   否则 → 上传 R2，正文插入带 token 的下载链接
+ *   否则 → 上传对象存储，正文插入带 token 的下载链接
  * 用户不需要关心底层用了哪种方式。
  */
 export async function prepareAttachments(
@@ -73,13 +74,13 @@ export async function prepareAttachments(
       continue;
     }
 
-    shared.push(await shareViaR2(env, { ...params, attachment, ttlDays }));
+    shared.push(await shareViaStorage(env, { ...params, attachment, ttlDays }));
   }
 
   return { inline, shared };
 }
 
-async function shareViaR2(
+async function shareViaStorage(
   env: Env,
   params: {
     messageId: string;
@@ -90,10 +91,14 @@ async function shareViaR2(
   },
 ): Promise<SharedAttachment> {
   const { attachment } = params;
+  const objectStorage = await createObjectStorage(env);
+  if (objectStorage.backend === "kv" && attachment.content.byteLength > MAX_KV_VALUE_BYTES) {
+    throw new Error("当前使用 KV 存储，单个分享附件不能超过 25MB");
+  }
   const token = randomToken(24);
   const key = r2Key.share(params.mailboxId, token, attachment.filename);
 
-  await env.R2.put(key, attachment.content, {
+  await objectStorage.put(key, attachment.content, {
     httpMetadata: {
       contentType: attachment.contentType,
       contentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`,

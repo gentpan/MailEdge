@@ -3,6 +3,7 @@ import { listMailboxes, mailboxStub } from "../db/mailboxes";
 import type { Env } from "../env";
 import { randomToken } from "../lib/id";
 import { safeName } from "../lib/r2key";
+import { createObjectStorage, MAX_KV_VALUE_BYTES, type StorageObjectBody } from "../storage";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -36,7 +37,7 @@ interface ShareAttachmentRef {
 
 type AttachmentRef = MessageAttachmentRef | ShareAttachmentRef;
 
-/** 列出当前账户所有已归档的 R2 附件（收到、已发送和分享附件）。 */
+/** 列出当前账户所有已归档的对象存储附件（收到、已发送和分享附件）。 */
 attachments.get("/", async (c) => {
   const userId = c.get("user").id;
   const mailboxes = await listMailboxes(c.env, userId);
@@ -111,8 +112,13 @@ attachments.post("/stage", async (c) => {
 
   const token = randomToken(24);
   const key = `staging/${c.get("user").id}/${token}/${safeName(resolved.filename, 120)}`;
-  await c.env.R2.put(key, resolved.object.body, {
+  const objectStorage = await createObjectStorage(c.env);
+  if (objectStorage.backend === "kv" && resolved.size > MAX_KV_VALUE_BYTES) {
+    return c.json({ error: "当前使用 KV 存储，单个附件不能超过 25MB" }, 413);
+  }
+  await objectStorage.put(key, resolved.object.body, {
     httpMetadata: { contentType: resolved.contentType },
+    size: resolved.size,
   });
   return c.json({
     token,
@@ -135,7 +141,7 @@ attachments.delete("/", async (c) => {
     const stub = mailboxStub(c.env, mailbox);
     const item = await stub.getAttachment(body.messageId, body.attachmentId);
     if (!item?.r2Key) return c.json({ error: "附件不存在或已被删除" }, 404);
-    await c.env.R2.delete(item.r2Key);
+    await (await createObjectStorage(c.env)).delete(item.r2Key);
     await stub.deleteAttachment(body.messageId, body.attachmentId);
     return c.json({ ok: true });
   }
@@ -147,7 +153,7 @@ attachments.delete("/", async (c) => {
     .first<Pick<ShareRow, "token" | "r2_key">>();
   if (!row) return c.json({ error: "附件不存在或已被删除" }, 404);
 
-  await c.env.R2.delete(row.r2_key);
+  await (await createObjectStorage(c.env)).delete(row.r2_key);
   await c.env.DB.prepare(`DELETE FROM attachment_links WHERE token = ? AND user_id = ?`)
     .bind(body.token, userId)
     .run();
@@ -175,7 +181,7 @@ async function resolveObject(
   userId: string,
   ref: AttachmentRef,
 ): Promise<{
-  object: R2ObjectBody | null;
+  object: StorageObjectBody | null;
   filename: string;
   contentType: string;
   size: number;
@@ -185,7 +191,7 @@ async function resolveObject(
     if (!mailbox) return null;
     const attachment = await mailboxStub(env, mailbox).getAttachment(ref.messageId, ref.attachmentId);
     if (!attachment?.r2Key) return null;
-    const object = await env.R2.get(attachment.r2Key);
+    const object = await (await createObjectStorage(env)).get(attachment.r2Key);
     return object
       ? {
           object,
@@ -211,7 +217,7 @@ async function resolveObject(
     >();
   if (!row || row.is_revoked === 1 || (row.expires_at && new Date(row.expires_at).getTime() < Date.now()))
     return null;
-  const object = await env.R2.get(row.r2_key);
+  const object = await (await createObjectStorage(env)).get(row.r2_key);
   return object
     ? { object, filename: row.filename, contentType: row.content_type, size: row.size }
     : { object: null, filename: row.filename, contentType: row.content_type, size: row.size };

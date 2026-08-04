@@ -3,7 +3,9 @@ import type { MailboxDO } from "./do/mailbox";
 export interface Env {
   // 绑定
   DB: D1Database;
-  R2: R2Bucket;
+  /** 可选对象存储：部署到未开通 R2 的账户时可以只绑定 KV。 */
+  R2?: R2Bucket;
+  KV?: KVNamespace;
   MAILBOX: DurableObjectNamespace<MailboxDO>;
   ASSETS: Fetcher;
   /**
@@ -21,7 +23,7 @@ export interface Env {
   MAX_EMAIL_SIZE: string;
   ATTACHMENT_LINK_TTL_DAYS: string;
   APP_URL: string;
-  /** 安装向导（deployer）地址，用于界面内一键更新 */
+  /** 安装向导（deployer）地址，用于版本检查与升级跳转 */
   DEPLOYER_URL: string;
 }
 

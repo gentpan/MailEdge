@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createObjectStorage } from "../storage";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -19,7 +20,7 @@ interface LinkRow {
 
 /**
  * 大附件的公开下载入口（智能附件生成的链接）。
- * 由 Worker 校验 token、有效期与撤销状态，再从 R2 出流。
+ * 由 Worker 校验 token、有效期与撤销状态，再从对象存储出流。
  */
 download.get("/d/:token", async (c) => {
   const row = await c.env.DB.prepare(`SELECT * FROM attachment_links WHERE token = ?`)
@@ -30,7 +31,7 @@ download.get("/d/:token", async (c) => {
   if (row.is_revoked === 1) return c.text("链接已被撤销", 410);
   if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) return c.text("链接已过期", 410);
 
-  const object = await c.env.R2.get(row.r2_key);
+  const object = await (await createObjectStorage(c.env)).get(row.r2_key);
   if (!object) return c.text("文件已被清理", 410);
 
   c.executionCtx.waitUntil(

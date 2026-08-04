@@ -1,5 +1,18 @@
-import { Paperclip, Send, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Bold,
+  Code2,
+  Heading2,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Minus,
+  Paperclip,
+  Quote,
+  Send,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { markdownToEmailHtml } from "../../../src/shared/markdown";
 import { useI18n } from "../i18n";
 import type { Mailbox, ProviderView, SendResponse, StagedAttachment } from "../lib/api";
@@ -57,6 +70,7 @@ export default function ComposeModal({
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState(draft?.text ?? "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const stagedAttachment = draft?.stagedAttachment;
   const [attachments, setAttachments] = useState<AttachmentItem[]>(() =>
     stagedAttachment
@@ -82,6 +96,47 @@ export default function ComposeModal({
     [attachments, thresholdBytes],
   );
   const uploading = attachments.some((a) => a.status === "uploading");
+
+  /** 在 Markdown 编辑器中插入格式标记，并尽量恢复光标位置。 */
+  function applyMarkdown(prefix: string, suffix = "", block = false, usePlaceholder = true) {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = text.slice(start, end);
+    let nextText = text;
+    let nextStart = start;
+    let nextEnd = end;
+
+    if (block) {
+      const lineStart = text.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+      const lineEndIndex = text.indexOf("\n", end);
+      const lineEnd = lineEndIndex === -1 ? text.length : lineEndIndex;
+      const blockText = text.slice(lineStart, lineEnd);
+      const lines = blockText ? blockText.split("\n") : [""];
+      const formatted = lines
+        .map((line, index) => `${prefix.replace("{n}", String(index + 1))}${line}`)
+        .join("\n");
+      nextText = `${text.slice(0, lineStart)}${formatted}${text.slice(lineEnd)}`;
+      nextStart = lineStart;
+      nextEnd = lineStart + formatted.length;
+    } else {
+      const placeholder = prefix === "[" ? "链接文字" : "文本";
+      const replacement = `${prefix}${selected || (usePlaceholder ? placeholder : "")}${suffix}`;
+      nextText = `${text.slice(0, start)}${replacement}${text.slice(end)}`;
+      nextStart = usePlaceholder || selected ? start + prefix.length : start + replacement.length;
+      nextEnd = selected
+        ? nextStart + selected.length
+        : nextStart + (usePlaceholder ? placeholder.length : 0);
+    }
+
+    setText(nextText);
+    requestAnimationFrame(() => {
+      editor.focus();
+      editor.setSelectionRange(nextStart, nextEnd);
+    });
+  }
 
   /** 选中文件即上传到暂存区，带进度 */
   function handleFiles(newFiles: FileList | null) {
@@ -286,11 +341,97 @@ export default function ComposeModal({
                 {t("compose.tab.preview")}
               </button>
             </div>
+            {mode === "edit" && (
+              <div className="compose-formatting" role="toolbar" aria-label={t("compose.format")}>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.bold")}
+                  aria-label={t("compose.format.bold")}
+                  onClick={() => applyMarkdown("**", "**")}
+                >
+                  <Bold size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.italic")}
+                  aria-label={t("compose.format.italic")}
+                  onClick={() => applyMarkdown("*", "*")}
+                >
+                  <Italic size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.heading")}
+                  aria-label={t("compose.format.heading")}
+                  onClick={() => applyMarkdown("## ", "", true)}
+                >
+                  <Heading2 size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.list")}
+                  aria-label={t("compose.format.list")}
+                  onClick={() => applyMarkdown("- ", "", true)}
+                >
+                  <List size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.orderedList")}
+                  aria-label={t("compose.format.orderedList")}
+                  onClick={() => applyMarkdown("{n}. ", "", true)}
+                >
+                  <ListOrdered size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.quote")}
+                  aria-label={t("compose.format.quote")}
+                  onClick={() => applyMarkdown("> ", "", true)}
+                >
+                  <Quote size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.code")}
+                  aria-label={t("compose.format.code")}
+                  onClick={() => applyMarkdown("`", "`")}
+                >
+                  <Code2 size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.link")}
+                  aria-label={t("compose.format.link")}
+                  onClick={() => applyMarkdown("[", "](https://)")}
+                >
+                  <Link2 size={15} />
+                </button>
+                <button
+                  className="compose-formatting__button"
+                  type="button"
+                  title={t("compose.format.divider")}
+                  aria-label={t("compose.format.divider")}
+                  onClick={() => applyMarkdown("\n---\n", "", false, false)}
+                >
+                  <Minus size={15} />
+                </button>
+              </div>
+            )}
             <span className="text-xs text-tertiary">{t("compose.md.hint")}</span>
           </div>
 
           {mode === "edit" ? (
             <textarea
+              ref={editorRef}
               className="compose-body"
               value={text}
               placeholder={t("compose.body.placeholder")}

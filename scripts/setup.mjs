@@ -3,7 +3,7 @@
  * MailEdge 一键部署。
  *
  * 把 README「部署」一节里的手工活全部自动化：建 D1、把 database_id 回填进
- * wrangler.jsonc、建 R2、生成并写入两个机密、建表、部署、回填 APP_URL。
+ * wrangler.jsonc、准备 R2/KV 存储、生成并写入两个机密、建表、部署、回填 APP_URL。
  *
  * 设计前提：
  *   1. 幂等——重复跑不会重复建资源，也不会覆盖已有机密
@@ -225,33 +225,106 @@ function ensureBucket(name) {
   const list = wranglerCapture(["r2", "bucket", "list"]);
 
   if (!list.ok) {
-    throw new SetupError(`无法读取 R2 存储桶列表：${name}`, [
-      "请确认一次性 Token 包含 R2 编辑权限，并在同一 Cloudflare 账户下重试：",
-      "  npx wrangler r2 bucket list",
-    ]);
+    log.warn(`无法使用 R2 存储桶 ${name}，将继续使用 KV（可能需要绑定支付方式）`);
+    return false;
   }
 
   if (hasBucket(list.stdout, name)) {
     log.ok(`R2 存储桶 ${name} 已存在`);
-    return;
+    return true;
   }
 
   log.info(`创建 R2 存储桶 ${name} …`);
   const created = wrangler(["r2", "bucket", "create", name], { allowFailure: true });
   if (!created) {
-    throw new SetupError(`R2 存储桶 ${name} 创建失败`, [
-      "请检查 Token 的 R2 编辑权限、Cloudflare 账户和存储桶名称后重试。",
-    ]);
+    log.warn(`R2 存储桶 ${name} 创建失败，将继续使用 KV`);
+    return false;
   }
 
   // Wrangler 返回成功后再列一次，避免命令输出成功但实际账户中没有桶时继续部署。
   const verified = wranglerCapture(["r2", "bucket", "list"]);
   if (!verified.ok || !hasBucket(verified.stdout, name)) {
-    throw new SetupError(`R2 存储桶 ${name} 创建后校验失败`, [
-      "请在当前 Cloudflare 账户的 R2 页面确认桶是否存在，再重试部署。",
-    ]);
+    log.warn(`R2 存储桶 ${name} 创建后校验失败，将继续使用 KV`);
+    return false;
   }
   log.ok("R2 存储桶已创建");
+  return true;
+}
+
+function kvIdOf(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+  return record.id ?? record.namespace_id ?? record.result?.id ?? record.result?.namespace_id ?? null;
+}
+
+function findKvNamespaceId(wrangled, title) {
+  const parsed = wrangled.ok ? extractJson(wrangled.stdout) : null;
+  const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.result) ? parsed.result : null;
+  if (list) {
+    const row = list.find((item) => item?.title === title || item?.name === title);
+    if (row) return kvIdOf(row);
+  }
+
+  // 不同 Wrangler 版本的 list 命令有时输出表格而不是 JSON，兼容两种列顺序。
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const idPattern = "[0-9a-fA-F-]{8,}";
+  return (
+    new RegExp(`${escaped}[^\\n]*(${idPattern})`, "m").exec(wrangled.stdout)?.[1] ??
+    new RegExp(`(${idPattern})[^\\n]*${escaped}`, "m").exec(wrangled.stdout)?.[1] ??
+    null
+  );
+}
+
+/** 建立或复用 KV namespace。R2 可用时 KV 是可选后端，反之则必须成功。 */
+function ensureKvNamespace(title) {
+  const listed = wranglerCapture(["kv", "namespace", "list"]);
+  if (!listed.ok) {
+    log.warn(`无法读取 KV namespace 列表：${title}，将继续尝试 R2`);
+    return null;
+  }
+
+  const existingId = findKvNamespaceId(listed, title);
+  if (existingId) {
+    log.ok(`KV namespace ${title} 已存在`);
+    log.dim(`namespace_id ${existingId}`);
+    return existingId;
+  }
+
+  log.info(`创建 KV namespace ${title} …`);
+  const created = wranglerCapture(["kv", "namespace", "create", title]);
+  if (!created.ok) {
+    log.warn(`KV namespace ${title} 创建失败，将继续使用 R2`);
+    return null;
+  }
+
+  const fromCreate = /(?:id|namespace_id)\s*[=:]\s*["']?([0-9a-fA-F-]{8,})/.exec(created.stdout)?.[1] ?? null;
+  const id = fromCreate ?? findKvNamespaceId(wranglerCapture(["kv", "namespace", "list"]), title);
+  if (!id) {
+    log.warn("KV namespace 已创建，但读不到 namespace_id，将继续尝试 R2");
+    return null;
+  }
+  log.ok("KV namespace 已创建");
+  log.dim(`namespace_id ${id}`);
+  return id;
+}
+
+function removeR2Binding(raw) {
+  const pattern =
+    /\n {2}\/\/ 附件与待重试的发信载荷\n {2}"r2_buckets": \[\n {4}\{\n {6}"binding": "R2",\n {6}"bucket_name": "[^"]+"\n {4}\}\n {2}\],\n/;
+  if (!pattern.test(raw)) return raw;
+  return raw.replace(pattern, "\n");
+}
+
+function removeKvBinding(raw) {
+  const pattern =
+    /\n {2}\/\/ 无需支付方式的附件后端；部署脚本会按账户创建或复用该 namespace。\n {2}"kv_namespaces": \[\n {4}\{\n {6}"binding": "KV",\n {6}"id": "[^"]+"\n {4}\}\n {2}\],\n/;
+  if (!pattern.test(raw)) return raw;
+  return raw.replace(pattern, "\n");
+}
+
+function replaceKvNamespaceId(raw, id) {
+  const marker = '"REPLACE_WITH_YOUR_KV_NAMESPACE_ID"';
+  if (!raw.includes(marker)) return raw;
+  return raw.replace(marker, JSON.stringify(id));
 }
 
 /**
@@ -346,6 +419,7 @@ async function main() {
   const workerName = config.name ?? "mailedge";
   const dbName = config.d1_databases?.[0]?.database_name ?? "mailedge";
   const bucketName = config.r2_buckets?.[0]?.bucket_name ?? "mailedge-attachments";
+  const kvTitle = "mailedge-attachments";
   const currentDbId = config.d1_databases?.[0]?.database_id ?? "";
   const currentAppUrl = config.vars?.APP_URL ?? "";
 
@@ -354,7 +428,10 @@ async function main() {
 
   console.log(`\n${C.bold}将要执行：${C.reset}`);
   console.log(`  · 创建或复用 D1 数据库    ${C.cyan}${dbName}${C.reset}`);
-  console.log(`  · 创建或复用 R2 存储桶    ${C.cyan}${bucketName}${C.reset}`);
+  console.log(`  · 创建或复用 R2 存储桶    ${C.cyan}${bucketName}${C.reset} ${C.dim}（可选）${C.reset}`);
+  console.log(
+    `  · 创建或复用 KV namespace ${C.cyan}${kvTitle}${C.reset} ${C.dim}（可选，R2 不可用时启用）${C.reset}`,
+  );
   console.log(`  · 生成缺失的机密          ${C.cyan}ENCRYPTION_KEY / SESSION_SECRET${C.reset}`);
   console.log(`  · 在远端数据库建表        ${C.cyan}migrations/${C.reset}`);
   console.log(`  · 部署 Worker             ${C.cyan}${workerName}${C.reset}`);
@@ -382,8 +459,30 @@ async function main() {
     log.ok("database_id 已回填进 wrangler.jsonc");
   }
 
-  log.step(3, TOTAL, "准备 R2 存储桶");
-  ensureBucket(bucketName);
+  log.step(3, TOTAL, "准备 R2 / KV 存储");
+  const kvId = ensureKvNamespace(kvTitle);
+  const r2Enabled = ensureBucket(bucketName);
+  if (!r2Enabled && !kvId) {
+    throw new SetupError("R2 与 KV 均不可用，无法部署对象存储", [
+      "请至少为一次性 Token 授予 R2 编辑权限或 Workers KV Storage 编辑权限。",
+      "也可以先在 Cloudflare 创建 KV namespace，再重新点击部署。",
+    ]);
+  }
+
+  let nextRaw = raw;
+  nextRaw = r2Enabled ? nextRaw : removeR2Binding(nextRaw);
+  nextRaw = kvId ? replaceKvNamespaceId(nextRaw, kvId) : removeKvBinding(nextRaw);
+  if (nextRaw !== raw) {
+    raw = nextRaw;
+    writeFileSync(CONFIG_PATH, raw);
+    log.ok(
+      r2Enabled && kvId
+        ? "R2 与 KV 均已配置，KV namespace ID 已回填"
+        : r2Enabled
+          ? "KV 不可用，已切换为 R2-only 部署"
+          : "R2 不可用，已切换为 KV-only 部署并回填 namespace ID",
+    );
+  }
 
   log.step(4, TOTAL, "建表");
   wrangler(["d1", "migrations", "apply", dbName, "--remote"]);

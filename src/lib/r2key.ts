@@ -55,6 +55,11 @@ export const r2Key = {
     return `inbound/${mailboxId}/${partition(at)}/${messageId}/raw.eml`;
   },
 
+  /** 从 Durable Object SQLite 迁移出的正文、纯文本和完整邮件头 */
+  messageBody(mailboxId: string, messageId: string, at?: Date): string {
+    return `messages/${mailboxId}/${partition(at)}/${messageId}/body.json`;
+  },
+
   /** 待发送载荷所在目录，重试时从这里取回 */
   outboundDir(mailboxId: string, internalId: string, at?: Date): string {
     return `outbound/${mailboxId}/${partition(at)}/${internalId}`;

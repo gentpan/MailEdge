@@ -1,19 +1,80 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import type { FolderStats, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
+import type {
+  CustomFolder,
+  FolderStats,
+  MailFolder,
+  MessageDetail,
+  MessageSummary,
+} from "../../../src/shared/message";
 import { useSession } from "../App";
+import AttachmentPanel from "../components/AttachmentPanel";
 import type { ComposeDraft } from "../components/ComposeModal";
 import ComposeModal from "../components/ComposeModal";
-import MessageList from "../components/MessageList";
+import ContactsView from "../components/ContactsView";
+import MessageList, {
+  MESSAGE_PAGE_SIZE_OPTIONS,
+  type MessageListStyle,
+  type MessagePageSize,
+} from "../components/MessageList";
 import MessageView from "../components/MessageView";
 import OutboxView from "../components/OutboxView";
-import SharesView from "../components/SharesView";
 import type { MailView } from "../components/Sidebar";
 import Sidebar from "../components/Sidebar";
+import SettingsToastProvider from "../components/settings/SettingsToast";
 import { useI18n } from "../i18n";
-import type { ProviderView, SendResponse, StagedAttachment } from "../lib/api";
+import type { Contact, ProviderView, SendResponse, StagedAttachment } from "../lib/api";
 import { api } from "../lib/api";
+import { displayName, formatDateTime } from "../lib/format";
 import { useMailStream } from "../lib/useMailStream";
+
+const DashboardView = lazy(() => import("../components/DashboardView"));
+
+interface MailRouteState {
+  view: MailView;
+  folder: MailFolder;
+  mailboxId?: string;
+}
+
+const SYSTEM_MAIL_ROUTES = new Set<MailFolder>(["inbox", "sent", "archive", "spam", "trash", "catchall"]);
+
+function parseMailRoute(pathname: string, search: string): MailRouteState {
+  const parts = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((part) => decodeURIComponent(part));
+  const mailboxId = new URLSearchParams(search).get("mailboxId") ?? undefined;
+  const first = parts[0] ?? "dashboard";
+
+  if (first === "dashboard") return { view: "dashboard", folder: "inbox", mailboxId };
+  if (first === "outbox") return { view: "outbox", folder: "inbox", mailboxId };
+  // 旧版本的附件链接地址继续可用，但统一进入附件管理。
+  if (first === "shares") return { view: "attachments", folder: "inbox", mailboxId };
+  if (first === "attachments") return { view: "attachments", folder: "inbox", mailboxId };
+  if (first === "contacts") return { view: "contacts", folder: "inbox", mailboxId };
+  if (first === "folder" && parts[1]) return { view: "mail", folder: parts[1], mailboxId };
+  if (SYSTEM_MAIL_ROUTES.has(first as MailFolder)) {
+    return { view: "mail", folder: first as MailFolder, mailboxId };
+  }
+  return { view: "dashboard", folder: "inbox", mailboxId };
+}
+
+function mailPath(view: MailView, folder: MailFolder, mailboxId?: string): string {
+  const path =
+    view === "dashboard"
+      ? "/dashboard"
+      : view === "outbox"
+        ? "/outbox"
+        : view === "attachments"
+          ? "/attachments"
+          : view === "contacts"
+            ? "/contacts"
+            : SYSTEM_MAIL_ROUTES.has(folder)
+              ? `/${folder}`
+              : `/folder/${encodeURIComponent(folder)}`;
+  if (!mailboxId || mailboxId === "all") return path;
+  return `${path}?mailboxId=${encodeURIComponent(mailboxId)}`;
+}
 
 export default function MailPage() {
   const { user, mailboxes, signOut } = useSession();
@@ -21,19 +82,55 @@ export default function MailPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 多个信箱时默认聚合视图，单个信箱就直接用它
-  const [mailboxId, setMailboxId] = useState(mailboxes.length > 1 ? "all" : mailboxes[0]?.id);
+  const initialRoute = parseMailRoute(location.pathname, location.search);
+  // 多个信箱时默认聚合视图，单个信箱就直接用它；路由中的 mailboxId 优先。
+  const [mailboxId, setMailboxId] = useState(
+    initialRoute.mailboxId ?? (mailboxes.length > 1 ? "all" : mailboxes[0]?.id),
+  );
   // 聚合视图下每封信可能来自不同信箱，操作要按邮件自身的信箱路由
   const [detailMailboxId, setDetailMailboxId] = useState<string | undefined>(undefined);
-  const [folder, setFolder] = useState<MailFolder>("inbox");
+  const [folder, setFolder] = useState<MailFolder>(initialRoute.folder);
   const [category, setCategory] = useState<string>("");
-  const [view, setView] = useState<MailView>("mail");
+  const [view, setView] = useState<MailView>(initialRoute.view);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [items, setItems] = useState<MessageSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<MessagePageSize>(() => {
+    try {
+      const saved = Number(localStorage.getItem("mailedge-message-page-size-v1"));
+      return MESSAGE_PAGE_SIZE_OPTIONS.includes(saved as MessagePageSize)
+        ? (saved as MessagePageSize)
+        : MESSAGE_PAGE_SIZE_OPTIONS[0];
+    } catch {
+      return MESSAGE_PAGE_SIZE_OPTIONS[0];
+    }
+  });
   const [listLoading, setListLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [messageListStyle, setMessageListStyle] = useState<MessageListStyle>(() => {
+    try {
+      // 新版默认使用单行紧凑列表；旧版的舒适列表偏好不再阻塞本次布局升级，
+      // 用户仍可通过页脚中间的样式按钮切回舒适列表。
+      return localStorage.getItem("mailedge-message-list-style-v2") === "comfortable"
+        ? "comfortable"
+        : "compact";
+    } catch {
+      return "compact";
+    }
+  });
   const [stats, setStats] = useState<FolderStats[]>([]);
+  const [customFolders, setCustomFolders] = useState<CustomFolder[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
+  // 浏览器标签实时提示未读数量，邮件已读/新信事件会通过 stats 刷新触发更新。
+  useEffect(() => {
+    const unread = stats.reduce((total, item) => total + item.unread, 0);
+    document.title = unread > 0 ? `(${unread}) ${t("app.name")}` : t("app.name");
+    return () => {
+      document.title = t("app.name");
+    };
+  }, [stats, t]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
@@ -43,7 +140,25 @@ export default function MailPage() {
   const [composeDraft, setComposeDraft] = useState<ComposeDraft | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // 设置页“添加到邮件”通过一次性的路由 state 把 R2 附件交给写信框，
+  // URL 是工作区视图的唯一持久来源：前进、后退和刷新都会恢复相同页面。
+  useEffect(() => {
+    setView(initialRoute.view);
+    setFolder(initialRoute.folder);
+    if (initialRoute.mailboxId) {
+      setMailboxId(initialRoute.mailboxId);
+    } else if (initialRoute.view === "mail") {
+      setMailboxId(mailboxes.length > 1 ? "all" : mailboxes[0]?.id);
+    }
+  }, [initialRoute.folder, initialRoute.mailboxId, initialRoute.view, mailboxes]);
+
+  useEffect(() => {
+    if (view !== "mail") {
+      setActiveId(null);
+      setDetail(null);
+    }
+  }, [view]);
+
+  // 设置页“添加到邮件”通过一次性的路由 state 把已归档附件交给写信框，
   // 消费后立即清掉 state，刷新页面不会重复打开或重复添加附件。
   useEffect(() => {
     const staged = (location.state as { composeStagedAttachment?: StagedAttachment } | null)
@@ -56,9 +171,12 @@ export default function MailPage() {
   // 竞态守卫：列表与详情的请求可能交错返回，用自增序号只接受最后一次的结果
   const listSeqRef = useRef(0);
   const detailSeqRef = useRef(0);
+  // 每一页保存自己的时间游标。翻页只更新 React 状态并重新请求当前页，不刷新整页。
+  const pageCursorsRef = useRef<Array<string | undefined>>([undefined]);
+  const queryKeyRef = useRef("");
 
   const loadList = useCallback(
-    async (options: { append?: boolean; before?: string } = {}) => {
+    async (before = pageCursorsRef.current[page]) => {
       const seq = ++listSeqRef.current;
       setListLoading(true);
       try {
@@ -67,10 +185,11 @@ export default function MailPage() {
           folder,
           category: category || undefined,
           q: search || undefined,
-          before: options.before,
+          before,
+          limit: pageSize,
         });
         if (seq !== listSeqRef.current) return; // 已有更新的请求，丢弃过期响应
-        setItems((previous) => (options.append ? [...previous, ...result.items] : result.items));
+        setItems(result.items);
         setCursor(result.nextCursor);
       } catch {
         // 列表加载失败静默：下一次轮询/事件会再试
@@ -78,7 +197,7 @@ export default function MailPage() {
         if (seq === listSeqRef.current) setListLoading(false);
       }
     },
-    [mailboxId, folder, category, search],
+    [mailboxId, folder, category, search, page, pageSize],
   );
 
   const loadStats = useCallback(async () => {
@@ -90,17 +209,89 @@ export default function MailPage() {
     }
   }, [mailboxId]);
 
-  // 列表刷新统一防抖：敲键盘/切文件夹时不立刻连发请求
+  const loadFolders = useCallback(async () => {
+    try {
+      const result = await api.folders();
+      setCustomFolders(result.folders);
+    } catch {
+      setCustomFolders([]);
+    }
+  }, []);
+
+  const loadContacts = useCallback(async () => {
+    try {
+      const result = await api.contacts();
+      setContacts(result.contacts);
+    } catch {
+      // 联系人不是收件箱的阻塞依赖；迁移尚未应用时仍可正常阅读邮件。
+      setContacts([]);
+    }
+  }, []);
+
+  const queryKey = `${mailboxId ?? ""}\u0000${folder}\u0000${category}\u0000${search}\u0000${pageSize}`;
+
+  // 列表刷新统一防抖：敲键盘/切文件夹时不立刻连发请求。
+  // 查询条件或每页数量变化时回到第一页；翻页只请求当前页数据。
   useEffect(() => {
+    if (view !== "mail") return;
     setActiveId(null);
     setDetail(null);
-    const timer = window.setTimeout(() => void loadList(), 300);
+    const queryChanged = queryKeyRef.current !== queryKey;
+    if (queryChanged) {
+      queryKeyRef.current = queryKey;
+      pageCursorsRef.current = [undefined];
+      setCursor(null);
+      setListLoading(true);
+      if (page !== 0) {
+        setPage(0);
+        return;
+      }
+    }
+    const timer = window.setTimeout(
+      () => void loadList(pageCursorsRef.current[page]),
+      queryChanged ? 300 : 0,
+    );
     return () => window.clearTimeout(timer);
-  }, [loadList]);
+  }, [loadList, page, queryKey, view]);
+
+  function goToPreviousPage() {
+    if (page === 0 || listLoading) return;
+    setCursor(null);
+    setListLoading(true);
+    setPage((current) => Math.max(0, current - 1));
+  }
+
+  function goToNextPage() {
+    if (!cursor || listLoading) return;
+    pageCursorsRef.current[page + 1] = cursor;
+    setCursor(null);
+    setListLoading(true);
+    setPage((current) => current + 1);
+  }
+
+  function changePageSize(next: MessagePageSize) {
+    if (!MESSAGE_PAGE_SIZE_OPTIONS.includes(next)) return;
+    try {
+      localStorage.setItem("mailedge-message-page-size-v1", String(next));
+    } catch {
+      // 隐私模式下无法持久化时仍保留本次页面设置
+    }
+    pageCursorsRef.current = [undefined];
+    setPage(0);
+    setPageSize(next);
+  }
 
   useEffect(() => {
     void loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    void loadFolders();
+  }, [loadFolders]);
+
+  useEffect(() => {
+    void loadContacts();
+  }, [loadContacts]);
 
   useEffect(() => {
     api
@@ -181,9 +372,9 @@ export default function MailPage() {
     }
   }
 
-  async function moveTo(id: string, target: MailFolder) {
+  async function moveTo(id: string, target: MailFolder, ownerId = detailMailboxId ?? mailboxId) {
     try {
-      await api.patchMessage(id, { folder: target }, detailMailboxId ?? mailboxId);
+      await api.patchMessage(id, { folder: target }, ownerId);
     } catch {
       setToast(t("toast.actionFailed"));
       return;
@@ -196,9 +387,9 @@ export default function MailPage() {
     void loadStats();
   }
 
-  async function removeMessage(id: string) {
+  async function removeMessage(id: string, ownerId = detailMailboxId ?? mailboxId) {
     try {
-      await api.deleteMessage(id, detailMailboxId ?? mailboxId);
+      await api.deleteMessage(id, ownerId);
     } catch {
       setToast(t("toast.actionFailed"));
       return;
@@ -211,18 +402,60 @@ export default function MailPage() {
     void loadStats();
   }
 
-  async function toggleStar(message: MessageDetail) {
+  async function toggleStar(message: Pick<MessageSummary, "id" | "isStarred" | "mailboxId">) {
     const next = !message.isStarred;
     try {
-      await api.patchMessage(message.id, { isStarred: next }, detailMailboxId ?? mailboxId);
+      await api.patchMessage(
+        message.id,
+        { isStarred: next },
+        message.mailboxId ?? detailMailboxId ?? mailboxId,
+      );
     } catch {
       setToast(t("toast.actionFailed"));
       return;
     }
-    setDetail({ ...message, isStarred: next });
+    setDetail((current) => (current?.id === message.id ? { ...current, isStarred: next } : current));
     setItems((previous) =>
       previous.map((item) => (item.id === message.id ? { ...item, isStarred: next } : item)),
     );
+  }
+
+  async function markRead(message: Pick<MessageSummary, "id" | "mailboxId">, isRead: boolean) {
+    try {
+      await api.patchMessage(message.id, { isRead }, message.mailboxId ?? detailMailboxId ?? mailboxId);
+    } catch {
+      setToast(t("toast.actionFailed"));
+      return;
+    }
+    setDetail((current) => (current?.id === message.id ? { ...current, isRead } : current));
+    setItems((previous) => previous.map((item) => (item.id === message.id ? { ...item, isRead } : item)));
+    void loadStats();
+  }
+
+  async function markAllRead() {
+    try {
+      await api.markAllRead(folder, mailboxId);
+    } catch {
+      setToast(t("toast.actionFailed"));
+      return;
+    }
+    setItems((previous) => previous.map((item) => ({ ...item, isRead: true })));
+    setDetail((current) => (current?.folder === folder ? { ...current, isRead: true } : current));
+    void loadStats();
+  }
+
+  async function addContact(email: string, name: string) {
+    try {
+      const result = await api.createContact({ email, name });
+      setContacts((current) =>
+        current.some((contact) => contact.id === result.contact.id) ? current : [...current, result.contact],
+      );
+      setToast(t("detail.contactAdded"));
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : t("toast.actionFailed"));
+      // 联系人可能已在另一标签页创建，重新拉取后保持详情按钮状态准确。
+      void loadContacts();
+    }
   }
 
   function replyTo(message: MessageDetail) {
@@ -235,6 +468,52 @@ export default function MailPage() {
       to: message.from.email,
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
       text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+    });
+  }
+
+  function replyAllTo(message: MessageDetail) {
+    const mailbox = mailboxes.find((item) => item.id === detailMailboxId);
+    const from = mailbox?.address ?? message.to[0]?.email;
+    const own = from?.trim().toLowerCase();
+    const recipients = [message.from, ...message.to, ...message.cc]
+      .map((address) => address.email.trim())
+      .filter((email, index, addresses) => {
+        const normalized = email.toLowerCase();
+        return (
+          normalized &&
+          normalized !== own &&
+          addresses.findIndex((item) => item.toLowerCase() === normalized) === index
+        );
+      });
+    const [to, ...cc] = recipients;
+    setComposeDraft({
+      from,
+      to: to ?? message.from.email,
+      cc: cc.join(", "),
+      subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
+      text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+    });
+  }
+
+  function forwardMessage(message: MessageDetail) {
+    const mailbox = mailboxes.find((item) => item.id === detailMailboxId);
+    const from = mailbox?.address ?? message.to[0]?.email;
+    const recipients = message.to.map((address) => address.email).join(", ");
+    const forwarded = [
+      "",
+      "",
+      "---------- Forwarded message ----------",
+      `From: ${displayName(message.from)} <${message.from.email}>`,
+      `Date: ${formatDateTime(message.receivedAt)}`,
+      `Subject: ${message.subject}`,
+      `To: ${recipients}`,
+      "",
+      message.text ?? "",
+    ].join("\n");
+    setComposeDraft({
+      from,
+      subject: message.subject.startsWith("Fwd:") ? message.subject : `Fwd: ${message.subject}`,
+      text: forwarded,
     });
   }
 
@@ -252,8 +531,33 @@ export default function MailPage() {
     void loadStats();
   }
 
+  function toggleMessageListStyle() {
+    setMessageListStyle((current) => {
+      const next = current === "compact" ? "comfortable" : "compact";
+      try {
+        localStorage.setItem("mailedge-message-list-style-v2", next);
+      } catch {
+        // 隐私模式下无法持久化时仍保留本次页面切换
+      }
+      return next;
+    });
+  }
+
+  const mailDetailOpen = view === "mail" && Boolean(detail);
+  const folderLabel = customFolders.find((item) => item.id === folder)?.name;
+  const shellMode =
+    view === "dashboard"
+      ? " shell--dashboard"
+      : view === "attachments"
+        ? " shell--attachments"
+        : view !== "mail"
+          ? ""
+          : mailDetailOpen
+            ? " shell--detail"
+            : " shell--list-only";
+
   return (
-    <div className={`shell${detail && view === "mail" ? " shell--detail" : ""}`}>
+    <div className={`shell${shellMode}`}>
       <Sidebar
         user={user}
         mailboxes={mailboxes}
@@ -261,21 +565,47 @@ export default function MailPage() {
         activeFolder={folder}
         view={view}
         stats={stats}
-        onSelectMailbox={setMailboxId}
-        onSelectFolder={(next) => {
-          setView("mail");
-          setFolder(next);
-          setCategory("");
+        customFolders={customFolders}
+        onSelectMailbox={(nextMailboxId) => {
+          navigate(mailPath("mail", "inbox", nextMailboxId));
         }}
-        onSelectView={setView}
+        onSelectFolder={(next) => {
+          setCategory("");
+          navigate(mailPath("mail", next, mailboxId));
+        }}
+        onCreateFolder={async (name) => {
+          await api.createFolder({ name });
+          await loadFolders();
+        }}
+        onSelectView={(nextView) => {
+          navigate(mailPath(nextView, folder, mailboxId));
+        }}
         onCompose={() => setComposeDraft({})}
         onSignOut={() => void signOut()}
+        messageListStyle={messageListStyle}
+        onToggleMessageListStyle={toggleMessageListStyle}
       />
 
-      {view === "outbox" ? (
+      {view === "dashboard" ? (
+        <Suspense
+          fallback={
+            <main className="dashboard-view">
+              <div className="dashboard-page dashboard-page--loading">{t("list.loading")}</div>
+            </main>
+          }
+        >
+          <DashboardView />
+        </Suspense>
+      ) : view === "outbox" ? (
         <OutboxView />
-      ) : view === "shares" ? (
-        <SharesView />
+      ) : view === "contacts" ? (
+        <ContactsView onChanged={() => void loadContacts()} />
+      ) : view === "attachments" ? (
+        <SettingsToastProvider>
+          <div className="home-attachment-view">
+            <AttachmentPanel />
+          </div>
+        </SettingsToastProvider>
       ) : (
         <>
           <MessageList
@@ -284,14 +614,26 @@ export default function MailPage() {
             activeId={activeId}
             search={search}
             folder={folder}
-            showMailbox={mailboxId === "all"}
+            folderLabel={folderLabel}
+            listStyle={messageListStyle}
             category={category}
-            showCategories={aiEnabled && (folder === "inbox" || folder === "catchall")}
+            showCategories={folder === "inbox"}
             onSelectCategory={setCategory}
             onSearch={setSearch}
+            onMarkAllRead={() => void markAllRead()}
+            onMove={(message, target) => void moveTo(message.id, target, message.mailboxId ?? mailboxId)}
+            onDelete={(message) => void removeMessage(message.id, message.mailboxId ?? mailboxId)}
+            onMarkRead={(message, isRead) => void markRead(message, isRead)}
+            onToggleStar={(message) => void toggleStar(message)}
             onSelect={(message) => void openMessage(message)}
-            onLoadMore={() => void loadList({ append: true, before: cursor ?? undefined })}
+            page={page}
+            pageSize={pageSize}
+            detailOpen={mailDetailOpen}
+            hasPrevious={page > 0}
             hasMore={Boolean(cursor)}
+            onPreviousPage={goToPreviousPage}
+            onNextPage={goToNextPage}
+            onPageSizeChange={changePageSize}
           />
 
           <MessageView
@@ -299,11 +641,26 @@ export default function MailPage() {
             loading={detailLoading}
             mailboxId={detailMailboxId}
             aiEnabled={aiEnabled}
+            customFolders={customFolders}
             onReply={replyTo}
+            onReplyAll={replyAllTo}
+            onForward={forwardMessage}
             onAiReply={(draft) => setComposeDraft(draft)}
-            onArchive={(id) => void moveTo(id, "archive")}
+            onMove={(id, target) => void moveTo(id, target)}
             onDelete={(id) => void removeMessage(id)}
+            onMarkAllRead={() => void markAllRead()}
+            onMarkRead={(message, isRead) => void markRead(message, isRead)}
             onToggleStar={(message) => void toggleStar(message)}
+            onClose={() => {
+              setActiveId(null);
+              setDetail(null);
+              setDetailMailboxId(undefined);
+            }}
+            contact={
+              contacts.find((contact) => contact.email.toLowerCase() === detail?.from.email.toLowerCase()) ??
+              null
+            }
+            onAddContact={(email, name) => void addContact(email, name)}
           />
         </>
       )}

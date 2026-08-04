@@ -11,8 +11,11 @@
   --color-success-soft: #f0fdf4;
   --color-warning: #d97706;
   --color-warning-soft: #fffbeb;
+  --color-star: #eab308;
   --color-error: #dc2626;
   --color-error-soft: #fef2f2;
+  --color-avatar-foreground: #ffffff;
+  --color-avatar-violet: #6d4aff;
 
   --color-neutral-0: #ffffff;
   --color-neutral-50: #f8f9fa;
@@ -34,6 +37,9 @@
   --color-border-strong: #d1d5db;
   --color-logo-border: #d1d5db;
 
+  /* 本地打包的品牌字标字体，避免登录页依赖第三方字体请求 */
+  --font-brand: "Stack Sans Notch Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   /* 字号 */
   --text-xs: 12px;
   --text-sm: 14px;
@@ -53,6 +59,7 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;
@@ -81,6 +88,7 @@
   --color-success-soft: rgba(74, 222, 128, 0.15);
   --color-warning: #fbbf24;
   --color-warning-soft: rgba(251, 191, 36, 0.15);
+  --color-star: #facc15;
   --color-error: #f87171;
   --color-error-soft: rgba(248, 113, 113, 0.15);
 

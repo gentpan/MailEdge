@@ -1,4 +1,5 @@
 import PostalMime from "postal-mime";
+import { classifyEmailByRules } from "../ai/rules";
 import { classifyEmail } from "../ai/tasks";
 import { getAiConfig, getTelegramConfig } from "../db/appSettings";
 import type { MailboxRecord } from "../db/mailboxes";
@@ -10,10 +11,11 @@ import { r2Key } from "../lib/r2key";
 import { sendTelegram, shouldNotify } from "../notify/telegram";
 import type { MessageAddress } from "../shared/message";
 import { stripHtml } from "../shared/text";
+import { createObjectStorage } from "../storage";
 
 /**
  * Cloudflare Email Routing → Email Worker 的入口。
- * 解析 MIME，附件二进制落 R2，正文与元数据写进收件人对应的 Durable Object。
+ * 解析 MIME，附件二进制落对象存储，正文与元数据写进收件人对应的 Durable Object。
  */
 export async function handleInboundEmail(
   message: ForwardableEmailMessage,
@@ -30,6 +32,7 @@ export async function handleInboundEmail(
   }
 
   const { mailbox } = match;
+  const objectStorage = await createObjectStorage(env);
   // 精确登记的地址进收件箱；靠兜底兜进来的单独归到「其他地址」，避免污染主收件箱
   const folder = match.exact ? "inbox" : "catchall";
 
@@ -44,14 +47,14 @@ export async function handleInboundEmail(
   const receivedAt = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date();
   const attachments: NonNullable<StoreMessageInput["attachments"]> = [];
 
-  // 附件并行上传 R2，互不依赖
+  // 附件并行上传对象存储，互不依赖
   await Promise.all(
     (parsed.attachments ?? []).map(async (attachment, index) => {
       const content = toArrayBuffer(attachment.content);
       const filename = attachment.filename || `attachment-${index + 1}`;
       const key = r2Key.inboundAttachment(mailbox.id, messageId, index, filename, receivedAt);
 
-      await env.R2.put(key, content, {
+      await objectStorage.put(key, content, {
         httpMetadata: { contentType: attachment.mimeType || "application/octet-stream" },
       });
 
@@ -98,14 +101,15 @@ export async function handleInboundEmail(
 
   // 原始报文留档，便于排查投递问题与后续导出
   ctx.waitUntil(
-    env.R2.put(r2Key.inboundRaw(mailbox.id, messageId, receivedAt), rawBuffer, {
-      httpMetadata: { contentType: "message/rfc822" },
-    })
+    objectStorage
+      .put(r2Key.inboundRaw(mailbox.id, messageId, receivedAt), rawBuffer, {
+        httpMetadata: { contentType: "message/rfc822" },
+      })
       .then(() => undefined)
       .catch((error) => console.error("[MailEdge] 原始报文留档失败", error)),
   );
 
-  // AI 分类与 Telegram 推送不阻塞投递，放到 waitUntil 里异步跑
+  // 本地分类、可选的 AI 分类与 Telegram 推送不阻塞投递，放到 waitUntil 里异步跑
   ctx.waitUntil(
     postProcess(env, {
       mailbox,
@@ -119,8 +123,8 @@ export async function handleInboundEmail(
 }
 
 /**
- * 收信后处理：先分类（若开启），再按分类决定是否推 Telegram。
- * 全程 try/catch 隔离——AI 或推送出问题绝不能影响已入库的邮件。
+ * 收信后处理：先用本地规则分类；AI 启用且有 Key 时用 AI 结果增强，再按分类决定是否推 Telegram。
+ * 全程 try/catch 隔离——分类或推送出问题绝不能影响已入库的邮件。
  */
 async function postProcess(
   env: Env,
@@ -133,16 +137,20 @@ async function postProcess(
     snippet: string;
   },
 ): Promise<void> {
-  let category: string | null = null;
+  const context = { subject: ctx.subject, from: ctx.from, text: ctx.text };
+  let category = classifyEmailByRules(context);
 
   try {
     const ai = await getAiConfig(env);
-    if (ai.enabled && ai.apiKey && ai.autoClassify) {
-      category = await classifyEmail(ai, { subject: ctx.subject, from: ctx.from, text: ctx.text });
-      await mailboxStub(env, ctx.mailbox).setCategory(ctx.messageId, category);
-    }
+    if (ai.enabled && ai.apiKey) category = await classifyEmail(ai, context);
   } catch (error) {
     console.error("[MailEdge] 分类失败", error);
+  }
+
+  try {
+    await mailboxStub(env, ctx.mailbox).setCategory(ctx.messageId, category);
+  } catch (error) {
+    console.error("[MailEdge] 保存分类失败", error);
   }
 
   try {

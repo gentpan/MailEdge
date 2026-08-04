@@ -9,8 +9,6 @@ export interface AiConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
-  /** 收信时自动分类 */
-  autoClassify: boolean;
 }
 
 export interface TelegramConfig {
@@ -26,7 +24,6 @@ export const AI_DEFAULTS: AiConfig = {
   baseUrl: "https://api.openai.com/v1",
   apiKey: "",
   model: "gpt-4o-mini",
-  autoClassify: false,
 };
 
 export const TELEGRAM_DEFAULTS: TelegramConfig = {
@@ -37,14 +34,22 @@ export const TELEGRAM_DEFAULTS: TelegramConfig = {
 };
 
 /** 邮件分类。对齐常见收件箱的分栏习惯，固定一小组，便于前端分栏与过滤。 */
-export type MailCategory = "important" | "updates" | "promotions" | "social" | "other";
+export type MailCategory = "important" | "updates" | "promotions" | "verification" | "social" | "other";
 
-export const MAIL_CATEGORIES: MailCategory[] = ["important", "updates", "promotions", "social", "other"];
+export const MAIL_CATEGORIES: MailCategory[] = [
+  "important",
+  "updates",
+  "promotions",
+  "verification",
+  "social",
+  "other",
+];
 
 export const CATEGORY_LABELS: Record<MailCategory, string> = {
   important: "重要",
   updates: "更新",
-  promotions: "营销",
+  promotions: "推广",
+  verification: "验证码",
   social: "社交",
   other: "其他",
 };

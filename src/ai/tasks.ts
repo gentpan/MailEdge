@@ -26,7 +26,8 @@ export async function classifyEmail(config: AiConfig, email: EmailContext): Prom
           "你是邮件分类助手。把邮件归入且仅归入以下之一：" +
           labels +
           "。important=需要本人处理或含重要通知；updates=系统/服务通知、账单、状态更新；" +
-          "promotions=营销推广；social=社交、社区互动；其余归 other。" +
+          "promotions=营销推广；verification=登录、注册、一次性验证码、密码重置或安全验证；" +
+          "social=社交、社区互动；其余归 other。" +
           '只输出 JSON：{"category":"<英文键>"}。',
       },
       {

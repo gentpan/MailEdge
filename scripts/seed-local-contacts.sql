@@ -1,0 +1,16 @@
+INSERT OR IGNORE INTO contacts (id, user_id, email, name, company, notes) VALUES
+('contact_seed_01','usr_01KYQEXN01BCJKV0JJS9MWSK28','notifications@github.com','GitHub 通知','GitHub','代码提交、Issue 与项目动态'),
+('contact_seed_02','usr_01KYQEXN01BCJKV0JJS9MWSK28','dash@cloudflare.com','Cloudflare 团队','Cloudflare','Workers、D1 与 R2 服务通知'),
+('contact_seed_03','usr_01KYQEXN01BCJKV0JJS9MWSK28','security-noreply@google.com','Google 安全中心','Google','登录与安全提醒'),
+('contact_seed_04','usr_01KYQEXN01BCJKV0JJS9MWSK28','account-security-noreply@accountprotection.microsoft.com','Microsoft 账户','Microsoft','账户验证与安全通知'),
+('contact_seed_05','usr_01KYQEXN01BCJKV0JJS9MWSK28','service@qq.com','腾讯邮箱服务','Tencent','邮箱服务与账户通知'),
+('contact_seed_06','usr_01KYQEXN01BCJKV0JJS9MWSK28','service@163.com','网易邮箱服务','NetEase','邮箱服务与账户通知'),
+('contact_seed_07','usr_01KYQEXN01BCJKV0JJS9MWSK28','notifications@yahoo.com','Yahoo Mail','Yahoo','收件箱摘要与服务提醒'),
+('contact_seed_08','usr_01KYQEXN01BCJKV0JJS9MWSK28','support@ovhcloud.com','OVHcloud 支持','OVHcloud','账单、服务器与账户支持'),
+('contact_seed_09','usr_01KYQEXN01BCJKV0JJS9MWSK28','support@hetzner.com','Hetzner 支持','Hetzner','服务器与账户支持'),
+('contact_seed_10','usr_01KYQEXN01BCJKV0JJS9MWSK28','hello@resend.com','Resend 团队','Resend','发信渠道与额度通知'),
+('contact_seed_11','usr_01KYQEXN01BCJKV0JJS9MWSK28','team@sendflare.com','Sendflare 团队','Sendflare','发信渠道与用量提醒'),
+('contact_seed_12','usr_01KYQEXN01BCJKV0JJS9MWSK28','noreply@openai.com','OpenAI 团队','OpenAI','AI 服务与产品更新'),
+('contact_seed_13','usr_01KYQEXN01BCJKV0JJS9MWSK28','team@cursor.com','Cursor 团队','Cursor','开发工具与订阅通知'),
+('contact_seed_14','usr_01KYQEXN01BCJKV0JJS9MWSK28','support@aliyun.com','阿里云支持','Alibaba Cloud','云资源与账户服务'),
+('contact_seed_15','usr_01KYQEXN01BCJKV0JJS9MWSK28','blog@gentpan.com','GentPan 博客','GentPan','技术文章与项目更新');

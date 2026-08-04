@@ -38,6 +38,14 @@
     }
   ],
 
+  // 无需支付方式的附件后端；部署脚本会按账户创建或复用该 namespace。
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+    }
+  ],
+
   // 每个邮箱一个 Durable Object，内部使用 SQLite 存邮件
   "durable_objects": {
     "bindings": [
@@ -67,7 +75,7 @@
     // R2 下载链接有效期
     "ATTACHMENT_LINK_TTL_DAYS": "7",
     "APP_URL": "https://mailedge.example.com",
-    // 安装向导（deployer）地址，界面内一键更新走这里；留空则设置页隐藏更新功能
+    // 安装向导（deployer）地址，设置页用于版本检查与升级跳转；留空则隐藏更新入口
     "DEPLOYER_URL": "https://mailedge.sh"
   },
 

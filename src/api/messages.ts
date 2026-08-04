@@ -1,8 +1,17 @@
 import { Hono } from "hono";
+import { createContact, deleteContact, getContact, listContacts, updateContact } from "../db/contacts";
+import { createFolder, deleteFolder, getFolder, listFolders, renameFolder } from "../db/folders";
 import type { MailboxRecord } from "../db/mailboxes";
-import { createMailbox, deleteMailbox, listMailboxes, mailboxStub } from "../db/mailboxes";
+import {
+  createMailbox,
+  deleteMailbox,
+  listMailboxes,
+  mailboxStub,
+  updateMailboxDisplayName,
+} from "../db/mailboxes";
 import type { Env } from "../env";
-import type { MailFolder } from "../shared/message";
+import type { MailFolder, SystemMailFolder } from "../shared/message";
+import { createObjectStorage } from "../storage";
 import { requireAuth } from "./auth";
 import type { AppContext } from "./context";
 
@@ -11,6 +20,23 @@ messages.use("*", requireAuth);
 
 /** 前端用 "all" 表示聚合所有信箱 */
 const ALL = "all";
+const SYSTEM_FOLDERS = new Set<SystemMailFolder>([
+  "inbox",
+  "sent",
+  "drafts",
+  "archive",
+  "spam",
+  "trash",
+  "catchall",
+]);
+
+function isSystemFolder(folder: string): folder is SystemMailFolder {
+  return SYSTEM_FOLDERS.has(folder as SystemMailFolder);
+}
+
+async function canUseFolder(env: Env, userId: string, folder: string): Promise<boolean> {
+  return isSystemFolder(folder) || Boolean(await getFolder(env, userId, folder));
+}
 
 async function resolveMailbox(
   env: Env,
@@ -57,6 +83,80 @@ messages.get("/mailboxes", async (c) => {
   return c.json({ mailboxes: await listMailboxes(c.env, c.get("user").id) });
 });
 
+messages.get("/folders", async (c) => {
+  return c.json({ folders: await listFolders(c.env, c.get("user").id) });
+});
+
+messages.post("/folders", async (c) => {
+  const body = await c.req.json<{ name?: string }>();
+  try {
+    const folder = await createFolder(c.env, c.get("user").id, body.name ?? "");
+    return c.json({ folder });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "文件夹创建失败" }, 400);
+  }
+});
+
+messages.patch("/folders/:id", async (c) => {
+  const body = await c.req.json<{ name?: string }>();
+  try {
+    const folder = await renameFolder(c.env, c.get("user").id, c.req.param("id"), body.name ?? "");
+    return c.json({ folder });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "文件夹更新失败" }, 400);
+  }
+});
+
+messages.delete("/folders/:id", async (c) => {
+  const userId = c.get("user").id;
+  const id = c.req.param("id");
+  const folder = await getFolder(c.env, userId, id);
+  if (!folder) return c.json({ error: "文件夹不存在" }, 404);
+
+  // 先迁移邮件，再删除名称记录，保证删除自定义文件夹不会丢失邮件。
+  const mailboxes = await listMailboxes(c.env, userId);
+  await Promise.all(mailboxes.map((mailbox) => mailboxStub(c.env, mailbox).moveFolder(id)));
+  await deleteFolder(c.env, userId, id);
+  return c.json({ ok: true, folder });
+});
+
+/** 联系人：只允许访问当前登录账户自己的联系人。 */
+messages.get("/contacts", async (c) => {
+  return c.json({ contacts: await listContacts(c.env, c.get("user").id) });
+});
+
+messages.get("/contacts/:id", async (c) => {
+  const contact = await getContact(c.env, c.get("user").id, c.req.param("id"));
+  return contact ? c.json({ contact }) : c.json({ error: "联系人不存在" }, 404);
+});
+
+messages.post("/contacts", async (c) => {
+  const body = await c.req.json<{ email?: string; name?: string; company?: string; notes?: string }>();
+  try {
+    const contact = await createContact(c.env, c.get("user").id, body);
+    return c.json({ contact }, 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "联系人创建失败";
+    return c.json({ error: /UNIQUE/i.test(message) ? "该邮箱已经在联系人中" : message }, 400);
+  }
+});
+
+messages.patch("/contacts/:id", async (c) => {
+  const body = await c.req.json<{ email?: string; name?: string; company?: string; notes?: string }>();
+  try {
+    const contact = await updateContact(c.env, c.get("user").id, c.req.param("id"), body);
+    return c.json({ contact });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "联系人更新失败";
+    return c.json({ error: /UNIQUE/i.test(message) ? "该邮箱已经在联系人中" : message }, 400);
+  }
+});
+
+messages.delete("/contacts/:id", async (c) => {
+  const deleted = await deleteContact(c.env, c.get("user").id, c.req.param("id"));
+  return deleted ? c.json({ ok: true }) : c.json({ error: "联系人不存在" }, 404);
+});
+
 /** 实时推送：把 WebSocket 升级请求转发给对应信箱的 Durable Object */
 messages.get("/mailboxes/:id/stream", async (c) => {
   if (c.req.header("Upgrade") !== "websocket") return c.json({ error: "expected websocket" }, 426);
@@ -81,6 +181,15 @@ messages.post("/mailboxes", async (c) => {
     const message = error instanceof Error ? error.message : "创建失败";
     return c.json({ error: /UNIQUE/i.test(message) ? "该地址已存在" : message }, 400);
   }
+});
+
+messages.patch("/mailboxes/:id", async (c) => {
+  const body = await c.req.json<{ displayName?: string | null }>();
+  const raw = typeof body.displayName === "string" ? body.displayName.trim().replace(/\s+/g, " ") : "";
+  if (raw.length > 40) return c.json({ error: "邮箱名称不能超过 40 个字符" }, 400);
+  const mailbox = await updateMailboxDisplayName(c.env, c.get("user").id, c.req.param("id"), raw || null);
+  if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
+  return c.json({ mailbox });
 });
 
 messages.delete("/mailboxes/:id", async (c) => {
@@ -120,13 +229,18 @@ messages.get("/stats", async (c) => {
 messages.get("/messages", async (c) => {
   const userId = c.get("user").id;
   const requested = c.req.query("mailboxId");
+  const requestedLimit = Number(c.req.query("limit") ?? 25);
   const params = {
     folder: (c.req.query("folder") as MailFolder | undefined) ?? "inbox",
     category: c.req.query("category") || undefined,
-    limit: Math.min(Number(c.req.query("limit") ?? 50), 200),
+    limit: Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 25, 1), 200),
     before: c.req.query("before"),
     search: c.req.query("q"),
   };
+
+  if (params.folder && !(await canUseFolder(c.env, userId, params.folder))) {
+    return c.json({ error: "文件夹不存在" }, 400);
+  }
 
   if (requested === ALL) {
     const mailboxes = await listMailboxes(c.env, userId);
@@ -149,6 +263,25 @@ messages.get("/messages", async (c) => {
   });
 });
 
+messages.post("/messages/read-all", async (c) => {
+  const userId = c.get("user").id;
+  const requested = c.req.query("mailboxId");
+  const body = await c.req.json<{ folder?: MailFolder }>();
+  const folder = body.folder ?? "inbox";
+  if (!(await canUseFolder(c.env, userId, folder))) return c.json({ error: "文件夹不存在" }, 400);
+
+  if (requested === ALL) {
+    const mailboxes = await listMailboxes(c.env, userId);
+    await Promise.all(mailboxes.map((mailbox) => mailboxStub(c.env, mailbox).markAllRead(folder)));
+    return c.json({ ok: true });
+  }
+
+  const mailbox = await resolveMailbox(c.env, userId, requested);
+  if (requested && requested !== ALL && !mailbox) return c.json({ error: "信箱不存在" }, 404);
+  if (mailbox) await mailboxStub(c.env, mailbox).markAllRead(folder);
+  return c.json({ ok: true });
+});
+
 messages.get("/messages/:id", async (c) => {
   const mailbox = await resolveMailbox(c.env, c.get("user").id, c.req.query("mailboxId"));
   if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
@@ -166,6 +299,9 @@ messages.patch("/messages/:id", async (c) => {
   if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
 
   const body = await c.req.json<{ isRead?: boolean; isStarred?: boolean; folder?: MailFolder }>();
+  if (body.folder && !(await canUseFolder(c.env, c.get("user").id, body.folder))) {
+    return c.json({ error: "文件夹不存在" }, 400);
+  }
   const stub = mailboxStub(c.env, mailbox);
   const id = c.req.param("id");
 
@@ -192,7 +328,7 @@ messages.delete("/messages/:id", async (c) => {
   }
 
   const keys = await stub.purge(id);
-  if (keys.length) await c.env.R2.delete(keys);
+  if (keys.length) await (await createObjectStorage(c.env)).delete(keys);
   return c.json({ ok: true, purged: true });
 });
 
@@ -206,7 +342,7 @@ messages.get("/messages/:id/attachments/:attachmentId", async (c) => {
   );
   if (!attachment?.r2Key) return c.json({ error: "附件不存在" }, 404);
 
-  const object = await c.env.R2.get(attachment.r2Key);
+  const object = await (await createObjectStorage(c.env)).get(attachment.r2Key);
   if (!object) return c.json({ error: "附件已被清理" }, 410);
 
   return new Response(object.body, {

@@ -4,18 +4,23 @@ export function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function formatTime(value: string): string {
+export function formatTime(value: string, locale = "zh-CN"): string {
   const date = new Date(value);
   const now = new Date();
   const sameDay = date.toDateString() === now.toDateString();
+  const isChinese = locale.toLowerCase().startsWith("zh");
 
   if (sameDay) {
-    return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
   }
   if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+    return isChinese
+      ? `${date.getMonth() + 1}月${date.getDate()}日`
+      : date.toLocaleDateString(locale, { month: "short", day: "numeric" });
   }
-  return date.toLocaleDateString("zh-CN", { year: "numeric", month: "numeric", day: "numeric" });
+  return isChinese
+    ? `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+    : date.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }
 
 export function formatDateTime(value: string): string {

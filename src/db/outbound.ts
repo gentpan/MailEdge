@@ -1,6 +1,8 @@
 import type { Env } from "../env";
 import { r2Key, safeName } from "../lib/r2key";
 import type { MailAddress, OutboundStatus, SendAttempt, SendMailInput } from "../mail/types";
+import { createObjectStorage } from "../storage";
+import { getOutboundRetentionDays } from "./appSettings";
 
 export interface OutboundRecord {
   id: string;
@@ -165,8 +167,42 @@ export async function listRetryable(env: Env, limit = 20): Promise<OutboundRecor
   return results.map(toRecord);
 }
 
+/**
+ * 定时清理过期的发信状态记录。
+ * 先删除记录引用的重试载荷，再删除 D1 行；对象清理失败时保留记录，避免产生无法重试的孤儿状态。
+ */
+export async function cleanupExpiredOutbound(env: Env, batchSize = 100): Promise<number> {
+  const retentionDays = await getOutboundRetentionDays(env);
+  const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+  let deleted = 0;
+
+  for (;;) {
+    const { results } = await env.DB.prepare(
+      `SELECT id, payload_key FROM outbound_messages
+       WHERE created_at < ? ORDER BY created_at ASC LIMIT ?`,
+    )
+      .bind(cutoff, Math.min(Math.max(batchSize, 1), 200))
+      .all<Pick<OutboundRow, "id" | "payload_key">>();
+    if (!results.length) break;
+
+    const payloadKeys = results.map((row) => row.payload_key).filter((key): key is string => Boolean(key));
+    if (payloadKeys.length) {
+      await (await createObjectStorage(env)).delete(payloadKeys);
+    }
+
+    const placeholders = results.map(() => "?").join(", ");
+    const removed = await env.DB.prepare(`DELETE FROM outbound_messages WHERE id IN (${placeholders})`)
+      .bind(...results.map((row) => row.id))
+      .run();
+    deleted += removed.meta.changes ?? results.length;
+    if (results.length < batchSize) break;
+  }
+
+  return deleted;
+}
+
 // ---------------------------------------------------------------------------
-// 发送载荷（含附件）落 R2，重试时无需前端再传一次
+// 发送载荷（含附件）落对象存储，重试时无需前端再传一次
 // ---------------------------------------------------------------------------
 
 interface StoredAttachment {
@@ -182,7 +218,7 @@ interface StoredPayload extends Omit<SendMailInput, "attachments"> {
 
 export interface SavedPayload {
   key: string;
-  /** 与 input.attachments 顺序一一对应的 R2 键，供「已发送」留底引用 */
+  /** 与 input.attachments 顺序一一对应的对象存储键，供「已发送」留底引用 */
   attachments: Array<{ filename: string; contentType: string; r2Key: string }>;
 }
 
@@ -192,12 +228,13 @@ export async function savePayload(
   input: SendMailInput,
   mailboxId: string,
 ): Promise<SavedPayload> {
+  const objectStorage = await createObjectStorage(env);
   const dir = r2Key.outboundDir(mailboxId, id);
   const attachments: StoredAttachment[] = [];
 
   for (const [index, attachment] of (input.attachments ?? []).entries()) {
     const key = `${dir}/attachments/${index}-${safeName(attachment.filename, 80)}`;
-    await env.R2.put(key, attachment.content, {
+    await objectStorage.put(key, attachment.content, {
       httpMetadata: { contentType: attachment.contentType },
     });
     attachments.push({
@@ -210,19 +247,22 @@ export async function savePayload(
 
   const payload: StoredPayload = { ...input, attachments: attachments.length ? attachments : undefined };
   const key = `${dir}/payload.json`;
-  await env.R2.put(key, JSON.stringify(payload), { httpMetadata: { contentType: "application/json" } });
+  await objectStorage.put(key, JSON.stringify(payload), {
+    httpMetadata: { contentType: "application/json" },
+  });
   return { key, attachments };
 }
 
 export async function loadPayload(env: Env, key: string): Promise<SendMailInput | null> {
-  const object = await env.R2.get(key);
+  const objectStorage = await createObjectStorage(env);
+  const object = await objectStorage.get(key);
   if (!object) return null;
 
   const payload = (await object.json()) as StoredPayload;
   const attachments = [];
 
   for (const item of payload.attachments ?? []) {
-    const file = await env.R2.get(item.r2Key);
+    const file = await objectStorage.get(item.r2Key);
     if (!file) continue;
     attachments.push({
       filename: item.filename,
@@ -236,12 +276,12 @@ export async function loadPayload(env: Env, key: string): Promise<SendMailInput 
 }
 
 /**
- * 邮件终态后清理 R2 中的发送载荷（payload.json）。
+ * 邮件终态后清理对象存储中的发送载荷（payload.json）。
  * 只删元数据文件，保留 attachments/ 下的附件二进制——「已发送」留底
  * 引用的正是这些键，删了前端就永远 404；附件随 outbound 前缀由
- * R2 生命周期规则统一清理。
+ * 对象存储生命周期规则统一清理。
  */
 export async function deletePayload(env: Env, payloadKey: string | null): Promise<void> {
   if (!payloadKey) return;
-  await env.R2.delete(payloadKey);
+  await (await createObjectStorage(env)).delete(payloadKey);
 }

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import App from "./App";
 import { I18nProvider } from "./i18n";
+import "@fontsource-variable/stack-sans-notch";
 import "./styles/tokens.css";
 import "./styles/app.css";
 

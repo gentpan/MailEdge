@@ -6,6 +6,7 @@ import type { Mailbox, ProviderView } from "../../lib/api";
 import { PROVIDER_LABELS } from "../../lib/format";
 import ProviderLogo from "./ProviderLogo";
 import ProviderSection from "./ProviderSection";
+import SettingsPanel from "./SettingsPanel";
 
 const ORDER: MailProviderType[] = ["cloudflare", "sendflare", "resend", "smtp"];
 
@@ -28,12 +29,11 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
   const selectedProvider = providers.find((item) => item.type === selected);
 
   return (
-    <div className="settings-panel settings-panel--wide">
-      <header className="panel-head">
-        <h1 className="panel-head__title">{t("providers.title")}</h1>
-        <p className="panel-head__desc">{t("providers.desc")}</p>
-      </header>
-
+    <SettingsPanel
+      className="settings-panel--wide"
+      title={t("providers.title")}
+      description={t("providers.desc")}
+    >
       {fallbackChain.length > 1 && (
         <div className="chain">
           <span className="chain__label">{t("providers.chain")}</span>
@@ -97,6 +97,6 @@ export default function ProvidersPanel({ providers, mailboxes, onChanged }: Prop
           />
         </div>
       </div>
-    </div>
+    </SettingsPanel>
   );
 }

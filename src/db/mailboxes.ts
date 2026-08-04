@@ -79,6 +79,14 @@ export async function listMailboxes(env: Env, userId: string): Promise<MailboxRe
   return results.map(toRecord);
 }
 
+/** 定时任务使用：遍历实例中的全部信箱，不向普通 API 暴露跨账户数据。 */
+export async function listAllMailboxes(env: Env): Promise<MailboxRecord[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM mailboxes ORDER BY created_at ASC`,
+  ).all<MailboxRow>();
+  return results.map(toRecord);
+}
+
 export async function createMailbox(
   env: Env,
   input: { address: string; userId: string; displayName?: string; isCatchAll?: boolean },
@@ -110,4 +118,19 @@ export async function createMailbox(
 
 export async function deleteMailbox(env: Env, id: string): Promise<void> {
   await env.DB.prepare(`DELETE FROM mailboxes WHERE id = ?`).bind(id).run();
+}
+
+export async function updateMailboxDisplayName(
+  env: Env,
+  userId: string,
+  id: string,
+  displayName: string | null,
+): Promise<MailboxRecord | null> {
+  await env.DB.prepare(`UPDATE mailboxes SET display_name = ? WHERE id = ? AND user_id = ?`)
+    .bind(displayName, id, userId)
+    .run();
+  const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE id = ? AND user_id = ?`)
+    .bind(id, userId)
+    .first<MailboxRow>();
+  return row ? toRecord(row) : null;
 }

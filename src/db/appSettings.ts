@@ -4,6 +4,58 @@ import type { Env } from "../env";
 import { decryptJson, encryptJson } from "../lib/crypto";
 import { maskSecret } from "./providers";
 
+export type StorageBackend = "r2" | "kv";
+
+const STORAGE_BACKEND_KEY = "storage_backend";
+const OUTBOUND_RETENTION_KEY = "outbound_retention_days";
+export const OUTBOUND_RETENTION_OPTIONS = [90, 180, 365] as const;
+export type OutboundRetentionDays = (typeof OUTBOUND_RETENTION_OPTIONS)[number];
+
+/**
+ * 读取附件/载荷的默认对象存储。旧实例没有这条设置时继续使用 R2，
+ * 这样升级不会改变现有数据的位置。
+ */
+export async function getStorageBackend(env: Env): Promise<StorageBackend> {
+  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`)
+    .bind(STORAGE_BACKEND_KEY)
+    .first<{ value: string }>();
+  return row?.value === "kv" ? "kv" : "r2";
+}
+
+export async function saveStorageBackend(env: Env, backend: StorageBackend): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+     ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3`,
+  )
+    .bind(STORAGE_BACKEND_KEY, backend, new Date().toISOString())
+    .run();
+}
+
+/** 发信状态记录的保留时间；默认 365 天，避免升级后意外清理历史数据。 */
+export async function getOutboundRetentionDays(env: Env): Promise<OutboundRetentionDays> {
+  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`)
+    .bind(OUTBOUND_RETENTION_KEY)
+    .first<{ value: string }>();
+  const days = Number(row?.value);
+  return OUTBOUND_RETENTION_OPTIONS.includes(days as OutboundRetentionDays)
+    ? (days as OutboundRetentionDays)
+    : 365;
+}
+
+export async function saveOutboundRetentionDays(env: Env, days: number): Promise<OutboundRetentionDays> {
+  if (!OUTBOUND_RETENTION_OPTIONS.includes(days as OutboundRetentionDays)) {
+    throw new Error(`保留时间必须是 ${OUTBOUND_RETENTION_OPTIONS.join("、")} 天之一`);
+  }
+  const value = days as OutboundRetentionDays;
+  await env.DB.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+     ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3`,
+  )
+    .bind(OUTBOUND_RETENTION_KEY, String(value), new Date().toISOString())
+    .run();
+  return value;
+}
+
 /**
  * settings 表存加密后的应用级配置。AI Key、Telegram Token 都是机密，
  * 复用 Provider 那套 AES-GCM 加密，接口对外只返回脱敏值。
@@ -47,7 +99,6 @@ export function redactAi(config: AiConfig) {
     apiKey: maskSecret(config.apiKey),
     hasKey: Boolean(config.apiKey),
     model: config.model,
-    autoClassify: config.autoClassify,
   };
 }
 
@@ -59,59 +110,4 @@ export function redactTelegram(config: TelegramConfig) {
     chatId: config.chatId,
     onlyCategories: config.onlyCategories,
   };
-}
-
-// ---------------------------------------------------------------------------
-// 界面内一键更新的配置：更新 Token（加密）+ 目标账户 ID
-// ---------------------------------------------------------------------------
-
-export interface UpdateConfig {
-  tokenEncrypted: string | null;
-  accountId: string | null;
-}
-
-const UPDATE_KEY = "update_config";
-
-export async function getUpdateConfig(env: Env): Promise<UpdateConfig> {
-  const row = await env.DB.prepare(`SELECT value FROM settings WHERE key = ?`)
-    .bind(UPDATE_KEY)
-    .first<{ value: string }>();
-  if (!row) return { tokenEncrypted: null, accountId: null };
-  try {
-    const parsed = JSON.parse(row.value) as Partial<UpdateConfig>;
-    return {
-      tokenEncrypted: typeof parsed.tokenEncrypted === "string" ? parsed.tokenEncrypted : null,
-      accountId: typeof parsed.accountId === "string" ? parsed.accountId : null,
-    };
-  } catch {
-    return { tokenEncrypted: null, accountId: null };
-  }
-}
-
-/** 保存更新配置。token 传 undefined 表示保持原样，传空字符串表示清除。 */
-export async function saveUpdateConfig(
-  env: Env,
-  patch: { token?: string; accountId?: string },
-): Promise<UpdateConfig> {
-  const existing = await getUpdateConfig(env);
-
-  let tokenEncrypted = existing.tokenEncrypted;
-  if (patch.token !== undefined) {
-    tokenEncrypted = patch.token ? await encryptJson(env.ENCRYPTION_KEY, patch.token) : null;
-  }
-  const accountId = patch.accountId !== undefined ? patch.accountId || null : existing.accountId;
-
-  const next = { tokenEncrypted, accountId };
-  await env.DB.prepare(
-    `INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
-     ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3`,
-  )
-    .bind(UPDATE_KEY, JSON.stringify(next), new Date().toISOString())
-    .run();
-  return next;
-}
-
-/** 解密更新 Token（仅服务端用于发起更新，绝不回传） */
-export async function decryptUpdateToken(env: Env, tokenEncrypted: string): Promise<string> {
-  return decryptJson<string>(env.ENCRYPTION_KEY, tokenEncrypted);
 }

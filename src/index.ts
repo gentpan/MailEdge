@@ -3,18 +3,23 @@ import ai from "./api/ai";
 import attachment from "./api/attachment";
 import attachments from "./api/attachments";
 import auth from "./api/auth";
+import avatar from "./api/avatar";
 import type { AppContext } from "./api/context";
 import download from "./api/download";
 import messages from "./api/messages";
 import providers from "./api/providers";
 import send from "./api/send";
+import storage from "./api/storage";
 import update from "./api/update";
+import usage from "./api/usage";
 import { renderBrandSvg } from "./brand";
-import { listMailboxes, mailboxStub } from "./db/mailboxes";
-import { listRetryable, loadPayload } from "./db/outbound";
+import { getOutboundRetentionDays } from "./db/appSettings";
+import { listAllMailboxes, listMailboxes, mailboxStub } from "./db/mailboxes";
+import { cleanupExpiredOutbound, listRetryable, loadPayload } from "./db/outbound";
 import { handleInboundEmail } from "./email/inbound";
 import type { Env } from "./env";
 import { dispatch } from "./mail/dispatcher";
+import { createObjectStorage } from "./storage";
 
 export { MailboxDO } from "./do/mailbox";
 
@@ -30,6 +35,7 @@ app.get("/api/brand/logo.svg", (c) => {
   c.header("Cache-Control", "public, max-age=3600");
   return c.body(renderBrandSvg(variant));
 });
+app.route("/api/brand/avatar", avatar);
 
 app.route("/api/auth", auth);
 app.route("/api/mail", send);
@@ -38,6 +44,8 @@ app.route("/api/attachments", attachments);
 app.route("/api/providers", providers);
 app.route("/api/ai", ai);
 app.route("/api/update", update);
+app.route("/api/storage", storage);
+app.route("/api/usage", usage);
 app.route("/api", messages);
 app.route("/", download);
 
@@ -63,8 +71,26 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(retryDeferred(env));
     ctx.waitUntil(cleanupExpiredShares(env));
+    ctx.waitUntil(cleanupExpiredOutbound(env));
+    ctx.waitUntil(archiveOldMessageBodies(env));
   },
 } satisfies ExportedHandler<Env>;
+
+/** 旧邮件正文与完整邮件头只从 DO SQLite 移到对象存储，列表元数据继续保留。 */
+async function archiveOldMessageBodies(env: Env): Promise<void> {
+  const retentionDays = await getOutboundRetentionDays(env);
+  const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+  const mailboxes = await listAllMailboxes(env);
+  await Promise.all(
+    mailboxes.map(async (mailbox) => {
+      try {
+        await mailboxStub(env, mailbox).archiveOldMessages(mailbox.id, cutoff, 100);
+      } catch (error) {
+        console.error(`[MailEdge] 邮件正文归档失败：${mailbox.address}`, error);
+      }
+    }),
+  );
+}
 
 async function retryDeferred(env: Env): Promise<void> {
   const pending = await listRetryable(env, 20);
@@ -109,7 +135,8 @@ async function cleanupExpiredShares(env: Env): Promise<void> {
 
   if (!results.length) return;
 
-  await env.R2.delete(results.map((row) => row.r2_key));
+  const objectStorage = await createObjectStorage(env);
+  await objectStorage.delete(results.map((row) => row.r2_key));
   const placeholders = results.map(() => "?").join(", ");
   await env.DB.prepare(`DELETE FROM attachment_links WHERE token IN (${placeholders})`)
     .bind(...results.map((row) => row.token))

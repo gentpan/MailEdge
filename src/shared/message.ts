@@ -1,8 +1,16 @@
 /** 前后端共用的邮件视图模型 */
 
 /** catchall：没有精确登记、靠兜底信箱兜进来的邮件，与主收件箱分开存放 */
-export type MailFolder = "inbox" | "sent" | "drafts" | "archive" | "trash" | "catchall";
+export type SystemMailFolder = "inbox" | "sent" | "drafts" | "archive" | "spam" | "trash" | "catchall";
+/** 系统文件夹之外，用户创建的文件夹使用稳定 ID 保存到邮件记录中。 */
+export type MailFolder = SystemMailFolder | (string & {});
 export type MailDirection = "inbound" | "outbound";
+
+export interface CustomFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
 export interface MessageAddress {
   email: string;
@@ -14,7 +22,7 @@ export interface MessageAttachmentView {
   filename: string;
   contentType: string;
   size: number;
-  /** inline = 随邮件投递的真附件；link = R2 下载链接 */
+  /** inline = 随邮件投递的真附件；link = 对象存储下载链接 */
   mode: "inline" | "link";
   downloadUrl: string;
 }
@@ -36,7 +44,7 @@ export interface MessageSummary {
   hasAttachments: boolean;
   status: string | null;
   provider: string | null;
-  /** AI 分类标签；未分类为 null */
+  /** 本地规则或 AI 生成的分类标签；旧邮件可能仍为 null */
   category: string | null;
   receivedAt: string;
 }

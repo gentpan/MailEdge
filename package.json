@@ -1,6 +1,6 @@
 {
   "name": "mailedge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,6 +23,9 @@
     "db:migrate": "wrangler d1 migrations apply mailedge --remote"
   },
   "dependencies": {
+    "@fontsource-variable/stack-sans-notch": "^5.3.0",
+    "@passwordless-id/webauthn": "^2.4.0",
+    "chart.js": "^4.5.1",
     "hono": "^4.9.10",
     "lucide-react": "^0.545.0",
     "postal-mime": "^2.4.4",
