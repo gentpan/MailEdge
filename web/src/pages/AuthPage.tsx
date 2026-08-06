@@ -137,7 +137,7 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
             <button className="btn btn--block" type="submit" disabled={busy || !email.trim()}>
               {busy ? t("auth.busy") : t("auth.forgot.submit")}
             </button>
-            <button className="btn btn--ghost btn--block" type="button" onClick={() => setView("login")}>
+            <button className="link-button auth__link-button" type="button" onClick={() => setView("login")}>
               {t("auth.forgot.back")}
             </button>
           </>

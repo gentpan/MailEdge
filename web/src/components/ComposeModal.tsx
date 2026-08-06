@@ -6,10 +6,12 @@ import {
   Link2,
   List,
   ListOrdered,
+  Loader2,
   Minus,
   Paperclip,
   Quote,
   Send,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +28,8 @@ export interface ComposeDraft {
   subject?: string;
   text?: string;
   stagedAttachment?: StagedAttachment;
+  /** 仅回复草稿携带原邮件信息，供 AI 生成回复；新邮件/转发不显示 AI 回复。 */
+  aiReplyTarget?: { messageId: string; mailboxId: string };
 }
 
 // 模块级常量：避免每次渲染新建空数组导致 useMemo 依赖不稳定
@@ -89,6 +93,7 @@ export default function ComposeModal({
   const [providerId, setProviderId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
 
   const thresholdBytes = smartThresholdMb * 1024 * 1024;
   const largeFiles = useMemo(
@@ -96,6 +101,21 @@ export default function ComposeModal({
     [attachments, thresholdBytes],
   );
   const uploading = attachments.some((a) => a.status === "uploading");
+
+  async function generateAiReply() {
+    if (!draft?.aiReplyTarget || aiBusy) return;
+    setAiBusy(true);
+    setError(null);
+    try {
+      const result = await api.aiReply(draft.aiReplyTarget.messageId, draft.aiReplyTarget.mailboxId, {});
+      setText(result.draft);
+      setMode("edit");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "AI 回复生成失败");
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   /** 在 Markdown 编辑器中插入格式标记，并尽量恢复光标位置。 */
   function applyMarkdown(prefix: string, suffix = "", block = false, usePlaceholder = true) {
@@ -510,6 +530,18 @@ export default function ComposeModal({
               }}
             />
           </label>
+
+          {draft?.aiReplyTarget && (
+            <button
+              className="btn btn--secondary"
+              type="button"
+              onClick={() => void generateAiReply()}
+              disabled={busy || aiBusy}
+            >
+              {aiBusy ? <Loader2 size={16} className="spin" /> : <WandSparkles size={16} />}
+              {aiBusy ? t("compose.aiReply.busy") : t("compose.aiReply")}
+            </button>
+          )}
 
           <div className="modal__footer-spacer" />
           <button className="btn btn--ghost" type="button" onClick={cleanupAndClose}>

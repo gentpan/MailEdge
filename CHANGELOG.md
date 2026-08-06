@@ -2,6 +2,24 @@
 
 All notable changes to MailEdge are documented here.
 
+## [0.2.2] - 2026-08-07
+
+### Added
+
+- Added inline quick replies with optional AI-assisted drafting from the message detail view.
+- Added richer attachment, sender-contact and message-list interactions across the mail workspace.
+
+### Changed
+
+- Improved AI provider compatibility for models that require `temperature=1` and responses that return content blocks or `output_text`.
+- Refined sent-mail actions, compact list behavior, avatars, category badges, pagination and responsive message details.
+
+### Fixed
+
+- Fixed the deployer workspace reusing incomplete `node_modules` and missing `@vitejs/plugin-react` during production builds.
+- Dependency changes now trigger a deterministic reinstall with development dependencies included, with a build-chain integrity check.
+- Improved empty AI responses and test requests so valid provider responses are not reported as failures.
+
 ## [0.2.1] - 2026-08-05
 
 ### Added

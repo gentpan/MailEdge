@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -38,6 +40,7 @@ function attachmentRef(item: ManagedAttachmentView): ManagedAttachmentRef | null
 }
 
 type AttachmentFilter = "all" | "message" | "share";
+type ConfirmAction = "delete" | "revoke" | null;
 
 export default function AttachmentPanel() {
   const { t } = useI18n();
@@ -48,6 +51,7 @@ export default function AttachmentPanel() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"delete" | "insert" | "revoke" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const { showToast, dismissToast } = useSettingsToast();
 
   const load = useCallback(async () => {
@@ -106,8 +110,17 @@ export default function AttachmentPanel() {
     }
   }, [activeKey, visibleItems]);
 
+  useEffect(() => {
+    if (!confirmAction) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !busy) setConfirmAction(null);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [busy, confirmAction]);
+
   async function deleteActive() {
-    if (!active || !window.confirm(t("attachments.delete.confirm"))) return;
+    if (!active) return;
     const ref = attachmentRef(active);
     if (!ref) return;
     setBusy("delete");
@@ -165,7 +178,6 @@ export default function AttachmentPanel() {
 
   async function revokeActiveShare() {
     if (active?.source !== "share" || !active.token || active.revoked) return;
-    if (!window.confirm(t("attachments.revoke.confirm"))) return;
     setBusy("revoke");
     dismissToast();
     try {
@@ -176,6 +188,16 @@ export default function AttachmentPanel() {
       showToast({ kind: "error", text: caught instanceof Error ? caught.message : t("toast.actionFailed") });
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function confirmPendingAction() {
+    if (!confirmAction || busy) return;
+    try {
+      if (confirmAction === "delete") await deleteActive();
+      else await revokeActiveShare();
+    } finally {
+      setConfirmAction(null);
     }
   }
 
@@ -424,7 +446,7 @@ export default function AttachmentPanel() {
                         <button
                           className="btn btn--secondary"
                           type="button"
-                          onClick={() => void revokeActiveShare()}
+                          onClick={() => setConfirmAction("revoke")}
                           disabled={busy !== null || Boolean(active.revoked)}
                         >
                           <Link2 size={16} />
@@ -457,7 +479,7 @@ export default function AttachmentPanel() {
                     <button
                       className="btn btn--danger"
                       type="button"
-                      onClick={() => void deleteActive()}
+                      onClick={() => setConfirmAction("delete")}
                       disabled={busy !== null}
                     >
                       <Trash2 size={16} />
@@ -469,6 +491,73 @@ export default function AttachmentPanel() {
             </div>
           )}
         </>
+      )}
+
+      {confirmAction && (
+        <div className="modal-backdrop attachment-confirm-backdrop" role="presentation">
+          <section
+            className="modal attachment-confirm-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="attachment-confirm-title"
+            aria-describedby="attachment-confirm-message"
+          >
+            <div className="modal__header attachment-confirm-modal__header">
+              <div className="attachment-confirm-modal__title">
+                <span className="attachment-confirm-modal__icon" aria-hidden="true">
+                  <TriangleAlert size={20} />
+                </span>
+                <div>
+                  <h2 id="attachment-confirm-title">
+                    {confirmAction === "delete"
+                      ? t("attachments.delete.confirmTitle")
+                      : t("attachments.revoke.confirmTitle")}
+                  </h2>
+                  <p>{t("attachments.confirm.title")}</p>
+                </div>
+              </div>
+              <button
+                className="btn btn--icon"
+                type="button"
+                aria-label={t("common.cancel")}
+                onClick={() => setConfirmAction(null)}
+                disabled={busy !== null}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <div className="modal__body attachment-confirm-modal__body">
+              <p id="attachment-confirm-message">
+                {confirmAction === "delete"
+                  ? t("attachments.delete.confirm")
+                  : t("attachments.revoke.confirm")}
+              </p>
+              <div className="attachment-confirm-modal__warning">
+                <TriangleAlert size={16} aria-hidden="true" />
+                <span>{t("attachments.confirm.irreversible")}</span>
+              </div>
+            </div>
+            <div className="modal__footer attachment-confirm-modal__footer">
+              <div className="modal__footer-spacer" />
+              <button
+                className="btn btn--secondary"
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                disabled={busy !== null}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                className="btn btn--danger"
+                type="button"
+                onClick={() => void confirmPendingAction()}
+                disabled={busy !== null}
+              >
+                {busy ? t("common.saving") : t("attachments.confirm.continue")}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );

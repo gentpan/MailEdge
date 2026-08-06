@@ -135,7 +135,9 @@ export default function MessageList({
   const showRecipient = folder === "catchall";
   const groups = groupMessages(items);
   return (
-    <section className={`list-pane${detailOpen ? " list-pane--detail-open" : ""}`}>
+    <section
+      className={`list-pane${detailOpen ? " list-pane--detail-open" : ""}${folder === "sent" ? " list-pane--sent" : ""}`}
+    >
       <div className="list-pane__header">
         <div className="list-pane__search">
           <Search size={16} />
@@ -201,9 +203,12 @@ export default function MessageList({
           <section className="message-group" key={group.key}>
             <h3 className="message-group__label">{groupLabel(group.key, lang, t)}</h3>
             {group.items.map((item) => {
+              const isSentFolder = folder === "sent";
               const sender =
                 item.direction === "outbound"
-                  ? `${t("list.sentTo")} ${item.to.map(displayName).join("、")}`
+                  ? item.to.length
+                    ? item.to.map(displayName).join("、")
+                    : t("list.sentTo")
                   : displayName(item.from);
               const avatarAddress = item.direction === "outbound" ? (item.to[0] ?? item.from) : item.from;
               const subject = item.subject || t("detail.noSubject");
@@ -238,8 +243,16 @@ export default function MessageList({
               );
               const meta = item.status && (
                 <span className="message-row__meta">
-                  {item.status !== "sent" && (
-                    <span className={`badge ${item.status === "failed" ? "badge--error" : "badge--warning"}`}>
+                  {(item.status !== "sent" || isSentFolder) && (
+                    <span
+                      className={`badge ${
+                        item.status === "sent"
+                          ? "badge--success"
+                          : item.status === "failed"
+                            ? "badge--error"
+                            : "badge--warning"
+                      }`}
+                    >
                       {t(`status.${item.status}` as TranslationKey)}
                     </span>
                   )}
@@ -256,6 +269,7 @@ export default function MessageList({
                   className={[
                     "message-row",
                     listStyle === "compact" ? "message-row--compact" : "message-row--comfortable",
+                    isSentFolder ? "message-row--sent" : "",
                     item.isRead ? "" : "message-row--unread",
                     activeId === item.id ? "message-row--active" : "",
                   ]
@@ -330,16 +344,17 @@ export default function MessageList({
                   </button>
 
                   <div className="message-row__actions">
-                    <button
-                      className="message-row__action"
-                      type="button"
-                      title={folder === "spam" ? t("detail.moveOutOfSpam") : t("detail.reportSpam")}
-                      aria-label={folder === "spam" ? t("detail.moveOutOfSpam") : t("detail.reportSpam")}
-                      disabled={item.direction === "outbound"}
-                      onClick={() => onMove(item, folder === "spam" ? "inbox" : "spam")}
-                    >
-                      {folder === "spam" ? <Inbox size={17} /> : <TriangleAlert size={17} />}
-                    </button>
+                    {item.direction !== "outbound" && (
+                      <button
+                        className="message-row__action"
+                        type="button"
+                        title={folder === "spam" ? t("detail.moveOutOfSpam") : t("detail.reportSpam")}
+                        aria-label={folder === "spam" ? t("detail.moveOutOfSpam") : t("detail.reportSpam")}
+                        onClick={() => onMove(item, folder === "spam" ? "inbox" : "spam")}
+                      >
+                        {folder === "spam" ? <Inbox size={17} /> : <TriangleAlert size={17} />}
+                      </button>
+                    )}
                     <button
                       className={`message-row__action${item.isStarred ? " message-row__action--starred" : ""}`}
                       type="button"
@@ -367,15 +382,17 @@ export default function MessageList({
                     >
                       <Trash2 size={17} />
                     </button>
-                    <button
-                      className="message-row__action"
-                      type="button"
-                      title={item.isRead ? t("detail.markUnread") : t("detail.markRead")}
-                      aria-label={item.isRead ? t("detail.markUnread") : t("detail.markRead")}
-                      onClick={() => onMarkRead(item, !item.isRead)}
-                    >
-                      {item.isRead ? <MailOpen size={17} /> : <Mail size={17} />}
-                    </button>
+                    {item.direction !== "outbound" && (
+                      <button
+                        className="message-row__action"
+                        type="button"
+                        title={item.isRead ? t("detail.markUnread") : t("detail.markRead")}
+                        aria-label={item.isRead ? t("detail.markUnread") : t("detail.markRead")}
+                        onClick={() => onMarkRead(item, !item.isRead)}
+                      >
+                        {item.isRead ? <MailOpen size={17} /> : <Mail size={17} />}
+                      </button>
+                    )}
                   </div>
                 </div>
               );

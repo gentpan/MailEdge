@@ -12,7 +12,6 @@ import {
   Paperclip,
   Reply,
   ReplyAll,
-  Sparkles,
   Star,
   Trash2,
   TriangleAlert,
@@ -23,9 +22,8 @@ import { type SyntheticEvent, useRef, useState } from "react";
 import type { CustomFolder, MailFolder, MessageDetail } from "../../../src/shared/message";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
-import { api, type Contact } from "../lib/api";
+import { api, type Contact, type SendResponse } from "../lib/api";
 import { displayName, formatDateTime, formatSize, PROVIDER_LABELS } from "../lib/format";
-import type { ComposeDraft } from "./ComposeModal";
 import SenderAvatar from "./SenderAvatar";
 
 interface Props {
@@ -36,9 +34,10 @@ interface Props {
   aiEnabled?: boolean;
   customFolders: CustomFolder[];
   onReply: (message: MessageDetail) => void;
+  /** 底部快捷回复直接在详情页内发送，不打开写信弹窗。 */
+  onInlineSent?: (result: SendResponse) => void;
   onReplyAll: (message: MessageDetail) => void;
   onForward: (message: MessageDetail) => void;
-  onAiReply: (draft: ComposeDraft) => void;
   onMove: (id: string, target: MailFolder) => void;
   onDelete: (id: string) => void;
   onMarkAllRead: () => void;
@@ -56,9 +55,9 @@ export default function MessageView({
   aiEnabled,
   customFolders,
   onReply,
+  onInlineSent,
   onReplyAll,
   onForward,
-  onAiReply,
   onMove,
   onDelete,
   onMarkAllRead,
@@ -69,12 +68,14 @@ export default function MessageView({
   onAddContact,
 }: Props) {
   const { t } = useI18n();
-  const [summary, setSummary] = useState<string | null>(null);
-  const [summarizing, setSummarizing] = useState(false);
-  const [replying, setReplying] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<"move" | "more" | null>(null);
   const [frameHeight, setFrameHeight] = useState<number | null>(null);
+  const [inlineReplyOpen, setInlineReplyOpen] = useState(false);
+  const [inlineReplyText, setInlineReplyText] = useState("");
+  const [inlineReplyBusy, setInlineReplyBusy] = useState(false);
+  const [inlineReplyAiBusy, setInlineReplyAiBusy] = useState(false);
+  const [inlineReplyError, setInlineReplyError] = useState<string | null>(null);
+  const [inlineReplySent, setInlineReplySent] = useState(false);
 
   // 竞态守卫：AI 请求可能跨越邮件切换返回，用序号丢弃过期结果
   const aiSeqRef = useRef(0);
@@ -85,12 +86,14 @@ export default function MessageView({
   if (currentId !== seenId) {
     aiSeqRef.current += 1;
     setSeenId(currentId);
-    setSummary(message?.aiSummary ?? null);
-    setSummarizing(false);
-    setReplying(false);
-    setAiError(null);
     setOpenMenu(null);
     setFrameHeight(null);
+    setInlineReplyOpen(false);
+    setInlineReplyText("");
+    setInlineReplyBusy(false);
+    setInlineReplyAiBusy(false);
+    setInlineReplyError(null);
+    setInlineReplySent(false);
   }
 
   function resizeHtmlFrame(event: SyntheticEvent<HTMLIFrameElement>) {
@@ -107,41 +110,63 @@ export default function MessageView({
     if (height > 0) setFrameHeight(Math.max(480, height));
   }
 
-  async function summarize(target: MessageDetail) {
-    if (!mailboxId) return;
+  async function generateInlineAiReply() {
+    if (!message || !mailboxId || inlineReplyAiBusy || message.direction !== "inbound") return;
     const seq = ++aiSeqRef.current;
-    setSummarizing(true);
-    setAiError(null);
+    setInlineReplyAiBusy(true);
+    setInlineReplyError(null);
+    setInlineReplyOpen(true);
     try {
-      const result = await api.aiSummarize(target.id, mailboxId);
+      const result = await api.aiReply(message.id, mailboxId, {});
       if (seq !== aiSeqRef.current) return;
-      setSummary(result.summary);
+      setInlineReplyText(result.draft);
     } catch (error) {
       if (seq !== aiSeqRef.current) return;
-      setAiError(error instanceof Error ? error.message : "error");
+      setInlineReplyError(error instanceof Error ? error.message : "AI 回复生成失败");
     } finally {
-      if (seq === aiSeqRef.current) setSummarizing(false);
+      if (seq === aiSeqRef.current) setInlineReplyAiBusy(false);
     }
   }
 
-  async function aiReply(target: MessageDetail) {
-    if (!mailboxId) return;
-    const seq = ++aiSeqRef.current;
-    setReplying(true);
-    setAiError(null);
+  async function submitInlineReply() {
+    if (message?.direction !== "inbound") return;
+
+    const text = inlineReplyText.trim();
+    if (!text || inlineReplyBusy) return;
+
+    const from = message.mailboxAddress ?? message.to[0]?.email;
+    const to = message.replyTo?.email ?? message.from.email;
+    if (!from || !to) {
+      setInlineReplyError(t("detail.quickReply.error", { error: "missing sender or recipient" }));
+      return;
+    }
+
+    setInlineReplyBusy(true);
+    setInlineReplyError(null);
     try {
-      const result = await api.aiReply(target.id, mailboxId, {});
-      if (seq !== aiSeqRef.current) return;
-      onAiReply({
-        to: target.from.email,
-        subject: target.subject.startsWith("Re:") ? target.subject : `Re: ${target.subject}`,
-        text: result.draft,
-      });
+      const result = await api.send(
+        {
+          from,
+          to,
+          subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
+          markdown: text,
+        },
+        [],
+      );
+      onInlineSent?.(result);
+      if (!result.success || result.status === "failed") {
+        setInlineReplyError(t("detail.quickReply.error", { error: result.error ?? "unknown" }));
+        return;
+      }
+      setInlineReplyText("");
+      setInlineReplyOpen(false);
+      setInlineReplySent(true);
     } catch (error) {
-      if (seq !== aiSeqRef.current) return;
-      setAiError(error instanceof Error ? error.message : "error");
+      setInlineReplyError(
+        t("detail.quickReply.error", { error: error instanceof Error ? error.message : "error" }),
+      );
     } finally {
-      if (seq === aiSeqRef.current) setReplying(false);
+      setInlineReplyBusy(false);
     }
   }
 
@@ -235,16 +260,18 @@ export default function MessageView({
               {message.folder === "spam" ? <Inbox size={16} /> : <TriangleAlert size={16} />}
               <span>{message.folder === "spam" ? t("detail.moveOutOfSpam") : t("detail.reportSpam")}</span>
             </button>
-            <button
-              className="detail-toolbar__action"
-              type="button"
-              title={t("list.markAllRead")}
-              aria-label={t("list.markAllRead")}
-              onClick={onMarkAllRead}
-            >
-              <MailOpen size={16} />
-              <span>{t("list.markAllRead")}</span>
-            </button>
+            {message.direction !== "outbound" && (
+              <button
+                className="detail-toolbar__action"
+                type="button"
+                title={t("list.markAllRead")}
+                aria-label={t("list.markAllRead")}
+                onClick={onMarkAllRead}
+              >
+                <MailOpen size={16} />
+                <span>{t("list.markAllRead")}</span>
+              </button>
+            )}
 
             <button
               className={`detail-toolbar__action${message.isStarred ? " detail-toolbar__action--starred" : ""}`}
@@ -256,16 +283,18 @@ export default function MessageView({
               <Star size={16} fill={message.isStarred ? "currentColor" : "none"} />
               <span>{message.isStarred ? t("detail.markUnstarred") : t("detail.markStarred")}</span>
             </button>
-            <button
-              className="detail-toolbar__action"
-              type="button"
-              title={message.isRead ? t("detail.markUnread") : t("detail.markRead")}
-              aria-label={message.isRead ? t("detail.markUnread") : t("detail.markRead")}
-              onClick={() => onMarkRead(message, !message.isRead)}
-            >
-              {message.isRead ? <Mail size={16} /> : <MailOpen size={16} />}
-              <span>{message.isRead ? t("detail.markUnread") : t("detail.markRead")}</span>
-            </button>
+            {message.direction !== "outbound" && (
+              <button
+                className="detail-toolbar__action"
+                type="button"
+                title={message.isRead ? t("detail.markUnread") : t("detail.markRead")}
+                aria-label={message.isRead ? t("detail.markUnread") : t("detail.markRead")}
+                onClick={() => onMarkRead(message, !message.isRead)}
+              >
+                {message.isRead ? <Mail size={16} /> : <MailOpen size={16} />}
+                <span>{message.isRead ? t("detail.markUnread") : t("detail.markRead")}</span>
+              </button>
+            )}
 
             <div className="detail-toolbar__menu">
               <button
@@ -341,69 +370,12 @@ export default function MessageView({
                 <Check size={15} />
                 {t("detail.copySubject")}
               </button>
-              {aiEnabled && mailboxId && message.direction === "inbound" ? (
-                <>
-                  <button
-                    className="detail-toolbar__menu-item"
-                    type="button"
-                    onClick={() => {
-                      void aiReply(message);
-                      setOpenMenu(null);
-                    }}
-                    disabled={replying}
-                  >
-                    <WandSparkles size={15} />
-                    {replying ? t("detail.aiReply.busy") : t("detail.aiReply")}
-                  </button>
-                  <button
-                    className="detail-toolbar__menu-item"
-                    type="button"
-                    onClick={() => {
-                      void summarize(message);
-                      setOpenMenu(null);
-                    }}
-                    disabled={summarizing}
-                  >
-                    <Sparkles size={15} />
-                    {summarizing ? t("detail.aiSummary.busy") : t("detail.aiSummary")}
-                  </button>
-                </>
-              ) : (
-                <button className="detail-toolbar__menu-item" type="button" disabled>
-                  <MoreHorizontal size={15} />
-                  {t("detail.noMoreActions")}
-                </button>
-              )}
             </div>
           </div>
-        )}
-        {aiEnabled && mailboxId && message.direction === "inbound" && (
-          <button
-            className="detail-toolbar__ai-button"
-            type="button"
-            title={summarizing ? t("detail.aiSummary.busy") : t("detail.aiSummary")}
-            aria-label={summarizing ? t("detail.aiSummary.busy") : t("detail.aiSummary")}
-            onClick={() => void summarize(message)}
-            disabled={summarizing}
-          >
-            <Sparkles size={18} />
-          </button>
         )}
       </div>
 
       <div className="detail-pane__body">
-        {aiError && <div className="alert alert--error">{aiError}</div>}
-
-        {summary && (
-          <div className="ai-summary">
-            <div className="ai-summary__head">
-              <Sparkles size={14} />
-              {t("detail.summaryTitle")}
-            </div>
-            <div className="ai-summary__body">{summary}</div>
-          </div>
-        )}
-
         <header className="detail-header detail-header--message">
           <div className="detail-header__subject-row">
             <h2 className="detail-header__subject">{message.subject || t("detail.noSubject")}</h2>
@@ -512,15 +484,94 @@ export default function MessageView({
           </div>
         )}
 
-        <button
-          className="detail-quick-reply"
-          type="button"
-          onClick={() => onReply(message)}
-          aria-label={t("detail.quickReply")}
-        >
-          <Reply size={18} />
-          <span>{t("detail.quickReply.placeholder")}</span>
-        </button>
+        {message.direction === "inbound" && (
+          <>
+            {inlineReplySent && (
+              <div className="detail-quick-reply__status" role="status">
+                <Check size={16} />
+                <span>{t("detail.quickReply.sent")}</span>
+              </div>
+            )}
+
+            {inlineReplyOpen ? (
+              <div className="detail-quick-reply detail-quick-reply--expanded">
+                <div className="detail-quick-reply__heading">
+                  <Reply size={18} />
+                  <span>{t("detail.quickReply")}</span>
+                </div>
+                <textarea
+                  className="detail-quick-reply__input"
+                  value={inlineReplyText}
+                  placeholder={t("detail.quickReply.input")}
+                  onChange={(event) => setInlineReplyText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                      event.preventDefault();
+                      void submitInlineReply();
+                    }
+                  }}
+                  aria-label={t("detail.quickReply.input")}
+                />
+                {inlineReplyError && (
+                  <p className="detail-quick-reply__error" role="alert">
+                    {inlineReplyError}
+                  </p>
+                )}
+                <div className="detail-quick-reply__actions">
+                  {aiEnabled && mailboxId && (
+                    <button
+                      className="btn btn--secondary btn--sm"
+                      type="button"
+                      onClick={() => void generateInlineAiReply()}
+                      disabled={inlineReplyBusy || inlineReplyAiBusy}
+                    >
+                      {inlineReplyAiBusy ? (
+                        <Loader2 size={15} className="spin" />
+                      ) : (
+                        <WandSparkles size={15} />
+                      )}
+                      {inlineReplyAiBusy ? t("detail.aiReply.busy") : t("detail.aiReply")}
+                    </button>
+                  )}
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    type="button"
+                    onClick={() => {
+                      setInlineReplyOpen(false);
+                      setInlineReplyError(null);
+                    }}
+                    disabled={inlineReplyBusy}
+                  >
+                    {t("detail.quickReply.cancel")}
+                  </button>
+                  <button
+                    className="btn btn--primary btn--sm"
+                    type="button"
+                    onClick={() => void submitInlineReply()}
+                    disabled={inlineReplyBusy || !inlineReplyText.trim()}
+                  >
+                    {inlineReplyBusy ? <Loader2 size={15} className="spin" /> : <Reply size={15} />}
+                    {inlineReplyBusy ? t("detail.quickReply.sending") : t("detail.quickReply.send")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="detail-quick-reply"
+                type="button"
+                onClick={() => {
+                  setInlineReplySent(false);
+                  setInlineReplyError(null);
+                  setInlineReplyOpen(true);
+                }}
+                aria-label={t("detail.quickReply")}
+              >
+                <Reply size={18} />
+                <span>{t("detail.quickReply.placeholder")}</span>
+              </button>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

@@ -60,21 +60,43 @@
 }
 
 .link-button {
-  border: 0;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-primary);
   font: inherit;
   cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .link-button:hover {
-  text-decoration: underline;
+  border-color: var(--color-primary-soft);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  text-decoration: none;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .auth__links {
   display: flex;
   justify-content: center;
+  margin-top: var(--space-3);
+}
+
+.auth__link-button {
+  width: 100%;
   margin-top: var(--space-3);
 }
 
@@ -552,12 +574,34 @@
 }
 
 .sidebar__sortable-item {
+  position: relative;
   min-width: 0;
   border-radius: var(--radius-sm);
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
 }
 
 .sidebar__sortable-item--dragging {
-  opacity: 0.45;
+  opacity: 0.42;
+  transform: scale(0.97);
+}
+
+.sidebar__sortable-item--drag-over {
+  transform: translateY(3px);
+}
+
+.sidebar__sortable-item--drag-over::before {
+  position: absolute;
+  top: -4px;
+  right: var(--space-2);
+  left: var(--space-2);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  content: "";
+  pointer-events: none;
 }
 
 .sidebar__label {
@@ -635,13 +679,23 @@
   text-align: left;
   cursor: pointer;
   text-decoration: none;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 160ms ease;
 }
 
 .nav-item[draggable="true"] {
-  cursor: grab;
+  /* 菜单默认仍是点击入口；按住后才提示可以拖动。 */
+  cursor: pointer;
 }
 
 .nav-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.sidebar__sortable-item--dragging .nav-item {
+  box-shadow: 0 5px 14px rgb(15 23 42 / 14%);
   cursor: grabbing;
 }
 
@@ -665,6 +719,12 @@
   background: var(--color-primary-soft);
   color: var(--color-primary);
   font-weight: var(--weight-medium);
+}
+
+.nav-item--drag-over {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 
 .nav-item__text {
@@ -889,6 +949,42 @@
   color: var(--color-text);
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+}
+
+.outbox-pane__count {
+  flex: none;
+  min-width: 1.5rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* 发信记录的标题、搜索和刷新各自占据清晰的层级，避免窄列表中控件互相挤压。 */
+.outbox-pane__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-neutral-0);
+}
+
+.outbox-pane__heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.outbox-pane__heading .list-pane__heading {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-base);
+}
+
+.outbox-pane__heading .btn {
+  margin-left: auto;
 }
 
 .list-pane__body {
@@ -1425,6 +1521,17 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--color-text-tertiary);
+}
+
+/* 已发送列表以收件人为主列，使用更明确的层级区分收件人、主题与投递状态。 */
+.list-pane--sent .message-row__from {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
+.list-pane--sent .message-row__meta {
+  min-width: 72px;
+  justify-content: flex-start;
 }
 
 /* 默认紧凑列表：所有邮件摘要保持单行，减少列表垂直占用 */
@@ -1966,6 +2073,74 @@
     border-color 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
+}
+
+.detail-quick-reply--expanded {
+  display: block;
+  cursor: default;
+  background: var(--color-neutral-0);
+}
+
+.detail-quick-reply--expanded:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-neutral-0);
+  color: var(--color-text);
+}
+
+.detail-quick-reply__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.detail-quick-reply__input {
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-0);
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.detail-quick-reply__input:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.detail-quick-reply__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.detail-quick-reply__error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.detail-quick-reply__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-8);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
 }
 
 .detail-quick-reply:hover {
@@ -2527,9 +2702,11 @@
 }
 
 .attachment-manager-page {
-  width: min(100%, var(--settings-width));
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: var(--space-8) var(--space-8) var(--space-16);
+  padding: clamp(var(--space-5), 3vw, var(--space-8)) clamp(var(--space-5), 4vw, var(--space-12))
+    var(--space-16);
 }
 
 .attachment-manager__hero {
@@ -2897,6 +3074,102 @@
 
 .modal__footer-spacer {
   flex: 1;
+}
+
+/* 附件删除与分享链接撤销使用站内确认框，避免浏览器原生 confirm 显示本地地址和不一致的样式。 */
+.attachment-confirm-backdrop {
+  z-index: 60;
+  background: color-mix(in srgb, var(--color-text) 34%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.attachment-confirm-modal {
+  max-width: 520px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.attachment-confirm-modal__header {
+  gap: var(--space-4);
+}
+
+.attachment-confirm-modal__title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.attachment-confirm-modal__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.attachment-confirm-modal__title h2 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+}
+
+.attachment-confirm-modal__title p {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.attachment-confirm-modal__body > p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+}
+
+.attachment-confirm-modal__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 34%, var(--color-border));
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.attachment-confirm-modal__footer .btn--danger {
+  min-width: 96px;
+}
+
+@media (max-width: 720px) {
+  .attachment-confirm-backdrop {
+    padding: var(--space-4);
+  }
+
+  .attachment-confirm-modal__header,
+  .attachment-confirm-modal__body,
+  .attachment-confirm-modal__footer {
+    padding-inline: var(--space-4);
+  }
+
+  .attachment-confirm-modal__footer {
+    flex-wrap: wrap;
+  }
+
+  .attachment-confirm-modal__footer .modal__footer-spacer {
+    display: none;
+  }
+
+  .attachment-confirm-modal__footer .btn {
+    flex: 1;
+  }
 }
 
 .compose-row {
@@ -3800,14 +4073,15 @@
 
 .attachment-manager {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: var(--space-6);
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: var(--space-8);
   align-items: start;
 }
 
 .attachment-manager__list,
 .attachment-manager__detail {
   min-width: 0;
+  min-height: clamp(420px, 62vh, 640px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-neutral-0);
@@ -3826,7 +4100,7 @@
 }
 
 .attachment-manager__list-scroll {
-  max-height: 620px;
+  max-height: min(620px, calc(100dvh - 390px));
   overflow-y: auto;
   padding: var(--space-2);
 }
@@ -4515,6 +4789,384 @@
 }
 
 /* 数据列表视图（发信记录、附件链接） */
+.outbox-group {
+  min-width: 0;
+}
+
+.outbox-group__label {
+  margin: 0;
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.outbox-group:first-child .outbox-group__label {
+  padding-top: var(--space-3);
+}
+
+.outbox-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 0.95fr) minmax(0, 1.55fr) max-content 64px;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 2px solid transparent;
+  background: var(--color-neutral-0);
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.outbox-row:hover {
+  background: var(--color-bg-subtle);
+}
+
+.outbox-row--active {
+  background: var(--color-primary-soft);
+  border-left-color: var(--color-primary);
+}
+
+.outbox-row__status,
+.outbox-row__recipient-cell,
+.outbox-row__subject,
+.outbox-row__time {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outbox-row__status {
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.outbox-row__recipient-cell {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.outbox-row__subject {
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.outbox-row__time {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 发信记录重构：用“投递中心 + 状态筛选 + 信息层级”替代拥挤的单行字段。 */
+.outbox-pane__header {
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--color-bg-subtle);
+}
+
+.outbox-pane__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.outbox-pane__heading .list-pane__heading {
+  flex: 1;
+  font-size: var(--text-lg);
+  line-height: var(--leading-heading);
+}
+
+.outbox-pane__desc {
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
+.outbox-pane__header > .list-pane__search {
+  flex: none;
+  width: 100%;
+}
+
+.outbox-pane__filters {
+  display: flex;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.outbox-pane__filters::-webkit-scrollbar {
+  display: none;
+}
+
+.outbox-pane__filter {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font: inherit;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.outbox-pane__filter strong {
+  min-width: 1.25rem;
+  color: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.outbox-pane__filter:hover {
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+}
+
+.outbox-pane__filter--active {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.outbox-pane__filter:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.outbox-row {
+  grid-template-columns: 34px minmax(0, 1fr) max-content;
+  min-height: 72px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left-width: 3px;
+}
+
+.outbox-row > .sender-avatar {
+  width: 34px;
+  height: 34px;
+  margin-top: 2px;
+  font-size: var(--text-sm);
+}
+
+.outbox-row__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+
+.outbox-row__topline {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.outbox-row__recipient-cell {
+  flex: 1;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.outbox-row__subject {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.outbox-row__meta {
+  display: flex;
+  min-width: 0;
+  gap: var(--space-2);
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.outbox-row__meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outbox-row__meta > span + span::before {
+  margin-right: var(--space-2);
+  content: "·";
+}
+
+.outbox-row__status {
+  align-self: center;
+  font-size: 11px;
+}
+
+.outbox-detail {
+  background: var(--color-bg-subtle);
+}
+
+.outbox-detail__toolbar {
+  min-height: 52px;
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-neutral-0);
+}
+
+.outbox-detail__toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.outbox-detail__body {
+  padding: var(--space-8) clamp(var(--space-5), 5vw, var(--space-12)) var(--space-12);
+}
+
+.outbox-detail__body > :where(.outbox-detail__header, .outbox-detail__card, .outbox-detail__notice) {
+  width: min(100%, 900px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.outbox-detail__header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
+}
+
+.outbox-detail__eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.outbox-detail__route {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.outbox-detail__route > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outbox-detail__route-label {
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.outbox-detail__route-arrow {
+  color: var(--color-primary);
+  font-size: var(--text-base);
+}
+
+.outbox-detail__notice {
+  margin-bottom: var(--space-5);
+}
+
+.outbox-detail__card {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
+  box-shadow: var(--shadow-1);
+}
+
+.outbox-detail__card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.outbox-detail__card-heading h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-base);
+}
+
+.outbox-detail__card-heading p {
+  max-width: 62ch;
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+}
+
+.outbox-detail__metadata .detail-list__row:first-child {
+  padding-top: var(--space-2);
+}
+
+.outbox-detail__attempt-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+.outbox-detail__timeline {
+  margin-top: var(--space-5);
+}
+
+.outbox-detail__empty {
+  min-height: 100%;
+  background: var(--color-bg-subtle);
+}
+
+@media (max-width: 720px) {
+  .outbox-pane__desc {
+    display: none;
+  }
+
+  .outbox-detail__body {
+    padding: var(--space-6) var(--space-4) var(--space-10);
+  }
+
+  .outbox-detail__card {
+    padding: var(--space-4);
+  }
+}
+
 .record-row {
   display: flex;
   flex-direction: column;
@@ -4565,6 +5217,12 @@
   gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--color-text-tertiary);
+}
+
+@media (max-width: 1100px) {
+  .outbox-row {
+    grid-template-columns: 24px minmax(0, 0.95fr) minmax(0, 1.45fr) max-content 56px;
+  }
 }
 
 /* 联系人列表与编辑面板 */

@@ -96,6 +96,7 @@ export default function MailPage() {
   const [items, setItems] = useState<MessageSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [listReloadKey, setListReloadKey] = useState(0);
   const [pageSize, setPageSize] = useState<MessagePageSize>(() => {
     try {
       const saved = Number(localStorage.getItem("mailedge-message-page-size-v1"));
@@ -228,7 +229,26 @@ export default function MailPage() {
     }
   }, []);
 
-  const queryKey = `${mailboxId ?? ""}\u0000${folder}\u0000${category}\u0000${search}\u0000${pageSize}`;
+  const queryKey = `${mailboxId ?? ""}\u0000${folder}\u0000${category}\u0000${search}\u0000${pageSize}\u0000${listReloadKey}`;
+
+  /**
+   * 侧边栏是重复点击也应该生效的导航入口。路由相同（例如已经在 /inbox
+   * 第 3 页时再次点击收件箱）不会触发 location 变化，因此这里显式清掉
+   * 分页游标、详情和查询条件，并用 key 触发一次新的列表请求。
+   */
+  function resetListNavigation() {
+    pageCursorsRef.current = [undefined];
+    queryKeyRef.current = "";
+    listSeqRef.current += 1;
+    setCursor(null);
+    setPage(0);
+    setActiveId(null);
+    setDetail(null);
+    setDetailMailboxId(undefined);
+    setCategory("");
+    setSearch("");
+    setListReloadKey((current) => current + 1);
+  }
 
   // 列表刷新统一防抖：敲键盘/切文件夹时不立刻连发请求。
   // 查询条件或每页数量变化时回到第一页；翻页只请求当前页数据。
@@ -468,6 +488,7 @@ export default function MailPage() {
       to: message.from.email,
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
       text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+      aiReplyTarget: detailMailboxId ? { messageId: message.id, mailboxId: detailMailboxId } : undefined,
     });
   }
 
@@ -492,6 +513,7 @@ export default function MailPage() {
       cc: cc.join(", "),
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
       text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+      aiReplyTarget: detailMailboxId ? { messageId: message.id, mailboxId: detailMailboxId } : undefined,
     });
   }
 
@@ -567,10 +589,11 @@ export default function MailPage() {
         stats={stats}
         customFolders={customFolders}
         onSelectMailbox={(nextMailboxId) => {
+          resetListNavigation();
           navigate(mailPath("mail", "inbox", nextMailboxId));
         }}
         onSelectFolder={(next) => {
-          setCategory("");
+          resetListNavigation();
           navigate(mailPath("mail", next, mailboxId));
         }}
         onCreateFolder={async (name) => {
@@ -578,6 +601,7 @@ export default function MailPage() {
           await loadFolders();
         }}
         onSelectView={(nextView) => {
+          resetListNavigation();
           navigate(mailPath(nextView, folder, mailboxId));
         }}
         onCompose={() => setComposeDraft({})}
@@ -643,9 +667,12 @@ export default function MailPage() {
             aiEnabled={aiEnabled}
             customFolders={customFolders}
             onReply={replyTo}
+            onInlineSent={(result) => {
+              onSent(result);
+              void loadList();
+            }}
             onReplyAll={replyAllTo}
             onForward={forwardMessage}
-            onAiReply={(draft) => setComposeDraft(draft)}
             onMove={(id, target) => void moveTo(id, target)}
             onDelete={(id) => void removeMessage(id)}
             onMarkAllRead={() => void markAllRead()}

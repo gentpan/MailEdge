@@ -54,7 +54,11 @@ ai.post("/config", requireAdmin, async (c) => {
 ai.post("/config/test", requireAdmin, async (c) => {
   const config = await getAiConfig(c.env);
   try {
-    const reply = await chat(config, [{ role: "user", content: "回复 OK 两个字即可" }], { maxTokens: 10 });
+    // 推理模型可能先消耗一段 token 生成思考过程；10 个 token 容易导致
+    // API 正常返回但没有最终 content，从而被误判为“返回为空”。
+    const reply = await chat(config, [{ role: "user", content: "请只回复 OK，不要解释。" }], {
+      maxTokens: 128,
+    });
     return c.json({ ok: true, reply });
   } catch (error) {
     return c.json({ ok: false, error: error instanceof AiError ? error.message : "调用失败" }, 502);

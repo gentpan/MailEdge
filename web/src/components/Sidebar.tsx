@@ -104,9 +104,12 @@ interface SortableNavItemProps {
   title?: string;
   onClick: () => void;
   onDragStart: (event: DragEvent<HTMLButtonElement>, group: SidebarOrderGroup, id: string) => void;
+  onDragEnter: (group: SidebarOrderGroup, id: string) => void;
+  onDragLeave: (group: SidebarOrderGroup, id: string) => void;
   onDrop: (event: DragEvent<HTMLButtonElement>, group: SidebarOrderGroup, id: string) => void;
   onDragEnd: () => void;
   dragging: boolean;
+  dragOver: boolean;
   children: ReactNode;
 }
 
@@ -118,25 +121,38 @@ function SortableNavItem({
   title,
   onClick,
   onDragStart,
+  onDragEnter,
+  onDragLeave,
   onDrop,
   onDragEnd,
   dragging,
+  dragOver,
   children,
 }: SortableNavItemProps) {
   return (
-    <div className={`sidebar__sortable-item${dragging ? " sidebar__sortable-item--dragging" : ""}`}>
+    <div
+      className={`sidebar__sortable-item${dragging ? " sidebar__sortable-item--dragging" : ""}${dragOver ? " sidebar__sortable-item--drag-over" : ""}`}
+    >
       <button
         type="button"
-        className={`nav-item${active ? " nav-item--active" : ""}`}
+        className={`nav-item${active ? " nav-item--active" : ""}${dragOver ? " nav-item--drag-over" : ""}`}
         draggable
         aria-grabbed={dragging}
+        aria-dropeffect={dragOver ? "move" : undefined}
         title={title}
         onClick={onClick}
         onDragStart={(event) => onDragStart(event, group, id)}
         onDragEnd={onDragEnd}
+        onDragEnter={() => onDragEnter(group, id)}
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
+        }}
+        onDragLeave={(event) => {
+          const relatedTarget = event.relatedTarget;
+          if (!(relatedTarget instanceof Node) || !event.currentTarget.contains(relatedTarget)) {
+            onDragLeave(group, id);
+          }
         }}
         onDrop={(event) => onDrop(event, group, id)}
       >
@@ -191,6 +207,7 @@ export default function Sidebar({
   const [folderError, setFolderError] = useState<string | null>(null);
   const [sidebarOrders, setSidebarOrders] = useState<SidebarOrders>(() => loadSidebarOrders(user.id));
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -259,6 +276,17 @@ export default function Sidebar({
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/sidebar-order", `${group}|${id}`);
     setDraggingId(`${group}|${id}`);
+    setDragOverId(null);
+  }
+
+  function onDragEnter(group: SidebarOrderGroup, id: string) {
+    const target = `${group}|${id}`;
+    if (target !== draggingId) setDragOverId(target);
+  }
+
+  function onDragLeave(group: SidebarOrderGroup, id: string) {
+    const target = `${group}|${id}`;
+    setDragOverId((current) => (current === target ? null : current));
   }
 
   function onDrop(event: DragEvent<HTMLButtonElement>, group: SidebarOrderGroup, targetId: string) {
@@ -268,6 +296,7 @@ export default function Sidebar({
     const sourceGroup = separator >= 0 ? value.slice(0, separator) : "";
     const sourceId = separator >= 0 ? value.slice(separator + 1) : "";
     setDraggingId(null);
+    setDragOverId(null);
     // 只在同一分组内排序，避免把“信箱入口”误拖成文件夹或投递入口。
     if (sourceGroup !== group || !sourceId || sourceId === targetId) return;
     setSidebarOrders((current) => {
@@ -283,6 +312,7 @@ export default function Sidebar({
 
   function onDragEnd() {
     setDraggingId(null);
+    setDragOverId(null);
   }
 
   async function submitFolder(event: FormEvent<HTMLFormElement>) {
@@ -324,9 +354,12 @@ export default function Sidebar({
             active={view === "dashboard"}
             onClick={() => onSelectView("dashboard")}
             onDragStart={onDragStart}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
             onDrop={onDrop}
             onDragEnd={onDragEnd}
             dragging={draggingId === `primary|${id}`}
+            dragOver={dragOverId === `primary|${id}`}
           >
             {t("nav.dashboard")}
           </SortableNavItem>
@@ -387,9 +420,12 @@ export default function Sidebar({
                   systemFolder.key === "inbox" ? onSelectMailbox("all") : onSelectFolder(systemFolder.key)
                 }
                 onDragStart={onDragStart}
+                onDragEnter={onDragEnter}
+                onDragLeave={onDragLeave}
                 onDrop={onDrop}
                 onDragEnd={onDragEnd}
                 dragging={draggingId === `folders|${orderId}`}
+                dragOver={dragOverId === `folders|${orderId}`}
               >
                 {t(systemFolder.labelKey)}
                 {unread > 0 && <span className="nav-item__count">{unread}</span>}
@@ -410,9 +446,12 @@ export default function Sidebar({
               title={customFolder.name}
               onClick={() => onSelectFolder(customFolder.id)}
               onDragStart={onDragStart}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
               onDrop={onDrop}
               onDragEnd={onDragEnd}
               dragging={draggingId === `folders|${orderId}`}
+              dragOver={dragOverId === `folders|${orderId}`}
             >
               <span className="nav-item__text">{customFolder.name}</span>
               {unread > 0 && <span className="nav-item__count">{unread}</span>}
@@ -439,9 +478,12 @@ export default function Sidebar({
               active={view === item.view}
               onClick={() => onSelectView(item.view)}
               onDragStart={onDragStart}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
               onDrop={onDrop}
               onDragEnd={onDragEnd}
               dragging={draggingId === `delivery|${id}`}
+              dragOver={dragOverId === `delivery|${id}`}
             >
               {t(item.label)}
             </SortableNavItem>
@@ -460,9 +502,12 @@ export default function Sidebar({
             active={view === "contacts"}
             onClick={() => onSelectView("contacts")}
             onDragStart={onDragStart}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
             onDrop={onDrop}
             onDragEnd={onDragEnd}
             dragging={draggingId === `management|${id}`}
+            dragOver={dragOverId === `management|${id}`}
           >
             {t("nav.contacts")}
           </SortableNavItem>
@@ -485,9 +530,12 @@ export default function Sidebar({
                 title={mailbox.address}
                 onClick={() => onSelectMailbox(mailbox.id)}
                 onDragStart={onDragStart}
+                onDragEnter={onDragEnter}
+                onDragLeave={onDragLeave}
                 onDrop={onDrop}
                 onDragEnd={onDragEnd}
                 dragging={draggingId === `mailboxes|${orderId}`}
+                dragOver={dragOverId === `mailboxes|${orderId}`}
               >
                 <span className="nav-item__mailbox-meta">
                   <span className="nav-item__text">{mailbox.displayName || mailbox.address}</span>
