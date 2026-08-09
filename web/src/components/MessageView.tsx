@@ -12,17 +12,20 @@ import {
   Paperclip,
   Reply,
   ReplyAll,
+  SendHorizontal,
   Star,
   Trash2,
   TriangleAlert,
   UserPlus,
   WandSparkles,
+  X,
 } from "lucide-react";
-import { type SyntheticEvent, useRef, useState } from "react";
+import { type SyntheticEvent, useEffect, useRef, useState } from "react";
 import type { CustomFolder, MailFolder, MessageDetail } from "../../../src/shared/message";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
 import { api, type Contact, type SendResponse } from "../lib/api";
+import { prepareEmailHtml } from "../lib/emailHtml";
 import { displayName, formatDateTime, formatSize, PROVIDER_LABELS } from "../lib/format";
 import SenderAvatar from "./SenderAvatar";
 
@@ -76,6 +79,18 @@ export default function MessageView({
   const [inlineReplyAiBusy, setInlineReplyAiBusy] = useState(false);
   const [inlineReplyError, setInlineReplyError] = useState<string | null>(null);
   const [inlineReplySent, setInlineReplySent] = useState(false);
+  const [themeDark, setThemeDark] = useState(() => document.body.classList.contains("theme-dark"));
+  const frameResizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  useEffect(() => {
+    const syncTheme = () => setThemeDark(document.body.classList.contains("theme-dark"));
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    // ThemeToggle 与详情组件在同一轮挂载，监听建立前主题类可能已经写入。
+    // 主动同步一次，避免首次打开邮件仍使用浅色 srcDoc。
+    syncTheme();
+    return () => observer.disconnect();
+  }, []);
 
   // 竞态守卫：AI 请求可能跨越邮件切换返回，用序号丢弃过期结果
   const aiSeqRef = useRef(0);
@@ -84,6 +99,8 @@ export default function MessageView({
   const currentId = message?.id ?? null;
   const [seenId, setSeenId] = useState<string | null>(null);
   if (currentId !== seenId) {
+    frameResizeObserverRef.current?.disconnect();
+    frameResizeObserverRef.current = null;
     aiSeqRef.current += 1;
     setSeenId(currentId);
     setOpenMenu(null);
@@ -96,18 +113,44 @@ export default function MessageView({
     setInlineReplySent(false);
   }
 
+  useEffect(
+    () => () => {
+      frameResizeObserverRef.current?.disconnect();
+      frameResizeObserverRef.current = null;
+    },
+    [],
+  );
+
   function resizeHtmlFrame(event: SyntheticEvent<HTMLIFrameElement>) {
-    const document = event.currentTarget.contentDocument;
+    const frame = event.currentTarget;
+    const document = frame.contentDocument;
     if (!document) return;
 
     // 正文高度交给外层详情容器滚动，避免 iframe 自己再出现一条滚动条。
     document.documentElement.style.overflow = "hidden";
     if (document.body) document.body.style.overflow = "visible";
 
-    // HTML 邮件仍然禁用脚本、表单和顶层导航；只读取已加载文档高度，
-    // 让外层详情面板负责滚动，避免正文在固定 iframe 高度内被截断。
-    const height = Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0);
-    if (height > 0) setFrameHeight(Math.max(480, height));
+    // HTML 邮件仍然禁用脚本、表单和顶层导航；按真实内容高度展开，
+    // 让外层详情面板负责滚动。短邮件不再被固定的 480px 下限撑出大片空白。
+    const syncHeight = () => {
+      const height = Math.ceil(
+        Math.max(
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight,
+          document.body?.scrollHeight ?? 0,
+          document.body?.offsetHeight ?? 0,
+        ),
+      );
+      if (height > 0) setFrameHeight(Math.max(120, height));
+    };
+
+    syncHeight();
+    frameResizeObserverRef.current?.disconnect();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(document.documentElement);
+    if (document.body) observer.observe(document.body);
+    frameResizeObserverRef.current = observer;
+    void document.fonts?.ready.then(syncHeight);
   }
 
   async function generateInlineAiReply() {
@@ -375,14 +418,14 @@ export default function MessageView({
         )}
       </div>
 
-      <div className="detail-pane__body">
+      <div className="detail-pane__body" key={message.id}>
         <header className="detail-header detail-header--message">
           <div className="detail-header__subject-row">
             <h2 className="detail-header__subject">{message.subject || t("detail.noSubject")}</h2>
           </div>
 
           <div className="detail-header__sender">
-            <SenderAvatar address={message.from} />
+            <SenderAvatar address={message.from} priority />
             <div className="detail-header__sender-main">
               <div className="detail-header__sender-line">
                 <span className="detail-header__sender-name">{displayName(message.from)}</span>
@@ -445,7 +488,7 @@ export default function MessageView({
           {message.error && <div className="alert alert--error">{message.error}</div>}
         </header>
 
-        <div className="detail-body">
+        <div className={`detail-body ${message.html ? "detail-body--html" : "detail-body--text"}`}>
           {message.html ? (
             // 用沙箱 iframe 渲染 HTML 正文：禁用脚本、表单与顶层导航。
             // allow-same-origin 仅用于读取文档高度，便于把完整正文交给外层面板滚动。
@@ -453,7 +496,7 @@ export default function MessageView({
               className="detail-frame"
               title={message.subject}
               sandbox="allow-same-origin"
-              srcDoc={message.html}
+              srcDoc={prepareEmailHtml(message.html, themeDark ? "dark" : "light")}
               referrerPolicy="no-referrer"
               onLoad={resizeHtmlFrame}
               style={frameHeight ? { height: `${frameHeight}px` } : undefined}
@@ -496,8 +539,13 @@ export default function MessageView({
             {inlineReplyOpen ? (
               <div className="detail-quick-reply detail-quick-reply--expanded">
                 <div className="detail-quick-reply__heading">
-                  <Reply size={18} />
-                  <span>{t("detail.quickReply")}</span>
+                  <span className="detail-quick-reply__heading-icon" aria-hidden="true">
+                    <Reply size={18} />
+                  </span>
+                  <span className="detail-quick-reply__heading-copy">
+                    <strong>{t("detail.quickReply")}</strong>
+                    <small>{t("detail.quickReply.recipient", { email: message.from.email })}</small>
+                  </span>
                 </div>
                 <textarea
                   className="detail-quick-reply__input"
@@ -520,10 +568,11 @@ export default function MessageView({
                 <div className="detail-quick-reply__actions">
                   {aiEnabled && mailboxId && (
                     <button
-                      className="btn btn--secondary btn--sm"
+                      className="btn detail-quick-reply__button detail-quick-reply__ai"
                       type="button"
                       onClick={() => void generateInlineAiReply()}
                       disabled={inlineReplyBusy || inlineReplyAiBusy}
+                      aria-busy={inlineReplyAiBusy}
                     >
                       {inlineReplyAiBusy ? (
                         <Loader2 size={15} className="spin" />
@@ -533,8 +582,9 @@ export default function MessageView({
                       {inlineReplyAiBusy ? t("detail.aiReply.busy") : t("detail.aiReply")}
                     </button>
                   )}
+                  <span className="detail-quick-reply__shortcut">{t("detail.quickReply.shortcut")}</span>
                   <button
-                    className="btn btn--ghost btn--sm"
+                    className="btn detail-quick-reply__button detail-quick-reply__cancel"
                     type="button"
                     onClick={() => {
                       setInlineReplyOpen(false);
@@ -542,15 +592,17 @@ export default function MessageView({
                     }}
                     disabled={inlineReplyBusy}
                   >
+                    <X size={16} />
                     {t("detail.quickReply.cancel")}
                   </button>
                   <button
-                    className="btn btn--primary btn--sm"
+                    className="btn detail-quick-reply__button detail-quick-reply__send"
                     type="button"
                     onClick={() => void submitInlineReply()}
                     disabled={inlineReplyBusy || !inlineReplyText.trim()}
+                    aria-busy={inlineReplyBusy}
                   >
-                    {inlineReplyBusy ? <Loader2 size={15} className="spin" /> : <Reply size={15} />}
+                    {inlineReplyBusy ? <Loader2 size={16} className="spin" /> : <SendHorizontal size={16} />}
                     {inlineReplyBusy ? t("detail.quickReply.sending") : t("detail.quickReply.send")}
                   </button>
                 </div>
@@ -566,8 +618,13 @@ export default function MessageView({
                 }}
                 aria-label={t("detail.quickReply")}
               >
-                <Reply size={18} />
-                <span>{t("detail.quickReply.placeholder")}</span>
+                <span className="detail-quick-reply__open-icon" aria-hidden="true">
+                  <Reply size={18} />
+                </span>
+                <span className="detail-quick-reply__open-copy">
+                  <strong>{t("detail.quickReply")}</strong>
+                  <small>{t("detail.quickReply.placeholder")}</small>
+                </span>
               </button>
             )}
           </>

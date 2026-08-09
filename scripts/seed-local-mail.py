@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""向本地 Wrangler Durable Object 写入视觉回归邮件，不发送真实邮件。"""
+"""向本地 Wrangler Durable Object 写入确定性的 QA 邮件，不发送真实邮件。
+
+这个脚本只会访问仓库内 ``.wrangler/state`` 的本地 SQLite，并且只会替换
+``seed_`` 前缀的数据。线上 Cloudflare 资源不会被读取或修改。
+"""
 
 from __future__ import annotations
 
+import argparse
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -11,19 +16,29 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DO_DIR = ROOT / ".wrangler/state/v3/do/mailedge-MailboxDO"
-TARGET = "mailbox:admin@example.com"
+DEFAULT_MAILBOX = "admin@example.com"
+SEED_PREFIX = "seed_"
+VALID_CATEGORIES = {"important", "updates", "promotions", "verification", "social", "other"}
 
 
-def find_target() -> Path:
+def target_name(mailbox: str) -> str:
+    mailbox = mailbox.strip().lower()
+    if not mailbox or "@" not in mailbox or any(character.isspace() for character in mailbox):
+        raise ValueError(f"无效的本地测试邮箱：{mailbox!r}")
+    return f"mailbox:{mailbox}"
+
+
+def find_target(mailbox: str = DEFAULT_MAILBOX) -> Path:
+    expected = target_name(mailbox)
     for path in DO_DIR.glob("*.sqlite"):
         try:
             with sqlite3.connect(path) as connection:
                 row = connection.execute("SELECT * FROM __miniflare_do_name").fetchone()
         except sqlite3.Error:
             continue
-        if row and len(row) > 1 and row[1] == TARGET:
+        if row and len(row) > 1 and row[1] == expected:
             return path
-    raise SystemExit("找不到本地 admin@example.com Durable Object，请先运行 npm run dev")
+    raise SystemExit(f"找不到本地 {mailbox} Durable Object，请先运行 npm run dev 并登录一次")
 
 
 def fixture(
@@ -42,11 +57,11 @@ def fixture(
 ) -> tuple:
     domain = sender.rsplit("@", 1)[-1]
     return (
-        f"seed_{key}",
-        f"<seed_{key}@{domain}>",
+        f"{SEED_PREFIX}{key}",
+        f"<{SEED_PREFIX}{key}@{domain}>",
         sender,
         name,
-        json.dumps([{"email": TARGET.removeprefix("mailbox:")}], ensure_ascii=False),
+        json.dumps([{"email": DEFAULT_MAILBOX}], ensure_ascii=False),
         subject,
         snippet,
         html,
@@ -249,6 +264,253 @@ MESSAGES = [
     ),
 ]
 
+# 深浅色视觉专项：日期晚于基础 fixtures，重建后会固定显示在收件箱第一页。
+MESSAGES.extend(
+    [
+        fixture(
+            "dropbox-code",
+            "no-reply@dropbox.com",
+            "Dropbox",
+            "你的 Dropbox 登录验证码是 482 917",
+            "请在 10 分钟内输入此验证码。不要将验证码转发或透露给任何人。",
+            "Dropbox 登录验证码\n\n482 917\n\n验证码将在 10 分钟后失效。如果这不是你的操作，请立即修改密码。",
+            """
+            <div style="font-family:Arial,'Microsoft YaHei',sans-serif;background:#f4f7fb;padding:28px;color:#17213a">
+              <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #dce3ef;border-radius:16px;padding:32px;text-align:center">
+                <div style="width:48px;height:48px;line-height:48px;margin:0 auto 18px;border-radius:12px;background:#0061ff;color:#fff;font-weight:700">DB</div>
+                <h1 style="margin:0 0 12px;font-size:24px">验证你的登录</h1>
+                <p style="margin:0;color:#667085">请在 10 分钟内输入以下验证码</p>
+                <div style="margin:26px 0;padding:18px;border-radius:12px;background:#eef4ff;color:#0052d9;font-size:32px;font-weight:700;letter-spacing:.24em">482 917</div>
+                <p style="margin:0;color:#98a2b3;font-size:13px">不要将验证码转发或透露给任何人。</p>
+              </div>
+            </div>
+            """.strip(),
+            "2026-08-09T10:24:00.000Z",
+            category="verification",
+        ),
+        fixture(
+            "stripe-receipt",
+            "receipts@stripe.com",
+            "Stripe Receipts",
+            "付款成功：MailEdge Cloud 服务订单 #ME-20260809",
+            "我们已收到你的付款。订单总额 US$29.00，付款方式 Visa •••• 4242。",
+            "付款成功\n\n订单：#ME-20260809\n订阅：MailEdge Cloud Pro\n金额：US$29.00\n付款方式：Visa •••• 4242",
+            """
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f7fb;padding:28px;color:#202124">
+              <div style="max-width:680px;margin:auto;background:#fff;border:1px solid #e3e6ef;border-radius:14px;overflow:hidden">
+                <div style="padding:26px 30px;background:linear-gradient(135deg,#635bff,#8b5cf6);color:#fff"><strong style="font-size:22px">Stripe</strong><span style="float:right">付款收据</span></div>
+                <div style="padding:30px"><p style="margin:0 0 8px;color:#667085">订单 #ME-20260809</p><h1 style="margin:0 0 22px">US$29.00</h1>
+                  <table style="border-collapse:collapse;width:100%"><tr><td style="padding:12px 0;border-bottom:1px solid #eaecf0">MailEdge Cloud Pro</td><td style="padding:12px 0;border-bottom:1px solid #eaecf0;text-align:right">US$29.00</td></tr><tr><td style="padding:12px 0;color:#667085">付款方式</td><td style="padding:12px 0;text-align:right;color:#667085">Visa •••• 4242</td></tr></table>
+                  <p style="margin:22px 0 0"><span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#ecfdf3;color:#067647">付款成功</span></p>
+                </div>
+              </div>
+            </div>
+            """.strip(),
+            "2026-08-09T10:16:00.000Z",
+            read=True,
+            starred=True,
+            category="important",
+        ),
+        fixture(
+            "apple-security",
+            "account-security@apple.com",
+            "Apple 账户安全",
+            "你的 Apple 账户刚刚在一台新设备上登录",
+            "设备：MacBook Pro；位置：Berlin, Germany。如果不是你本人，请立即保护账户。",
+            "Apple 账户安全提醒\n\n设备：MacBook Pro\n位置：Berlin, Germany\n时间：2026-08-09 12:08\n\n如果不是你的操作，请立即修改密码。",
+            """
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:660px;margin:auto;color:#1d1d1f;line-height:1.6">
+              <div style="font-size:34px;margin-bottom:18px">●</div><h1 style="font-size:28px;line-height:1.25">你的 Apple 账户刚刚在一台新设备上登录</h1>
+              <p>我们检测到你的账户在 <strong>MacBook Pro</strong> 上完成登录。</p>
+              <div style="padding:18px;border-radius:12px;background:#f5f5f7"><table style="width:100%"><tr><td style="padding:5px;color:#6e6e73">位置</td><td style="padding:5px;text-align:right">Berlin, Germany</td></tr><tr><td style="padding:5px;color:#6e6e73">时间</td><td style="padding:5px;text-align:right">2026-08-09 12:08</td></tr></table></div>
+              <p style="padding:14px 16px;border-left:4px solid #ff3b30;background:#fff2f1">如果不是你本人，请立即修改密码并检查受信任设备。</p>
+              <p><a href="https://appleid.apple.com" style="display:inline-block;padding:11px 18px;border-radius:999px;background:#0071e3;color:white;text-decoration:none">检查账户</a></p>
+            </div>
+            """.strip(),
+            "2026-08-09T10:08:00.000Z",
+            category="important",
+        ),
+        fixture(
+            "slack-mention",
+            "notification@slack.com",
+            "Slack",
+            "Lin 在 #mailedge-design 中提到了你",
+            "“我已经上传新的深色模式设计稿，请重点检查邮件正文和工具栏对比度。”",
+            "Lin 在 #mailedge-design 中提到了你：\n\n我已经上传新的深色模式设计稿，请重点检查邮件正文和工具栏对比度。",
+            """
+            <div style="font-family:Arial,'Microsoft YaHei',sans-serif;max-width:680px;margin:auto;color:#1d1c1d">
+              <div style="padding:18px 22px;border-bottom:1px solid #ddd"><strong style="font-size:22px;color:#4a154b">Slack</strong><span style="float:right;color:#616061">#mailedge-design</span></div>
+              <div style="padding:24px"><div style="display:inline-block;width:42px;height:42px;line-height:42px;text-align:center;border-radius:10px;background:#36c5f0;color:#fff;font-weight:700">L</div>
+                <div style="margin:14px 0;padding:18px;border-left:4px solid #4a154b;background:#f8f5f8"><strong>Lin</strong><p style="margin:8px 0 0">我已经上传新的深色模式设计稿，请重点检查邮件正文和工具栏对比度。✨</p></div>
+                <a href="https://slack.com" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#4a154b;color:#fff;text-decoration:none">在 Slack 中回复</a>
+              </div>
+            </div>
+            """.strip(),
+            "2026-08-09T09:58:00.000Z",
+            read=True,
+            category="social",
+        ),
+        fixture(
+            "github-failure",
+            "notifications@github.com",
+            "GitHub Actions",
+            "[MailEdge] Deploy production failed on main (a82cf19)",
+            "Build completed with 1 error: Worker deployment was stopped before publishing assets.",
+            "GitHub Actions\n\nDeploy production failed\nBranch: main\nCommit: a82cf19\n\nError: Worker deployment was stopped before publishing assets.",
+            """
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:760px;margin:auto;color:#24292f">
+              <h1 style="font-size:24px"><span style="color:#cf222e">●</span> Deploy production failed</h1>
+              <table style="width:100%;border-collapse:collapse;margin:18px 0"><tr><td style="padding:10px;border:1px solid #d0d7de;color:#57606a">Repository</td><td style="padding:10px;border:1px solid #d0d7de">gentpan/MailEdge</td></tr><tr><td style="padding:10px;border:1px solid #d0d7de;color:#57606a">Commit</td><td style="padding:10px;border:1px solid #d0d7de"><code>a82cf19</code></td></tr></table>
+              <pre style="padding:18px;border-radius:10px;background:#0d1117;color:#e6edf3;white-space:pre-wrap;overflow-wrap:anywhere"><span style="color:#ff7b72">ERROR</span> Worker deployment was stopped\nbefore publishing assets.\n\nProcess completed with exit code 1.</pre>
+              <p><a href="https://github.com/gentpan/MailEdge/actions" style="color:#0969da">查看工作流日志 →</a></p>
+            </div>
+            """.strip(),
+            "2026-08-09T09:46:00.000Z",
+            starred=True,
+            category="updates",
+        ),
+        fixture(
+            "zoom-calendar",
+            "no-reply@zoom.us",
+            "Zoom Calendar",
+            "会议邀请：MailEdge v0.2.3 设计评审（今天 15:30）",
+            "时间：8 月 9 日 15:30–16:15；会议号：842 0192 6631；组织者：Lin。",
+            "会议邀请\n\nMailEdge v0.2.3 设计评审\n时间：2026-08-09 15:30–16:15\n会议号：842 0192 6631",
+            """
+            <div style="font-family:Arial,'Microsoft YaHei',sans-serif;background:#f7f8fc;padding:24px;color:#182230">
+              <div style="max-width:640px;margin:auto;background:#fff;border:1px solid #e4e7ec;border-radius:16px;padding:28px"><p style="margin:0;color:#2d8cff;font-weight:700">ZOOM CALENDAR</p><h1 style="margin:10px 0 22px">MailEdge v0.2.3 设计评审</h1>
+                <table style="width:100%;border-collapse:collapse"><tr><td style="padding:10px 0;color:#667085">日期</td><td style="padding:10px 0">2026 年 8 月 9 日</td></tr><tr><td style="padding:10px 0;color:#667085">时间</td><td style="padding:10px 0">15:30–16:15</td></tr><tr><td style="padding:10px 0;color:#667085">会议号</td><td style="padding:10px 0">842 0192 6631</td></tr></table>
+                <p><a href="https://zoom.us" style="display:inline-block;margin-right:8px;padding:10px 18px;border-radius:8px;background:#2d8cff;color:white;text-decoration:none">加入会议</a><a href="https://calendar.google.com" style="display:inline-block;padding:10px 18px;border-radius:8px;border:1px solid #cfd4dc;color:#344054;text-decoration:none">添加到日历</a></p>
+              </div>
+            </div>
+            """.strip(),
+            "2026-08-09T09:34:00.000Z",
+            category="other",
+        ),
+        fixture(
+            "amazon-shipment",
+            "shipment-tracking@amazon.com",
+            "Amazon 物流通知",
+            "你的订单已发货，预计明天送达",
+            "包裹已离开发货中心。配送进度 65%，运单尾号 7392。",
+            "你的订单已发货\n\n预计明天送达。运单尾号：7392。",
+            """
+            <div style="font-family:Arial,'Microsoft YaHei',sans-serif;max-width:680px;margin:auto;color:#17213a"><div style="padding:20px;background:#131921;color:#fff"><strong style="font-size:22px">amazon</strong></div><div style="padding:28px"><h1>你的订单已发货</h1><p>预计 <strong>明天 18:00 前</strong>送达。</p>
+              <div style="margin:28px 0;height:10px;border-radius:999px;background:#eaecf0;overflow:hidden"><div style="width:65%;height:100%;background:#ff9900"></div></div>
+              <table style="width:100%;border-collapse:collapse"><tr><td style="padding:12px;border-bottom:1px solid #eee">已确认订单</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;color:#067647">完成</td></tr><tr><td style="padding:12px;border-bottom:1px solid #eee">运输中</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;color:#ff9900">进行中</td></tr><tr><td style="padding:12px">送达</td><td style="padding:12px;text-align:right;color:#98a2b3">等待</td></tr></table></div></div>
+            """.strip(),
+            "2026-08-09T09:20:00.000Z",
+            read=True,
+            category="updates",
+        ),
+        fixture(
+            "notion-digest",
+            "team@notion.so",
+            "Notion",
+            "本周工作区摘要：12 个页面更新、8 条评论和 3 个待办事项",
+            "查看团队本周更新最多的页面、最新评论和即将到期的任务。",
+            "Notion 工作区摘要\n\n12 个页面更新\n8 条评论\n3 个待办事项",
+            """
+            <div style="font-family:Arial,'Microsoft YaHei',sans-serif;max-width:720px;margin:auto;color:#191919"><h1 style="font-size:28px">工作区周报</h1><p style="color:#787774">2026 年 8 月 3 日—8 月 9 日</p>
+              <table style="width:100%;border-spacing:10px"><tr><td style="padding:20px;border:1px solid #e5e5e5;border-radius:12px"><strong style="font-size:28px">12</strong><br><span style="color:#787774">页面更新</span></td><td style="padding:20px;border:1px solid #e5e5e5;border-radius:12px"><strong style="font-size:28px">8</strong><br><span style="color:#787774">最新评论</span></td><td style="padding:20px;border:1px solid #e5e5e5;border-radius:12px"><strong style="font-size:28px">3</strong><br><span style="color:#787774">待办事项</span></td></tr></table>
+              <h2>热门页面</h2><p style="padding:14px;border-radius:8px;background:#f7f6f3">📬 MailEdge 深色模式检查清单</p><p style="padding:14px;border-radius:8px;background:#f7f6f3">🚀 v0.2.3 发布计划</p></div>
+            """.strip(),
+            "2026-08-09T09:06:00.000Z",
+            category="promotions",
+        ),
+        fixture(
+            "native-dark",
+            "status@vercel.com",
+            "Vercel Status",
+            "Production deployment is ready — mailedge-web",
+            "Deployment completed in 42 seconds. Preview and production aliases are available.",
+            "Production deployment is ready\n\nProject: mailedge-web\nCommit: 19e4c7a\nDuration: 42 seconds",
+            """
+            <!doctype html><html><head><meta name="color-scheme" content="light dark"><style>
+              body{margin:0;background:#fff;color:#111;font-family:Arial,sans-serif}.card{max-width:680px;margin:0 auto;padding:30px;border:1px solid #ddd;border-radius:14px}.log{background:#111;color:#f5f5f5;padding:18px;border-radius:10px}
+              @media (prefers-color-scheme:dark){body{background:#0a0a0a;color:#ededed}.card{border-color:#303030}.log{background:#181818;color:#f5f5f5}}
+            </style></head><body><div class="card"><p style="letter-spacing:.08em;color:#6b7280">VERCEL DEPLOYMENT</p><h1>Production deployment is ready</h1><p>Your project <strong>mailedge-web</strong> was deployed successfully.</p><div class="log"><code>commit&nbsp;&nbsp;19e4c7a<br>duration&nbsp;42 seconds<br>status&nbsp;&nbsp;&nbsp;READY</code></div><p><a href="https://vercel.com" style="color:#0052d9">Open deployment</a></p></div></body></html>
+            """.strip(),
+            "2026-08-09T08:52:00.000Z",
+            read=True,
+            category="updates",
+        ),
+        fixture(
+            "plain-text",
+            "support@proton.me",
+            "Proton Support",
+            "纯文本邮件测试：没有 HTML、图片或品牌样式",
+            "这封邮件只有纯文本，用来检查段落、换行、长链接、emoji 和多语言内容。",
+            "你好，\n\n这是一封没有 HTML 正文的纯文本邮件。\n\n它包含：\n- 中文与 English mixed content\n- Emoji：📬 🔐 ✅\n- 很长的链接：https://mailedge.io/usage?source=local-visual-regression&theme=light-dark&message=plain-text\n- RTL sample: مرحبا بك في MailEdge\n\n请分别在浅色和深色模式下检查字号、行高、链接换行和正文边距。\n\nProton Support",
+            "",
+            "2026-08-09T08:40:00.000Z",
+            category="other",
+        ),
+        fixture(
+            "outlook-nested-tables",
+            "newsletter@outlook.com",
+            "Outlook Newsletter",
+            "Outlook 嵌套表格兼容性测试：双栏卡片、CTA 与固定宽度内容",
+            "使用传统 table 布局模拟 Outlook 邮件，检查嵌套表格、固定宽度、按钮和移动端横向溢出。",
+            "Outlook 嵌套表格测试\n\n左栏：发布状态\n右栏：测试通过\n\n此邮件不包含真实附件。",
+            """
+            <!doctype html><html><body style="margin:0;background:#eef2f7;color:#17213a;font-family:Arial,'Microsoft YaHei',sans-serif">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#eef2f7"><tr><td align="center" style="padding:28px 12px">
+                <table role="presentation" width="640" cellspacing="0" cellpadding="0" border="0" style="width:640px;max-width:100%;background:#fff;border:1px solid #d9e0eb">
+                  <tr><td style="padding:24px 28px;background:#0052d9;color:#fff;font-size:22px;font-weight:700">Outlook layout fixture</td></tr>
+                  <tr><td style="padding:28px"><h1 style="margin:0 0 12px;font-size:26px">嵌套表格兼容性检查</h1><p style="margin:0 0 22px;line-height:1.7;color:#5d6b82">此正文故意使用邮件客户端常见的 presentation table，不依赖 flex 或 grid。</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+                      <td width="48%" valign="top" style="padding:16px;border:1px solid #d9e0eb"><strong>发布状态</strong><p style="margin:8px 0 0;color:#16803a">测试通过</p></td>
+                      <td width="4%">&nbsp;</td>
+                      <td width="48%" valign="top" style="padding:16px;border:1px solid #d9e0eb"><strong>渲染模式</strong><p style="margin:8px 0 0;color:#5d6b82">Nested table</p></td>
+                    </tr></table>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:24px"><tr><td style="background:#0052d9;border-radius:6px"><a href="https://mailedge.io" style="display:inline-block;padding:12px 20px;color:#fff;text-decoration:none;font-weight:700">查看测试说明</a></td></tr></table>
+                  </td></tr>
+                </table>
+              </td></tr></table>
+            </body></html>
+            """.strip(),
+            "2026-08-09T08:28:00.000Z",
+            read=True,
+            category="updates",
+        ),
+        fixture(
+            "fixed-black-canvas",
+            "alerts@linear.app",
+            "Linear",
+            "原生黑底邮件测试：固定深色画布、浅色文字和状态卡片",
+            "这封邮件始终使用黑色背景，不跟随系统主题，用于确认应用不会重复反色或破坏品牌颜色。",
+            "Linear 深色通知\n\nIssue MAI-221 已完成。\n状态：Done\n优先级：High",
+            """
+            <!doctype html><html><head><meta name="color-scheme" content="dark"><style>
+              html,body{margin:0;background:#050506;color:#f7f7f8;font-family:Arial,sans-serif}.wrap{max-width:680px;margin:0 auto;padding:32px}.card{padding:24px;border:1px solid #303036;border-radius:14px;background:#111114}.muted{color:#a3a3ad}.state{color:#6ee7a5}
+            </style></head><body><div class="wrap"><p class="muted" style="letter-spacing:.08em">LINEAR ISSUE UPDATE</p><h1>MAI-221 已完成</h1><div class="card"><p><strong>邮件深色画布回归测试</strong></p><p class="muted">确认固定黑底邮件在浅色和深色应用主题中都保持作者定义的配色。</p><p class="state">● Done</p></div><p><a href="https://linear.app" style="color:#7ca7ff">Open issue</a></p></div></body></html>
+            """.strip(),
+            "2026-08-09T08:16:00.000Z",
+            starred=True,
+            category="important",
+        ),
+        fixture(
+            "multilingual-rtl-emoji",
+            "hello@mailedge.io",
+            "MailEdge 国际化测试",
+            "多语言排版：简体中文、English、العربية、עברית 与 emoji 📬✨",
+            "同一正文混合 CJK、从右到左文本、emoji 和超长标识符，用于检查换行、方向和字符回退。",
+            "你好，MailEdge。\nHello, MailEdge.\nمرحبا بك في MailEdge\nברוכים הבאים ל-MailEdge\nEmoji: 📬✨🔐✅\nIdentifier: mailedge-visual-regression-abcdefghijklmnopqrstuvwxyz-0123456789",
+            """
+            <article style="font-family:Arial,'Microsoft YaHei',sans-serif;line-height:1.75;max-width:720px;margin:auto;color:#17213a">
+              <h1>多语言与方向测试 📬</h1><p>中文段落用于检查 CJK 换行和字体回退。English text checks Latin punctuation and wrapping.</p>
+              <section dir="rtl" lang="ar" style="margin:18px 0;padding:16px;border-right:4px solid #0052d9;background:#f3f7ff"><strong>العربية</strong><p>مرحبا بك في MailEdge، هذه رسالة لاختبار اتجاه النص من اليمين إلى اليسار.</p></section>
+              <section dir="rtl" lang="he" style="margin:18px 0;padding:16px;border-right:4px solid #7c3aed;background:#f7f3ff"><strong>עברית</strong><p>ברוכים הבאים ל-MailEdge. זהו טקסט לבדיקת כיוון ויישור.</p></section>
+              <p style="overflow-wrap:anywhere"><strong>Long identifier:</strong> mailedge-visual-regression-abcdefghijklmnopqrstuvwxyz-0123456789</p><p style="font-size:24px">📬 ✨ 🔐 ✅ 🚀</p>
+            </article>
+            """.strip(),
+            "2026-08-09T08:04:00.000Z",
+            category="other",
+        ),
+    ]
+)
+
 
 def pagination_fixtures() -> list[tuple]:
     """生成可重复写入的分页数据，覆盖多个日期、分类和未读状态。"""
@@ -310,9 +572,85 @@ def pagination_fixtures() -> list[tuple]:
 MESSAGES.extend(pagination_fixtures())
 
 
-def main() -> None:
-    path = find_target()
-    sql = """INSERT OR REPLACE INTO messages
+def validate_fixtures(messages: list[tuple] = MESSAGES) -> None:
+    """Fail fast when the deterministic fixture contract drifts."""
+    errors: list[str] = []
+    ids = [row[0] for row in messages]
+    if len(ids) != len(set(ids)):
+        errors.append("fixture ID 必须唯一")
+    if any(not fixture_id.startswith(SEED_PREFIX) for fixture_id in ids):
+        errors.append(f"fixture ID 必须使用 {SEED_PREFIX!r} 前缀")
+
+    categories = {row[12] for row in messages if row[12] is not None}
+    unknown_categories = categories - VALID_CATEGORIES
+    if unknown_categories:
+        errors.append(f"存在未知分类：{sorted(unknown_categories)}")
+    if not VALID_CATEGORIES.issubset(categories):
+        errors.append(f"分类覆盖不完整：缺少 {sorted(VALID_CATEGORIES - categories)}")
+
+    read_states = {row[10] for row in messages}
+    starred_states = {row[11] for row in messages}
+    if read_states != {0, 1}:
+        errors.append("必须同时包含已读和未读邮件")
+    if starred_states != {0, 1}:
+        errors.append("必须同时包含星标和非星标邮件")
+    if not any(row[7] == "" for row in messages):
+        errors.append("必须包含纯文本（无 HTML）邮件")
+    if not any(row[7] for row in messages):
+        errors.append("必须包含 HTML 邮件")
+
+    for row in messages:
+        fixture_id, _internal_id, sender, _name, to_json, subject, _snippet, _html, _text, size, read, starred, _category, received_at = row
+        if "@" not in sender or any(character.isspace() for character in sender):
+            errors.append(f"{fixture_id}: 发件地址无效")
+        if not subject:
+            errors.append(f"{fixture_id}: 主题不能为空")
+        if size < 0 or read not in {0, 1} or starred not in {0, 1}:
+            errors.append(f"{fixture_id}: size/read/starred 数据无效")
+        try:
+            recipients = json.loads(to_json)
+            if recipients != [{"email": DEFAULT_MAILBOX}]:
+                errors.append(f"{fixture_id}: 默认收件地址不确定")
+        except json.JSONDecodeError:
+            errors.append(f"{fixture_id}: to_json 不是合法 JSON")
+        try:
+            datetime.fromisoformat(received_at.replace("Z", "+00:00"))
+        except ValueError:
+            errors.append(f"{fixture_id}: received_at 不是 ISO 时间")
+
+    if errors:
+        raise ValueError("QA fixture 校验失败：\n- " + "\n- ".join(errors))
+
+
+def fixture_summary(messages: list[tuple] = MESSAGES) -> dict[str, object]:
+    html_documents = [row[7].lower() for row in messages if row[7]]
+    return {
+        "count": len(messages),
+        "categories": {category: sum(row[12] == category for row in messages) for category in sorted(VALID_CATEGORIES)},
+        "read": sum(row[10] == 1 for row in messages),
+        "unread": sum(row[10] == 0 for row in messages),
+        "starred": sum(row[11] == 1 for row in messages),
+        "html": sum(bool(row[7]) for row in messages),
+        "plainTextOnly": sum(not row[7] and bool(row[8]) for row in messages),
+        "coverage": {
+            "lightHtml": any("background:#fff" in html or "background:white" in html for html in html_documents),
+            "nativeDark": any("prefers-color-scheme:dark" in html.replace(" ", "") for html in html_documents),
+            "fixedBlack": any('name="color-scheme" content="dark"' in html for html in html_documents),
+            "outlookNestedTables": any('role="presentation"' in html for html in html_documents),
+            "wideTable": any("min-width:620px" in html for html in html_documents),
+            "codeBlock": any("<pre" in html for html in html_documents),
+            "cjk": any("超长邮件正文布局测试" in row[7] for row in messages),
+            "rtl": any('dir="rtl"' in html for html in html_documents),
+            "emoji": any("📬" in row[6] or "📬" in row[8] for row in messages),
+        },
+        "attachments": 0,
+    }
+
+
+def seed_database(path: Path, mailbox: str, messages: list[tuple] = MESSAGES) -> int:
+    """Replace this suite's local rows in one transaction and return the exact row count."""
+    recipient_json = json.dumps([{"email": mailbox.strip().lower()}], ensure_ascii=False)
+    sql = """INSERT INTO messages
       (id, internal_id, direction, folder, message_id, in_reply_to, thread_id,
        from_email, from_name, to_json, cc_json, bcc_json, reply_to_json,
        subject, snippet, html, text, headers_json, size, is_read, is_starred,
@@ -320,15 +658,60 @@ def main() -> None:
       VALUES (?, NULL, 'inbound', 'inbox', ?, NULL, ?, ?, ?, ?, '[]', '[]', NULL,
               ?, ?, ?, ?, '{}', ?, ?, ?, NULL, NULL, NULL, ?, NULL, ?)"""
     with sqlite3.connect(path) as connection:
-        for row in MESSAGES:
-            message_id, internal_id, sender, name, to_json, subject, snippet, html, text, size, read, starred, category, received_at = row
+        table_names = {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        }
+        if "messages" not in table_names:
+            raise RuntimeError(f"{path} 不是已初始化的 MailEdge Durable Object（缺少 messages 表）")
+        # 清掉旧版本 fixture 以及可能遗留的伪附件行，保证结果与脚本当前定义完全一致。
+        if "attachments" in table_names:
+            connection.execute("DELETE FROM attachments WHERE message_id GLOB ?", (f"{SEED_PREFIX}*",))
+        connection.execute("DELETE FROM messages WHERE id GLOB ?", (f"{SEED_PREFIX}*",))
+        for row in messages:
+            message_id, internal_id, sender, name, _to_json, subject, snippet, html, text, size, read, starred, category, received_at = row
             connection.execute(
                 sql,
-                (message_id, internal_id, message_id, sender, name, to_json, subject, snippet, html, text, size, read, starred, category, received_at),
+                (message_id, internal_id, message_id, sender, name, recipient_json, subject, snippet, html, text, size, read, starred, category, received_at),
             )
-        connection.commit()
-    print(f"已写入 {len(MESSAGES)} 封本地测试邮件：{path}")
-    print("包含：Gmail、Hotmail、QQ、163、Yahoo、GitHub、Cloudflare；分页测试数据固定为 60 封。")
+        count = connection.execute(
+            "SELECT COUNT(*) FROM messages WHERE id GLOB ?", (f"{SEED_PREFIX}*",)
+        ).fetchone()[0]
+        if count != len(messages):
+            raise RuntimeError(f"fixture 写入数量不一致：预期 {len(messages)}，实际 {count}")
+    return count
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mailbox", default=DEFAULT_MAILBOX, help=f"目标本地信箱（默认：{DEFAULT_MAILBOX}）")
+    parser.add_argument("--dry-run", action="store_true", help="只校验并输出覆盖摘要，不访问本地 SQLite")
+    parser.add_argument("--json", action="store_true", help="以 JSON 输出摘要，方便自动化检查")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    target_name(args.mailbox)
+    validate_fixtures()
+    summary = fixture_summary()
+    if args.dry_run:
+        if args.json:
+            print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
+        else:
+            print(f"fixture 校验通过：{summary['count']} 封；不会访问本地数据库")
+            print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+
+    path = find_target(args.mailbox)
+    count = seed_database(path, args.mailbox)
+    if args.json:
+        print(json.dumps({**summary, "database": str(path), "written": count}, ensure_ascii=False, sort_keys=True))
+        return
+    print(f"已幂等写入 {count} 封本地 QA 邮件：{path}")
+    print(
+        "覆盖：浅色 HTML、原生 dark、固定黑底、Outlook 嵌套表格、宽表格、代码块、"
+        "长 CJK/RTL/emoji、纯文本、全部分类、已读/未读与星标；附件元数据为 0。"
+    )
 
 
 if __name__ == "__main__":

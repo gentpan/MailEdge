@@ -171,6 +171,8 @@ export const DICT = {
     "detail.forward": "转发",
     "detail.quickReply": "快捷回复",
     "detail.quickReply.placeholder": "点击开始回复这封邮件…",
+    "detail.quickReply.recipient": "回复给 {email}",
+    "detail.quickReply.shortcut": "⌘ / Ctrl + Enter 发送",
     "detail.quickReply.input": "输入回复内容…",
     "detail.quickReply.cancel": "取消",
     "detail.quickReply.send": "发送回复",
@@ -471,6 +473,25 @@ export const DICT = {
     "mb.catchAll.field": "兜底信箱",
     "mb.catchAll.hint": "接收该域名下所有未匹配的地址",
     "mb.catchAll.label": "设为 catch-all",
+    "mb.catchAll.conflict": "{domain} 已由 {address} 接收未匹配邮件；请先关闭或切换现有兜底信箱。",
+    "mb.catchAll.enable.title": "启用兜底收件",
+    "mb.catchAll.enable.desc": "启用后，{address} 将接收 {domain} 下所有未精确匹配的邮件。",
+    "mb.catchAll.disable.title": "关闭兜底收件",
+    "mb.catchAll.disable.desc": "关闭后，{domain} 下未精确登记的收件地址将被拒收。",
+    "mb.catchAll.replace.title": "切换兜底信箱",
+    "mb.catchAll.replace.desc":
+      "{domain} 当前由 {current} 兜底。继续后将原子切换为 {next}，不会同时存在两个兜底信箱。",
+    "mb.catchAll.routingWarning":
+      "此操作不会修改 Cloudflare Email Routing；请确认控制台中的 Catch-all 规则仍指向 mailedge Worker。",
+    "mb.catchAll.confirm": "确认更改",
+    "mb.catchAll.enabled": "兜底信箱已启用",
+    "mb.catchAll.disabled": "兜底信箱已关闭",
+    "mb.delete.title": "删除收件地址",
+    "mb.delete.desc": "确定删除 {address}？已保存的邮件数据不会自动迁移到其他信箱。",
+    "mb.delete.catchAll.title": "删除兜底信箱",
+    "mb.delete.catchAll.desc":
+      "删除 {address} 后，{domain} 将不再接收任何未精确登记的地址。此操作需要明确确认。",
+    "mb.delete.success": "收件地址已删除",
     "mb.addBtn": "添加",
 
     // 设置 - 账户
@@ -710,6 +731,8 @@ export const DICT = {
     "detail.forward": "Forward",
     "detail.quickReply": "Quick reply",
     "detail.quickReply.placeholder": "Click to reply to this email…",
+    "detail.quickReply.recipient": "Reply to {email}",
+    "detail.quickReply.shortcut": "⌘ / Ctrl + Enter to send",
     "detail.quickReply.input": "Write your reply…",
     "detail.quickReply.cancel": "Cancel",
     "detail.quickReply.send": "Send reply",
@@ -1014,6 +1037,26 @@ export const DICT = {
     "mb.catchAll.field": "Catch-all",
     "mb.catchAll.hint": "Receives every unmatched address on this domain",
     "mb.catchAll.label": "Set as catch-all",
+    "mb.catchAll.conflict":
+      "{domain} already sends unmatched mail to {address}. Disable or switch the current catch-all first.",
+    "mb.catchAll.enable.title": "Enable catch-all receiving",
+    "mb.catchAll.enable.desc": "Once enabled, {address} will receive every unmatched address on {domain}.",
+    "mb.catchAll.disable.title": "Disable catch-all receiving",
+    "mb.catchAll.disable.desc": "Once disabled, unmatched recipient addresses on {domain} will be rejected.",
+    "mb.catchAll.replace.title": "Switch catch-all mailbox",
+    "mb.catchAll.replace.desc":
+      "{domain} currently routes unmatched mail to {current}. Continuing atomically switches it to {next}, so two catch-all mailboxes never coexist.",
+    "mb.catchAll.routingWarning":
+      "This does not change Cloudflare Email Routing. Confirm that the dashboard Catch-all rule still targets the mailedge Worker.",
+    "mb.catchAll.confirm": "Confirm change",
+    "mb.catchAll.enabled": "Catch-all mailbox enabled",
+    "mb.catchAll.disabled": "Catch-all mailbox disabled",
+    "mb.delete.title": "Delete receiving address",
+    "mb.delete.desc": "Delete {address}? Stored mail is not automatically moved to another mailbox.",
+    "mb.delete.catchAll.title": "Delete catch-all mailbox",
+    "mb.delete.catchAll.desc":
+      "After deleting {address}, {domain} will no longer accept any unmatched recipient address. Explicit confirmation is required.",
+    "mb.delete.success": "Receiving address deleted",
     "mb.addBtn": "Add",
 
     "account.title": "Account",

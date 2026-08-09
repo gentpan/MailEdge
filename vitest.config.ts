@@ -12,12 +12,15 @@ const migrations = await readD1Migrations("./migrations");
 export default defineConfig({
   plugins: [
     cloudflareTest({
+      // Durable Object RPC tests need the current worker entrypoint so the pool
+      // can resolve the MailboxDO class behind the MAILBOX binding.
+      main: "./src/index.ts",
       miniflare: {
         compatibilityDate: "2026-07-01",
         compatibilityFlags: ["nodejs_compat"],
         d1Databases: { DB: "mailedge-test" },
         r2Buckets: ["R2"],
-        durableObjects: { MAILBOX: "MailboxDO" },
+        durableObjects: { MAILBOX: { className: "MailboxDO", useSQLite: true } },
         bindings: {
           TEST_MIGRATIONS: migrations,
           // 固定 32 字节密钥，测试里不需要真随机

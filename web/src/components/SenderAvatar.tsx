@@ -5,21 +5,29 @@ interface Address {
   name?: string;
 }
 
+interface SenderAvatarProps {
+  address: Address;
+  priority?: boolean;
+}
+
 const AVATAR_COLORS = ["blue", "green", "rose", "violet", "slate", "amber"] as const;
 type AvatarColor = (typeof AVATAR_COLORS)[number];
 
+// Reuse successful domain loads across list and detail instances in this page session.
+const loadedAvatarDomains = new Set<string>();
+
 /** 企业头像：优先使用域名 favicon，失败时使用稳定的首字母和颜色。 */
-export default function SenderAvatar({ address }: { address: Address }) {
+export default function SenderAvatar({ address, priority = false }: SenderAvatarProps) {
   const domain = getDomain(address.email);
   const label = address.name?.trim() || address.email.split("@")[0] || address.email;
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? "?";
   const color = useMemo(() => colorFor(domain || label), [domain, label]);
   const [imageFailed, setImageFailed] = useState(!domain);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(Boolean(domain && loadedAvatarDomains.has(domain)));
 
   useEffect(() => {
     setImageFailed(!domain);
-    setImageLoaded(false);
+    setImageLoaded(Boolean(domain && loadedAvatarDomains.has(domain)));
   }, [domain]);
 
   if (!imageFailed && domain) {
@@ -35,9 +43,13 @@ export default function SenderAvatar({ address }: { address: Address }) {
           className="sender-avatar__image"
           src={`/api/brand/avatar?domain=${encodeURIComponent(domain)}`}
           alt=""
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           decoding="async"
-          onLoad={() => setImageLoaded(true)}
+          onLoad={() => {
+            loadedAvatarDomains.add(domain);
+            setImageLoaded(true);
+          }}
           onError={() => setImageFailed(true)}
         />
       </span>

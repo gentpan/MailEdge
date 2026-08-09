@@ -256,9 +256,12 @@ export const api = {
   mailboxes: () => request<{ mailboxes: Mailbox[] }>("/api/mailboxes"),
   createMailbox: (body: { address: string; displayName?: string; isCatchAll?: boolean }) =>
     request<{ mailbox: Mailbox }>("/api/mailboxes", { method: "POST", body: JSON.stringify(body) }),
-  updateMailbox: (id: string, body: { displayName?: string | null }) =>
+  updateMailbox: (id: string, body: { displayName?: string | null; isCatchAll?: boolean }) =>
     request<{ mailbox: Mailbox }>(`/api/mailboxes/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  deleteMailbox: (id: string) => request<{ ok: true }>(`/api/mailboxes/${id}`, { method: "DELETE" }),
+  deleteMailbox: (id: string, options: { confirmCatchAll?: boolean } = {}) =>
+    request<{ ok: true }>(`/api/mailboxes/${id}${options.confirmCatchAll ? "?confirmCatchAll=true" : ""}`, {
+      method: "DELETE",
+    }),
 
   folders: () => request<{ folders: CustomFolder[] }>("/api/folders"),
   createFolder: (body: { name: string }) =>

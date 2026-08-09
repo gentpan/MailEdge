@@ -27,7 +27,7 @@ const S = {
   quote: "margin:0 0 12px;padding:4px 0 4px 12px;border-left:3px solid #e5e7eb;color:#6b7280;",
   pre: "margin:0 0 12px;padding:12px;background:#f8f9fa;border-radius:6px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.5;",
   code: "padding:2px 5px;background:#f3f4f6;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;",
-  a: "color:#2563eb;text-decoration:underline;",
+  a: "color:#0052d9;text-decoration:underline;",
   hr: "border:none;border-top:1px solid #e5e7eb;margin:20px 0;",
   strong: "font-weight:600;",
 };

@@ -47,6 +47,27 @@ export interface AddressMatch {
   exact: boolean;
 }
 
+export class CatchAllConflictError extends Error {
+  readonly code = "CATCH_ALL_CONFLICT";
+
+  constructor(
+    readonly domain: string,
+    readonly address: string,
+  ) {
+    super(`域名 ${domain} 已由 ${address} 接收未匹配邮件`);
+    this.name = "CatchAllConflictError";
+  }
+}
+
+export class CatchAllDeleteProtectedError extends Error {
+  readonly code = "CATCH_ALL_DELETE_PROTECTED";
+
+  constructor(readonly mailbox: MailboxRecord) {
+    super(`删除 ${mailbox.address} 后，${mailbox.domain} 将不再接收未匹配邮件`);
+    this.name = "CatchAllDeleteProtectedError";
+  }
+}
+
 export async function findByAddress(env: Env, address: string): Promise<AddressMatch | null> {
   const normalized = address.trim().toLowerCase();
   const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE address = ?`)
@@ -67,6 +88,13 @@ export async function findByAddress(env: Env, address: string): Promise<AddressM
 
 export async function getMailbox(env: Env, id: string): Promise<MailboxRecord | null> {
   const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE id = ?`).bind(id).first<MailboxRow>();
+  return row ? toRecord(row) : null;
+}
+
+export async function getCatchAllByDomain(env: Env, domain: string): Promise<MailboxRecord | null> {
+  const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE domain = ? AND is_catch_all = 1 LIMIT 1`)
+    .bind(domain.trim().toLowerCase())
+    .first<MailboxRow>();
   return row ? toRecord(row) : null;
 }
 
@@ -95,40 +123,97 @@ export async function createMailbox(
   const domain = address.split("@")[1];
   if (!domain) throw new Error("邮箱地址格式不正确");
 
+  const duplicateAddress = await env.DB.prepare(`SELECT id FROM mailboxes WHERE address = ?`)
+    .bind(address)
+    .first<{ id: string }>();
+  if (duplicateAddress) throw new Error("该地址已存在");
+
+  if (input.isCatchAll) {
+    const current = await getCatchAllByDomain(env, domain);
+    if (current) throw new CatchAllConflictError(domain, current.address);
+  }
+
   const id = newId("mb");
-  await env.DB.prepare(
-    `INSERT INTO mailboxes (id, address, display_name, user_id, do_name, is_catch_all, domain)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
-  )
-    .bind(
-      id,
-      address,
-      input.displayName ?? null,
-      input.userId,
-      `mailbox:${address}`,
-      input.isCatchAll ? 1 : 0,
-      domain,
+  try {
+    await env.DB.prepare(
+      `INSERT INTO mailboxes (id, address, display_name, user_id, do_name, is_catch_all, domain)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
     )
-    .run();
+      .bind(
+        id,
+        address,
+        input.displayName ?? null,
+        input.userId,
+        `mailbox:${address}`,
+        input.isCatchAll ? 1 : 0,
+        domain,
+      )
+      .run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (input.isCatchAll && /mailboxes\.domain|one_catchall/i.test(message)) {
+      const current = await getCatchAllByDomain(env, domain);
+      if (current) throw new CatchAllConflictError(domain, current.address);
+    }
+    throw error;
+  }
 
   const record = await getMailbox(env, id);
   if (!record) throw new Error("信箱创建失败");
   return record;
 }
 
-export async function deleteMailbox(env: Env, id: string): Promise<void> {
+export async function deleteMailbox(
+  env: Env,
+  id: string,
+  options: { allowCatchAll?: boolean } = {},
+): Promise<void> {
+  const mailbox = await getMailbox(env, id);
+  if (mailbox?.isCatchAll && !options.allowCatchAll) {
+    throw new CatchAllDeleteProtectedError(mailbox);
+  }
   await env.DB.prepare(`DELETE FROM mailboxes WHERE id = ?`).bind(id).run();
 }
 
-export async function updateMailboxDisplayName(
+export async function updateMailboxSettings(
   env: Env,
   userId: string,
   id: string,
-  displayName: string | null,
+  input: { displayName?: string | null; isCatchAll?: boolean },
 ): Promise<MailboxRecord | null> {
-  await env.DB.prepare(`UPDATE mailboxes SET display_name = ? WHERE id = ? AND user_id = ?`)
-    .bind(displayName, id, userId)
-    .run();
+  const currentRow = await env.DB.prepare(`SELECT * FROM mailboxes WHERE id = ? AND user_id = ?`)
+    .bind(id, userId)
+    .first<MailboxRow>();
+  if (!currentRow) return null;
+
+  const current = toRecord(currentRow);
+  const displayName = input.displayName === undefined ? current.displayName : input.displayName;
+  const isCatchAll = input.isCatchAll === undefined ? current.isCatchAll : input.isCatchAll;
+
+  if (isCatchAll) {
+    const existingCatchAll = await getCatchAllByDomain(env, current.domain);
+    if (existingCatchAll && existingCatchAll.id !== current.id && existingCatchAll.userId !== userId) {
+      // 同一域名只能有一个兜底信箱；普通用户不能替换其他账户持有的兜底信箱。
+      throw new CatchAllConflictError(current.domain, existingCatchAll.address);
+    }
+
+    // D1 batch 具备事务语义：先撤销同域名旧兜底，再启用当前信箱，不暴露中间状态。
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE mailboxes SET is_catch_all = 0 WHERE domain = ? AND id != ? AND is_catch_all = 1`,
+      ).bind(current.domain, current.id),
+      env.DB.prepare(
+        `UPDATE mailboxes SET display_name = ?, is_catch_all = 1 WHERE id = ? AND user_id = ?`,
+      ).bind(displayName, current.id, userId),
+    ]);
+  } else {
+    await env.DB.prepare(
+      `UPDATE mailboxes SET display_name = ?, is_catch_all = 0 WHERE id = ? AND user_id = ?`,
+    )
+      .bind(displayName, current.id, userId)
+      .run();
+  }
+
   const row = await env.DB.prepare(`SELECT * FROM mailboxes WHERE id = ? AND user_id = ?`)
     .bind(id, userId)
     .first<MailboxRow>();

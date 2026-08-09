@@ -12,7 +12,7 @@ const EMAIL_PATH =
 const EMAIL_TRANSFORM = "translate(5.986425 5.987678) scale(0.03575)";
 
 export function renderBrandSvg(variant: BrandVariant = "blue"): string {
-  const background = variant === "black" ? "#111827" : "#2563eb";
+  const background = variant === "black" ? "#111827" : "#0052d9";
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">',
     "  <!-- Lamé superellipse: |x/a|⁴ + |y/b|⁴ = 1 -->",

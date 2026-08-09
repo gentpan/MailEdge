@@ -174,7 +174,7 @@ export default function DashboardView() {
     const text =
       styles.getPropertyValue("--color-text-secondary").trim() || (themeDark ? "#d1d5db" : "#6b7280");
     const border = styles.getPropertyValue("--color-border").trim() || "#e5e7eb";
-    const primary = styles.getPropertyValue("--color-primary").trim() || "#2563eb";
+    const primary = styles.getPropertyValue("--color-primary").trim() || "#0052d9";
     const success = styles.getPropertyValue("--color-success").trim() || "#16a34a";
     const warning = styles.getPropertyValue("--color-warning").trim() || "#d97706";
     const errorColor = styles.getPropertyValue("--color-error").trim() || "#dc2626";

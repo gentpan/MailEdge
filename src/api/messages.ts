@@ -3,11 +3,13 @@ import { createContact, deleteContact, getContact, listContacts, updateContact }
 import { createFolder, deleteFolder, getFolder, listFolders, renameFolder } from "../db/folders";
 import type { MailboxRecord } from "../db/mailboxes";
 import {
+  CatchAllConflictError,
+  CatchAllDeleteProtectedError,
   createMailbox,
   deleteMailbox,
   listMailboxes,
   mailboxStub,
-  updateMailboxDisplayName,
+  updateMailboxSettings,
 } from "../db/mailboxes";
 import type { Env } from "../env";
 import type { MailFolder, SystemMailFolder } from "../shared/message";
@@ -178,25 +180,51 @@ messages.post("/mailboxes", async (c) => {
     });
     return c.json({ mailbox });
   } catch (error) {
+    if (error instanceof CatchAllConflictError) {
+      return c.json({ error: error.message, code: error.code }, 409);
+    }
     const message = error instanceof Error ? error.message : "创建失败";
-    return c.json({ error: /UNIQUE/i.test(message) ? "该地址已存在" : message }, 400);
+    return c.json({ error: /UNIQUE|该地址已存在/i.test(message) ? "该地址已存在" : message }, 400);
   }
 });
 
 messages.patch("/mailboxes/:id", async (c) => {
-  const body = await c.req.json<{ displayName?: string | null }>();
-  const raw = typeof body.displayName === "string" ? body.displayName.trim().replace(/\s+/g, " ") : "";
-  if (raw.length > 40) return c.json({ error: "邮箱名称不能超过 40 个字符" }, 400);
-  const mailbox = await updateMailboxDisplayName(c.env, c.get("user").id, c.req.param("id"), raw || null);
-  if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
-  return c.json({ mailbox });
+  const body = await c.req.json<{ displayName?: string | null; isCatchAll?: boolean }>();
+  const hasDisplayName = Object.hasOwn(body, "displayName");
+  const raw = typeof body.displayName === "string" ? body.displayName.trim().replace(/\s+/g, " ") : null;
+  if (raw && raw.length > 40) return c.json({ error: "邮箱名称不能超过 40 个字符" }, 400);
+  if (body.isCatchAll !== undefined && typeof body.isCatchAll !== "boolean") {
+    return c.json({ error: "兜底信箱状态不正确" }, 400);
+  }
+  try {
+    const mailbox = await updateMailboxSettings(c.env, c.get("user").id, c.req.param("id"), {
+      ...(hasDisplayName ? { displayName: raw } : {}),
+      ...(body.isCatchAll !== undefined ? { isCatchAll: body.isCatchAll } : {}),
+    });
+    if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
+    return c.json({ mailbox });
+  } catch (error) {
+    if (error instanceof CatchAllConflictError) {
+      return c.json({ error: error.message, code: error.code }, 409);
+    }
+    throw error;
+  }
 });
 
 messages.delete("/mailboxes/:id", async (c) => {
   const mailbox = await resolveMailbox(c.env, c.get("user").id, c.req.param("id"));
   if (!mailbox) return c.json({ error: "信箱不存在" }, 404);
-  await deleteMailbox(c.env, mailbox.id);
-  return c.json({ ok: true });
+  try {
+    await deleteMailbox(c.env, mailbox.id, {
+      allowCatchAll: c.req.query("confirmCatchAll") === "true",
+    });
+    return c.json({ ok: true });
+  } catch (error) {
+    if (error instanceof CatchAllDeleteProtectedError) {
+      return c.json({ error: error.message, code: error.code }, 409);
+    }
+    throw error;
+  }
 });
 
 messages.get("/stats", async (c) => {
