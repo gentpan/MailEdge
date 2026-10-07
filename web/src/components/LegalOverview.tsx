@@ -1,6 +1,7 @@
 import { BookOpen, Code2, Copyright, ExternalLink, Github, Scale, Shapes } from "lucide-react";
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
+import { isCustomBrand } from "../lib/brand";
 import Logo from "./Logo";
 
 const PROJECT_URL = "https://github.com/gentpan/MailEdge";
@@ -46,13 +47,13 @@ export default function LegalOverview({ className = "" }: Props) {
         </div>
       </header>
 
-      <section className="legal-overview__identity" aria-label="MailEdge">
+      <section className="legal-overview__identity" aria-label={t("app.name")}>
         <div className="legal-overview__identity-mark">
           <Logo size={42} variant="blue" />
         </div>
         <div>
-          <div className="legal-overview__identity-name">MailEdge</div>
-          <p>{t("legal.identity")}</p>
+          <div className="legal-overview__identity-name">{t("app.name")}</div>
+          <p>{t(isCustomBrand() ? "legal.identity.custom" : "legal.identity")}</p>
         </div>
       </section>
 

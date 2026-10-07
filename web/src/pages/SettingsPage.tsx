@@ -59,8 +59,17 @@ const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof 
     { key: "legal", labelKey: "settings.nav.legal", icon: Copyright },
   ];
 
+/** 独立版（IMAP / SMTP 直连）没有这些 Cloudflare 版才有的功能，设置里不列出来。 */
+const STANDALONE_HIDDEN: ReadonlySet<Category> = new Set([
+  "providers",
+  "ai",
+  "notifications",
+  "update",
+  "storage",
+]);
+
 export default function SettingsPage() {
-  const { user, refresh, signOut } = useSession();
+  const { user, refresh, signOut, edition } = useSession();
   const { t } = useI18n();
   const isAdmin = user.role === "admin";
   const [accountOpen, setAccountOpen] = useState(false);
@@ -96,7 +105,9 @@ export default function SettingsPage() {
     };
   }, [accountOpen]);
 
-  const visible = CATEGORIES.filter((item) => !item.adminOnly || isAdmin);
+  const visible = CATEGORIES.filter(
+    (item) => (!item.adminOnly || isAdmin) && !(edition === "standalone" && STANDALONE_HIDDEN.has(item.key)),
+  );
   // 二级目录路由驱动：/settings/:category，无效或不可见的回退到第一个可见 tab
   const { category: categoryParam } = useParams<{ category: string }>();
   const category: Category = visible.some((item) => item.key === categoryParam)

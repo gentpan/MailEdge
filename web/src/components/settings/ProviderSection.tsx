@@ -15,6 +15,7 @@ import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
 import type { Mailbox, ProviderView } from "../../lib/api";
 import { api } from "../../lib/api";
+import { brandName } from "../../lib/brand";
 import { formatDateTime, PROVIDER_LABELS } from "../../lib/format";
 import FormRow from "./FormRow";
 import ProviderLogo from "./ProviderLogo";
@@ -373,7 +374,7 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
                 <input
                   className="input"
                   value={fromName}
-                  placeholder="MailEdge"
+                  placeholder={brandName()}
                   onChange={(event) => setFromName(event.target.value)}
                 />
               </FormRow>

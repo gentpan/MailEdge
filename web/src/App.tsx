@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router";
 import Logo from "./components/Logo";
 import type { Mailbox, User } from "./lib/api";
 import { ApiError, api } from "./lib/api";
+import { brandName } from "./lib/brand";
 import AuthPage from "./pages/AuthPage";
 import LicensePage from "./pages/LicensePage";
 import MailPage from "./pages/MailPage";
@@ -82,7 +83,7 @@ export default function App() {
         <Loader2 size={20} className="spin" />
         <p>
           <Logo size={18} />
-          MailEdge
+          {brandName()}
         </p>
       </div>
     );

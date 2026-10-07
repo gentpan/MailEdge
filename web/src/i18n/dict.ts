@@ -4,11 +4,11 @@ export type Lang = "zh" | "en";
 
 export const DICT = {
   zh: {
-    "app.name": "MailEdge",
+    "app.name": "{brand}",
 
     // 认证
     "auth.login.title": "登录",
-    "auth.login.subtitle": "使用你的 MailEdge 账户登录。",
+    "auth.login.subtitle": "使用你的 {brand} 账户登录。",
     "auth.setup.title": "初始化系统",
     "auth.setup.subtitle": "创建第一个管理员账户，并绑定一个收件地址。",
     "auth.email": "账户邮箱",
@@ -63,8 +63,9 @@ export const DICT = {
     "nav.compose": "写信",
     "nav.signOut": "退出登录",
     "legal.title": "许可证与图标来源",
-    "legal.subtitle": "MailEdge 的版权、开源许可、项目链接与第三方图标声明。",
+    "legal.subtitle": "{brand} 的版权、开源许可、项目链接与第三方图标声明。",
     "legal.identity": "运行在 Cloudflare 上的开源、自托管 Webmail 项目。",
+    "legal.identity.custom": "基于开源项目 MailEdge 构建的网页邮箱。",
     "legal.project.title": "MailEdge 源码",
     "legal.project.body": "在 GitHub 查看源代码、提交记录与项目讨论，欢迎提交问题和改进建议。",
     "legal.project.repository": "GitHub 项目",
@@ -78,7 +79,7 @@ export const DICT = {
       "MailEdge 以 MIT License 发布。你可以自由使用、修改和分发本项目，但请保留原有版权与许可声明。",
     "legal.icons.title": "Lucide 图标",
     "legal.icons.body":
-      "MailEdge 的导航、邮件操作与表单按钮统一使用 lucide-react 图标，并继承当前主题颜色。图标库采用 ISC License。",
+      "{brand} 的导航、邮件操作与表单按钮统一使用 lucide-react 图标，并继承当前主题颜色。图标库采用 ISC License。",
     "legal.icons.attribution": "Lucide 图标库与许可证",
     "legal.license.view": "查看 MIT License",
     "legal.notice.title": "版权与再发布",
@@ -339,7 +340,7 @@ export const DICT = {
     "attachments.confirm.irreversible": "此操作无法撤销，请确认资源和链接不再需要。",
     "attachments.confirm.continue": "确认操作",
     "storage.title": "附件存储",
-    "storage.desc": "选择 MailEdge 保存附件、分享文件与待重试发信载荷的默认存储后端。",
+    "storage.desc": "选择 {brand} 保存附件、分享文件与待重试发信载荷的默认存储后端。",
     "storage.backend": "默认存储",
     "storage.backend.hint": "此设置对整个实例生效，仅管理员可修改。",
     "storage.r2.title": "Cloudflare R2",
@@ -434,7 +435,7 @@ export const DICT = {
     "providers.domains.hint": "手动填写或点「拉取域名」自动同步；写信时发件人只能用这些域名。多个用逗号分隔",
     "providers.domains.placeholder": "mail.example.com, send.example.com",
     "providers.fromName": "发件人名称",
-    "providers.fromName.hint": "默认显示名，如「MailEdge 客服」；收件方看到 名称 <地址>",
+    "providers.fromName.hint": "默认显示名，如「{brand} 客服」；收件方看到 名称 <地址>",
 
     // 设置 - AI
     "ai.title": "AI 助手",
@@ -512,7 +513,7 @@ export const DICT = {
     "account.updatePassword": "更新密码",
     "account.passkey.title": "Passkey 登录",
     "account.passkey.hint": "使用设备锁屏、指纹或安全密钥登录，不会上传私钥。",
-    "account.passkey.note": "私钥只保存在你的设备中，MailEdge 不会接触私钥。",
+    "account.passkey.note": "私钥只保存在你的设备中，{brand} 不会接触私钥。",
     "account.passkey.add": "添加 Passkey",
     "account.passkey.busy": "等待设备验证…",
     "account.passkey.unavailable": "当前浏览器不支持 Passkey",
@@ -568,10 +569,10 @@ export const DICT = {
   },
 
   en: {
-    "app.name": "MailEdge",
+    "app.name": "{brand}",
 
     "auth.login.title": "Sign in",
-    "auth.login.subtitle": "Sign in with your MailEdge account.",
+    "auth.login.subtitle": "Sign in with your {brand} account.",
     "auth.setup.title": "First-run setup",
     "auth.setup.subtitle": "Create the first admin account and bind a receiving address.",
     "auth.email": "Account email",
@@ -626,8 +627,9 @@ export const DICT = {
     "nav.compose": "Compose",
     "nav.signOut": "Sign out",
     "legal.title": "License & icon credits",
-    "legal.subtitle": "MailEdge copyright, open-source license, project links and third-party icon credits.",
+    "legal.subtitle": "{brand} copyright, open-source license, project links and third-party icon credits.",
     "legal.identity": "An open-source, self-hosted Webmail project running on Cloudflare.",
+    "legal.identity.custom": "A webmail built on the open-source MailEdge project.",
     "legal.project.title": "MailEdge source",
     "legal.project.body":
       "Browse the source code, commit history and project discussions on GitHub. Issues and improvements are welcome.",
@@ -642,7 +644,7 @@ export const DICT = {
       "MailEdge is released under the MIT License. You may use, modify and distribute the project, provided that the original copyright and license notice is retained.",
     "legal.icons.title": "Lucide icons",
     "legal.icons.body":
-      "MailEdge uses lucide-react for navigation, mail actions and form buttons. Icons inherit the active theme color and are distributed under the ISC License.",
+      "{brand} uses lucide-react for navigation, mail actions and form buttons. Icons inherit the active theme color and are distributed under the ISC License.",
     "legal.icons.attribution": "Lucide icon library and license",
     "legal.license.view": "View the MIT License",
     "legal.notice.title": "Copyright and redistribution",
@@ -1002,7 +1004,7 @@ export const DICT = {
       "Type them or click Fetch to sync; the composer only allows senders on these domains. Comma-separated",
     "providers.domains.placeholder": "mail.example.com, send.example.com",
     "providers.fromName": "Sender name",
-    "providers.fromName.hint": 'Default display name, e.g. "MailEdge Support"; recipients see name <address>',
+    "providers.fromName.hint": 'Default display name, e.g. "{brand} Support"; recipients see name <address>',
 
     "ai.title": "AI assistant",
     "ai.desc":
@@ -1079,7 +1081,7 @@ export const DICT = {
     "account.passkey.title": "Passkey sign-in",
     "account.passkey.hint":
       "Use your device lock, fingerprint, or security key; the private key never leaves it.",
-    "account.passkey.note": "The private key stays on your device; MailEdge never sees it.",
+    "account.passkey.note": "The private key stays on your device; {brand} never sees it.",
     "account.passkey.add": "Add Passkey",
     "account.passkey.busy": "Waiting for device…",
     "account.passkey.unavailable": "Passkeys are not supported in this browser",
