@@ -409,7 +409,7 @@ export const DICT = {
     "providers.desc.sendflare": "REST API，Bearer Token 认证，可选 HMAC-SHA256 签名。",
     "providers.desc.resend": "成熟的第三方发信服务，需要在 Resend 后台完成域名验证。",
     "providers.desc.smtp":
-      "任意 SMTP 服务器代发，走 587 STARTTLS 或 465 TLS。用 Gmail：主机 smtp.gmail.com、端口 587、密码填应用专用密码（需先开两步验证）。Workers 禁止 25 端口。",
+      "任意 SMTP 服务器代发，走 587 STARTTLS 或 465 TLS。用 Gmail：主机 smtp.gmail.com、端口 587、密码填应用专用密码（需先开两步验证）。Workers 禁止 25 端口。自建 Postfix 中继见 docs/self-hosted-smtp.md。",
     "providers.smtp.host": "服务器",
     "providers.smtp.port": "端口",
     "providers.smtp.security": "加密方式",
@@ -417,7 +417,8 @@ export const DICT = {
     "providers.smtp.username.hint": "通常是完整邮箱地址",
     "providers.smtp.password": "密码",
     "providers.smtp.password.hint": "Gmail 请填应用专用密码",
-    "providers.smtp.preset": "Gmail 预设",
+    "providers.smtp.preset": "预设",
+    "providers.smtp.preset.selfhosted": "自建服务器（587/STARTTLS）",
     "providers.cf.ready":
       "已检测到 send_email 绑定，但这不代表发件域已经就绪。请继续在 Cloudflare Email Service → Email Sending 完成发件域 onboarding 与 DNS 验证。未完成时只能发给账户里已验证的 destination address。",
     "providers.cf.unavailable":
@@ -975,7 +976,7 @@ export const DICT = {
     "providers.desc.resend":
       "A mature third-party sending service; verify your domain in the Resend dashboard.",
     "providers.desc.smtp":
-      "Relay through any SMTP server over 587 STARTTLS or 465 TLS. For Gmail: host smtp.gmail.com, port 587, and an app password (2FA required). Port 25 is blocked on Workers.",
+      "Relay through any SMTP server over 587 STARTTLS or 465 TLS. For Gmail: host smtp.gmail.com, port 587, and an app password (2FA required). Port 25 is blocked on Workers. For a self-hosted Postfix relay, see docs/self-hosted-smtp.md.",
     "providers.smtp.host": "Host",
     "providers.smtp.port": "Port",
     "providers.smtp.security": "Encryption",
@@ -983,7 +984,8 @@ export const DICT = {
     "providers.smtp.username.hint": "Usually the full email address",
     "providers.smtp.password": "Password",
     "providers.smtp.password.hint": "Use an app password for Gmail",
-    "providers.smtp.preset": "Gmail preset",
+    "providers.smtp.preset": "Presets",
+    "providers.smtp.preset.selfhosted": "Self-hosted (587/STARTTLS)",
     "providers.cf.ready":
       "send_email binding detected, but the sending domain is not necessarily ready. Complete domain onboarding and DNS verification under Cloudflare Email Service → Email Sending. Until then, you can only send to verified destination addresses in the account.",
     "providers.cf.unavailable":

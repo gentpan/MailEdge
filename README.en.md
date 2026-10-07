@@ -100,13 +100,15 @@ Everything runs on Cloudflare — frontend and backend ship in a single deploy, 
 | Cloudflare Email Service | Default, native | Workers binding, no extra HTTP request; ≤ 5 MiB per message, ≤ 32 attachments. The sending domain must be onboarded under Email Sending; until then you can only send to verified destination addresses |
 | Sendflare | Backup or primary | REST API, bearer token, optional HMAC-SHA256 signing |
 | Resend | Mature backup | REST API, requires domain verification in their dashboard |
-| SMTP | Generic relay | Raw SMTP session over Workers `connect()` on 587 STARTTLS / 465 TLS; works with external mailboxes like Gmail (app password) |
+| SMTP | Generic relay | Raw SMTP session over Workers `connect()` on 587 STARTTLS / 465 TLS; works with external mailboxes like Gmail (app password) or a [self-hosted Postfix relay](docs/self-hosted-smtp.md) |
 
 To add SES / Mailgun / Postmark, drop a class into [src/mail/providers/](src/mail/providers/) and add one branch to [factory.ts](src/mail/factory.ts).
 
 > **Senders and verified domains**: for the Cloudflare provider, onboard the sending domain under Cloudflare Email Service → Email Sending first. When sending via Resend/Sendflare, the sending domain must be verified in their dashboard first. Click "Fetch domains" in the channel config and MailEdge syncs your verified domains from the provider's API; the composer's "From" dropdown is then constrained to them, blocking unverified senders before send rather than after a rejection.
 >
 > **SMTP via Gmail**: host `smtp.gmail.com`, port 587, STARTTLS, username = full email, password = an *app password* (2FA required — not your login password). The settings page has a one-click Gmail preset.
+>
+> **Self-hosted SMTP**: with your own VPS you can run a Postfix relay (587 auth + DKIM signing) instead of relying on third-party quotas. The repo ships a one-shot provisioning script — see the [self-hosted SMTP guide](docs/self-hosted-smtp.md).
 >
 > Workers **block outbound port 25**, so SMTP only uses 587/465 — sending never needs 25 anyway. IMAP polling is likewise a poor fit for a Worker; receive via Email Routing forwarding instead.
 

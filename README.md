@@ -102,13 +102,15 @@ Cloudflare Email Routing 只能收信、转发，不能回复，也没有界面�
 | Cloudflare Email Service | 默认原生渠道 | Workers Binding，无额外 HTTP 请求；单封 ≤ 5 MiB、≤ 32 个附件。发件域须在 Email Sending 完成 onboarding；未完成时只能发给已验证的 destination address |
 | Sendflare | 备用或主渠道 | REST API，Bearer Token，可选 HMAC-SHA256 签名 |
 | Resend | 成熟备用渠道 | REST API，需要在其后台验证域名 |
-| SMTP | 通用代发 | 用 Workers `connect()` 走 587 STARTTLS / 465 TLS，手写 SMTP 会话；可用 Gmail 等外部邮箱（应用专用密码） |
+| SMTP | 通用代发 | 用 Workers `connect()` 走 587 STARTTLS / 465 TLS，手写 SMTP 会话；可用 Gmail 等外部邮箱（应用专用密码），也可[自建 Postfix 中继](docs/self-hosted-smtp.md) |
 
 新增 SES / Mailgun / Postmark 只需要在 [src/mail/providers/](src/mail/providers/) 加一个类，并在 [factory.ts](src/mail/factory.ts) 加一个分支。
 
 > **发件人与已验证域名**：用 Cloudflare 渠道时，发件域必须先在 Cloudflare Email Service → Email Sending 完成 onboarding 与 DNS 验证。用 Resend/Sendflare 发信时，发件域名必须先在其后台验证。在渠道配置里点「拉取域名」，MailEdge 会调用服务商接口同步你已验证的域名；写信时「发件人」下拉据此约束，发出前就拦住未验证的地址，而不是被拒后才知道。
 >
 > **SMTP 用 Gmail 代发**：主机 `smtp.gmail.com`、端口 587、加密 STARTTLS、用户名填完整邮箱、密码填「应用专用密码」（需先开两步验证，不能用登录密码）。设置页有 Gmail 一键预设。
+>
+> **SMTP 自建服务器**：有自己的 VPS 时可以跑 Postfix 中继（587 认证 + DKIM 签名），不依赖第三方额度。仓库自带一键初始化脚本，详见 [自建 SMTP 指南](docs/self-hosted-smtp.md)。
 >
 > Workers **禁止 25 端口**出站，所以 SMTP 只能走 587/465——发信本来也不需要 25。IMAP 代收同理不适合 Worker，收信请用 Email Routing 转发。
 

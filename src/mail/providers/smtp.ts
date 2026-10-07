@@ -39,7 +39,7 @@ export class SmtpMailProvider implements MailProvider {
       const raw = buildMimeMessage(input, { internalId: this.internalId });
 
       session = await SmtpSession.open(this.config);
-      await session.handshakeAndAuth();
+      await session.handshakeAndAuth(smtpEhloDomain(this.config, input.from.email));
       await session.sendMail(input.from.email, unique, raw);
       await session.quit();
 
@@ -87,9 +87,8 @@ class SmtpSession {
     return session;
   }
 
-  async handshakeAndAuth(): Promise<void> {
-    const domain = this.config.username.split("@")[1] ?? "mailedge";
-    await this.command(`EHLO ${domain}`, 250);
+  async handshakeAndAuth(ehlo: string): Promise<void> {
+    await this.command(`EHLO ${ehlo}`, 250);
 
     if (this.config.security === "starttls") {
       await this.command("STARTTLS", 220);
@@ -100,7 +99,7 @@ class SmtpSession {
       this.writer = this.socket.writable.getWriter();
       this.reader = this.socket.readable.getReader();
       this.buffer = "";
-      await this.command(`EHLO ${domain}`, 250);
+      await this.command(`EHLO ${ehlo}`, 250);
     }
 
     // AUTH LOGIN：分两步分别送 base64 的用户名与密码
@@ -200,4 +199,16 @@ function dotStuff(message: string): string {
 
 function base64(value: string): string {
   return bytesToBase64(encoder.encode(value));
+}
+
+/**
+ * EHLO 域名取自发件人地址的域名：自建中继常配裸用户名（如 mailedge），
+ * 从用户名推导会得到非 FQDN 的 EHLO，被 reject_non_fqdn_helo_hostname 拒绝。
+ * 发件人地址异常时兜底服务器主机名。
+ */
+export function smtpEhloDomain(config: Pick<SmtpConfig, "host">, fromEmail: string): string {
+  const domain = fromEmail.split("@")[1];
+  if (domain) return domain;
+  if (config.host) return config.host;
+  return "localhost";
 }

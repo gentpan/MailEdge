@@ -2,6 +2,16 @@
 
 All notable changes to MailEdge are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Self-hosted SMTP relay support: `scripts/setup-mail-relay.sh` provisions a send-only Postfix + OpenDKIM + SASL stack on Debian/Ubuntu in one idempotent run (guide: `docs/self-hosted-smtp.md`), plus a self-hosted preset button in the SMTP channel form.
+
+### Fixed
+
+- SMTP EHLO now uses the sender's domain instead of deriving it from the username, so relays hardened with `reject_non_fqdn_helo_hostname` accept MailEdge sessions even for bare usernames.
+
 ## [0.2.4] - 2026-09-16
 
 ### Fixed

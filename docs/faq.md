@@ -215,11 +215,24 @@ MailEdge 支持四家发信渠道：**Cloudflare Email Service / Resend / Sendfl
 
 MailEdge 设置页可以点"拉取域名"，自动同步 Resend/Sendflare 已验证的域名，写信时发件人下拉据此约束——**发出去之前就拦住未验证的地址**，而不是被拒了才知道。
 
+### Q17. 不想用第三方代发，能自建 SMTP 服务器吗？
+
+可以。有自己的 VPS 就能跑 Postfix 发信中继：MailEdge 通过 587 STARTTLS + SASL 认证连上去，服务器负责 DKIM 签名后投递，不占用任何第三方额度。
+
+仓库自带一键初始化脚本 `scripts/setup-mail-relay.sh`（Debian/Ubuntu，幂等可重复跑）：
+
+```bash
+scp scripts/setup-mail-relay.sh root@<服务器IP>:/root/
+ssh root@<服务器IP> "RELAY_DOMAIN=example.com bash /root/setup-mail-relay.sh"
+```
+
+跑完会输出要添加的 DNS 记录（A / DKIM TXT / SPF）和 MailEdge 渠道参数。完整步骤、PTR 反向解析、TLS 证书、验证清单见 [自建 SMTP 指南](self-hosted-smtp.md)。
+
 ---
 
 ## 四、安装向导（deployer / mailedge.sh）
 
-### Q17. 安装向导是什么？跑在哪？
+### Q18. 安装向导是什么？跑在哪？
 
 安装向导是一个**网页**（比如部署在 `mailedge.sh`），让用户：
 
@@ -229,7 +242,7 @@ MailEdge 设置页可以点"拉取域名"，自动同步 Resend/Sendflare 已验
 
 它跑在**你自己的服务器**（VPS）上，本身只是一个 Node 服务。它的工作是"指挥 Cloudflare 干活"，不承载 MailEdge 本身。
 
-### Q18. VPS 需要什么配置？
+### Q19. VPS 需要什么配置？
 
 安装向导只在你点部署的瞬间干活（验证 Token、传代码），平时负载很低。
 
@@ -242,7 +255,7 @@ MailEdge 设置页可以点"拉取域名"，自动同步 Resend/Sendflare 已验
 
 软件：Node.js 22+、git、一个反代（Caddy/Nginx，配 HTTPS）。
 
-### Q19. 安装向导的"一键验证（权限体检）"是干什么的？
+### Q20. 安装向导的"一键验证（权限体检）"是干什么的？
 
 输入 Token 点"验证"，向导会**只读探测**（不改任何东西）5 项核心权限：
 
@@ -254,11 +267,11 @@ MailEdge 设置页可以点"拉取域名"，自动同步 Resend/Sendflare 已验
 
 每项显示 ✓/✗。**有 ✗ 就去补权限再回来验证**，避免部署到一半才发现权限不够。验证通过才进入下一步选域名。
 
-### Q20. 安装向导安全吗？它保存我的 Token 吗？
+### Q21. 安装向导安全吗？它保存我的 Token 吗？
 
 不保存。Token 只在你的浏览器发起请求时经向导内存转一圈，用于那一次部署，不落数据库、不进日志。部署完成页面会**大字提醒你删除 Token**——删掉后这个 Token 就彻底没用了。
 
-### Q21. 部署后想用自己的域名访问（不用 workers.dev）怎么办？
+### Q22. 部署后想用自己的域名访问（不用 workers.dev）怎么办？
 
 部署完成后拿到的是 `xxx.workers.dev` 地址。想用自己的域名：
 
@@ -268,14 +281,14 @@ Cloudflare 后台 → **Workers 与 Pages** → 你的 `mailedge` → 设置 →
 
 ## 五、概念澄清
 
-### Q22. 宣传首页和安装向导是动态的吗？
+### Q23. 宣传首页和安装向导是动态的吗？
 
 | 页面 | 性质 |
 |---|---|
 | 宣传首页（`mailedge.sh/`） | **纯静态** HTML，秒开 |
 | 安装向导（`mailedge.sh/install`） | **动态**——根据你贴的 Token 实时验证、显示部署日志 |
 
-### Q23. 我的邮件数据存在哪？属于谁？
+### Q24. 我的邮件数据存在哪？属于谁？
 
 全部存在**你自己的 Cloudflare 账户**里：
 
@@ -285,7 +298,7 @@ Cloudflare 后台 → **Workers 与 Pages** → 你的 `mailedge` → 设置 →
 
 MailEdge 部署在你的账户下，数据完全属于你，安装向导（包括它的运营者）**碰不到**你的邮件数据。
 
-### Q24. 免费额度够用吗？
+### Q25. 免费额度够用吗？
 
 | 能力 | 说明 |
 |---|---|
@@ -297,7 +310,7 @@ MailEdge 部署在你的账户下，数据完全属于你，安装向导（包�
 
 > 「免费额度」实际够大多数人用：先把收信跑起来，发信用 SMTP 代发（Q14），或完成 Email Sending onboarding 后再切 Cloudflare 渠道。
 
-### Q25. Global API Key 已经泄露过一次，怎么办？
+### Q26. Global API Key 已经泄露过一次，怎么办？
 
 立刻处理：
 

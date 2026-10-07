@@ -274,17 +274,29 @@ export default function ProviderSection({ type, provider, mailboxes, onChanged, 
           {type === "smtp" && (
             <>
               <FormRow label={t("providers.smtp.preset")}>
-                <button
-                  className="btn btn--secondary btn--sm"
-                  type="button"
-                  onClick={() => {
-                    setSmtpHost("smtp.gmail.com");
-                    setSmtpPort(587);
-                    setSmtpSecurity("starttls");
-                  }}
-                >
-                  Gmail
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    type="button"
+                    onClick={() => {
+                      setSmtpHost("smtp.gmail.com");
+                      setSmtpPort(587);
+                      setSmtpSecurity("starttls");
+                    }}
+                  >
+                    Gmail
+                  </button>
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    type="button"
+                    onClick={() => {
+                      setSmtpPort(587);
+                      setSmtpSecurity("starttls");
+                    }}
+                  >
+                    {t("providers.smtp.preset.selfhosted")}
+                  </button>
+                </div>
               </FormRow>
               <FormRow label={t("providers.smtp.host")}>
                 <input
