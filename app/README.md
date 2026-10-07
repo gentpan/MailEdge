@@ -94,17 +94,15 @@ cd app
 
 ```bash
 cd app
-MAILEDGE_NOTARY_PROFILE=MailEdge ./Scripts/distribute-app.sh --notarize
+MAILEDGE_NOTARY_PROFILE=GiantAccel ./Scripts/distribute-app.sh --notarize
 ```
 
 脚本不会保存 Apple ID 密码。建议让 `notarytool store-credentials` 把 App Store Connect API Key 或 App 专用密码放入系统钥匙串。
 
-也可以直接使用 App Store Connect Team API Key；这种方式只需额外提供 Issuer ID：
+也可以直接使用 App Store Connect Team API Key（名称 “GiantAccel Notarization”，Key ID `89QP5JW5JJ`，团队所有 App 共用，私钥在 `~/.appstoreconnect/private_keys/`）；这种方式只需额外提供 Issuer ID：
 
 ```bash
 MAILEDGE_ASC_ISSUER=<Issuer-ID-UUID> \
-MAILEDGE_ASC_KEY_ID=DSBHDK285D \
-MAILEDGE_ASC_KEY_PATH="$HOME/Downloads/AuthKey_DSBHDK285D.p8" \
 ./Scripts/distribute-app.sh --notarize
 ```
 

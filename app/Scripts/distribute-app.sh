@@ -98,8 +98,8 @@ codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
 
 if $NOTARIZE; then
   if [[ -n "${MAILEDGE_ASC_ISSUER:-}" ]]; then
-    ASC_KEY_PATH="${MAILEDGE_ASC_KEY_PATH:-$HOME/Downloads/AuthKey_DSBHDK285D.p8}"
-    ASC_KEY_ID="${MAILEDGE_ASC_KEY_ID:-DSBHDK285D}"
+    ASC_KEY_ID="${MAILEDGE_ASC_KEY_ID:-89QP5JW5JJ}"
+    ASC_KEY_PATH="${MAILEDGE_ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8}"
     if [[ ! -f "$ASC_KEY_PATH" ]]; then
       echo "找不到 App Store Connect API 私钥：$ASC_KEY_PATH" >&2
       exit 1
@@ -111,7 +111,7 @@ if $NOTARIZE; then
       --issuer "$MAILEDGE_ASC_ISSUER" \
       --wait
   else
-    NOTARY_PROFILE="${MAILEDGE_NOTARY_PROFILE:-MailEdge}"
+    NOTARY_PROFILE="${MAILEDGE_NOTARY_PROFILE:-GiantAccel}"
     echo "提交 Apple Notary Service（Keychain profile: $NOTARY_PROFILE）"
     xcrun notarytool submit "$DMG_PATH" \
       --keychain-profile "$NOTARY_PROFILE" \
