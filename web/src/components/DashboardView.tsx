@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MailCategory } from "../../../src/ai/types";
 import type { FolderStats } from "../../../src/shared/message";
+import { useSession } from "../App";
 import { useI18n } from "../i18n";
 import type { OutboundView, ProviderView, UsageView } from "../lib/api";
 import { api } from "../lib/api";
@@ -81,6 +82,7 @@ function statFor(stats: FolderStats[], folder: FolderStats["folder"]): FolderSta
 }
 
 export default function DashboardView() {
+  const { edition } = useSession();
   const { lang, t } = useI18n();
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -343,96 +345,103 @@ export default function DashboardView() {
           </article>
         </section>
 
-        <section className="dashboard-resources" aria-label={t("dashboard.resources.title")}>
-          <header className="dashboard-card__header">
-            <div>
-              <h2>{t("dashboard.resources.title")}</h2>
-              <p>{t("dashboard.resources.desc")}</p>
+        {/* Cloudflare 的 D1 / Durable Objects / R2 用量：独立版（V2）没有这些，不显示 */}
+        {edition !== "standalone" && (
+          <section className="dashboard-resources" aria-label={t("dashboard.resources.title")}>
+            <header className="dashboard-card__header">
+              <div>
+                <h2>{t("dashboard.resources.title")}</h2>
+                <p>{t("dashboard.resources.desc")}</p>
+              </div>
+            </header>
+            <div className="dashboard-resource-grid">
+              <article className="dashboard-resource">
+                <span className="dashboard-resource__icon dashboard-resource__icon--primary">
+                  <Database size={17} />
+                </span>
+                <div className="dashboard-resource__body">
+                  <strong>{t("dashboard.resources.d1")}</strong>
+                  <b>
+                    {loading ? (
+                      <span className="dashboard-skeleton dashboard-skeleton--resource" />
+                    ) : (
+                      formatBytes(snapshot?.usage.d1.sizeBytes ?? null)
+                    )}
+                  </b>
+                  <small>{t("dashboard.resources.rows", { n: snapshot?.usage.d1.totalRows ?? 0 })}</small>
+                  <div className="dashboard-resource__progress" aria-hidden="true">
+                    <span style={{ width: loading ? "34%" : `${storageShares.d1}%` }} />
+                  </div>
+                  <em>
+                    {loading
+                      ? t("dashboard.loading")
+                      : t("dashboard.resources.share", { n: storageShares.d1 })}
+                  </em>
+                </div>
+              </article>
+              <article className="dashboard-resource">
+                <span className="dashboard-resource__icon dashboard-resource__icon--violet">
+                  <Server size={17} />
+                </span>
+                <div className="dashboard-resource__body">
+                  <strong>{t("dashboard.resources.durableObjects")}</strong>
+                  <b>
+                    {loading ? (
+                      <span className="dashboard-skeleton dashboard-skeleton--resource" />
+                    ) : (
+                      formatBytes(snapshot?.usage.durableObjects.sqliteBytes ?? null)
+                    )}
+                  </b>
+                  <small>
+                    {t("dashboard.resources.mailboxes", {
+                      n: snapshot?.usage.durableObjects.mailboxCount ?? 0,
+                      messages: snapshot?.usage.durableObjects.messageCount ?? 0,
+                    })}
+                  </small>
+                  <div className="dashboard-resource__progress" aria-hidden="true">
+                    <span style={{ width: loading ? "48%" : `${storageShares.durableObjects}%` }} />
+                  </div>
+                  <em>
+                    {loading
+                      ? t("dashboard.loading")
+                      : t("dashboard.resources.share", { n: storageShares.durableObjects })}
+                  </em>
+                </div>
+              </article>
+              <article className="dashboard-resource">
+                <span className="dashboard-resource__icon dashboard-resource__icon--warning">
+                  <HardDrive size={17} />
+                </span>
+                <div className="dashboard-resource__body">
+                  <strong>{t("dashboard.resources.r2")}</strong>
+                  <b>
+                    {loading ? (
+                      <span className="dashboard-skeleton dashboard-skeleton--resource" />
+                    ) : snapshot?.usage.r2.available ? (
+                      formatBytes(snapshot.usage.r2.bytes)
+                    ) : (
+                      "—"
+                    )}
+                  </b>
+                  <small>
+                    {snapshot?.usage.r2.available
+                      ? t("dashboard.resources.objects", { n: snapshot.usage.r2.objectCount })
+                      : t("dashboard.resources.unavailable")}
+                  </small>
+                  <div className="dashboard-resource__progress" aria-hidden="true">
+                    <span style={{ width: loading ? "26%" : `${storageShares.r2}%` }} />
+                  </div>
+                  <em>
+                    {loading
+                      ? t("dashboard.loading")
+                      : t("dashboard.resources.share", { n: storageShares.r2 })}
+                  </em>
+                </div>
+              </article>
             </div>
-          </header>
-          <div className="dashboard-resource-grid">
-            <article className="dashboard-resource">
-              <span className="dashboard-resource__icon dashboard-resource__icon--primary">
-                <Database size={17} />
-              </span>
-              <div className="dashboard-resource__body">
-                <strong>{t("dashboard.resources.d1")}</strong>
-                <b>
-                  {loading ? (
-                    <span className="dashboard-skeleton dashboard-skeleton--resource" />
-                  ) : (
-                    formatBytes(snapshot?.usage.d1.sizeBytes ?? null)
-                  )}
-                </b>
-                <small>{t("dashboard.resources.rows", { n: snapshot?.usage.d1.totalRows ?? 0 })}</small>
-                <div className="dashboard-resource__progress" aria-hidden="true">
-                  <span style={{ width: loading ? "34%" : `${storageShares.d1}%` }} />
-                </div>
-                <em>
-                  {loading ? t("dashboard.loading") : t("dashboard.resources.share", { n: storageShares.d1 })}
-                </em>
-              </div>
-            </article>
-            <article className="dashboard-resource">
-              <span className="dashboard-resource__icon dashboard-resource__icon--violet">
-                <Server size={17} />
-              </span>
-              <div className="dashboard-resource__body">
-                <strong>{t("dashboard.resources.durableObjects")}</strong>
-                <b>
-                  {loading ? (
-                    <span className="dashboard-skeleton dashboard-skeleton--resource" />
-                  ) : (
-                    formatBytes(snapshot?.usage.durableObjects.sqliteBytes ?? null)
-                  )}
-                </b>
-                <small>
-                  {t("dashboard.resources.mailboxes", {
-                    n: snapshot?.usage.durableObjects.mailboxCount ?? 0,
-                    messages: snapshot?.usage.durableObjects.messageCount ?? 0,
-                  })}
-                </small>
-                <div className="dashboard-resource__progress" aria-hidden="true">
-                  <span style={{ width: loading ? "48%" : `${storageShares.durableObjects}%` }} />
-                </div>
-                <em>
-                  {loading
-                    ? t("dashboard.loading")
-                    : t("dashboard.resources.share", { n: storageShares.durableObjects })}
-                </em>
-              </div>
-            </article>
-            <article className="dashboard-resource">
-              <span className="dashboard-resource__icon dashboard-resource__icon--warning">
-                <HardDrive size={17} />
-              </span>
-              <div className="dashboard-resource__body">
-                <strong>{t("dashboard.resources.r2")}</strong>
-                <b>
-                  {loading ? (
-                    <span className="dashboard-skeleton dashboard-skeleton--resource" />
-                  ) : snapshot?.usage.r2.available ? (
-                    formatBytes(snapshot.usage.r2.bytes)
-                  ) : (
-                    "—"
-                  )}
-                </b>
-                <small>
-                  {snapshot?.usage.r2.available
-                    ? t("dashboard.resources.objects", { n: snapshot.usage.r2.objectCount })
-                    : t("dashboard.resources.unavailable")}
-                </small>
-                <div className="dashboard-resource__progress" aria-hidden="true">
-                  <span style={{ width: loading ? "26%" : `${storageShares.r2}%` }} />
-                </div>
-                <em>
-                  {loading ? t("dashboard.loading") : t("dashboard.resources.share", { n: storageShares.r2 })}
-                </em>
-              </div>
-            </article>
-          </div>
-          <p className="dashboard-resource-note">{t("dashboard.resources.note")}</p>
-        </section>
+            <p className="dashboard-resource-note">{t("dashboard.resources.note")}</p>
+          </section>
+        )}
 
         <section className="dashboard-chart-grid">
           <article className="dashboard-card dashboard-card--chart">

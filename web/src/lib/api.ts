@@ -215,8 +215,14 @@ export const api = {
   login: (body: { email: string; password: string }) =>
     request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
-  /** senderAddresses：独立版（V2）扩展字段，登录邮箱之外还能当发件人的别名地址；Worker 版没有这个字段 */
-  me: () => request<{ user: User; mailboxes: Mailbox[]; senderAddresses?: string[] }>("/api/auth/me"),
+  /**
+   * 独立版（V2）扩展字段，Worker 版都没有：senderAddresses 登录邮箱之外还能当发件人的别名地址；
+   * edition 为 "standalone" 表示后端是独立版（没有 Cloudflare 的 D1 / Durable Objects / R2，仪表盘不显示这些用量）。
+   */
+  me: () =>
+    request<{ user: User; mailboxes: Mailbox[]; senderAddresses?: string[]; edition?: "standalone" }>(
+      "/api/auth/me",
+    ),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     request<{ ok: true }>("/api/auth/password", { method: "POST", body: JSON.stringify(body) }),
   passkeyRegisterOptions: () =>

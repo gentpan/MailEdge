@@ -14,6 +14,8 @@ interface SessionValue {
   mailboxes: Mailbox[];
   /** 能当发件人的地址（独立版的别名，含登录邮箱）；Worker 版是空数组，按信箱地址发信 */
   senderAddresses: string[];
+  /** 后端是哪一版：worker（Cloudflare）/ standalone（独立版 V2，自托管 IMAP/SMTP） */
+  edition: "worker" | "standalone";
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -30,7 +32,13 @@ type State =
   | { phase: "loading" }
   | { phase: "setup" }
   | { phase: "anonymous" }
-  | { phase: "ready"; user: User; mailboxes: Mailbox[]; senderAddresses: string[] };
+  | {
+      phase: "ready";
+      user: User;
+      mailboxes: Mailbox[];
+      senderAddresses: string[];
+      edition: "worker" | "standalone";
+    };
 
 export default function App() {
   const location = useLocation();
@@ -38,8 +46,14 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
-      const { user, mailboxes, senderAddresses } = await api.me();
-      setState({ phase: "ready", user, mailboxes, senderAddresses: senderAddresses ?? [] });
+      const { user, mailboxes, senderAddresses, edition } = await api.me();
+      setState({
+        phase: "ready",
+        user,
+        mailboxes,
+        senderAddresses: senderAddresses ?? [],
+        edition: edition === "standalone" ? "standalone" : "worker",
+      });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         const { needsSetup } = await api.needsSetup();
@@ -84,6 +98,7 @@ export default function App() {
         user: state.user,
         mailboxes: state.mailboxes,
         senderAddresses: state.senderAddresses,
+        edition: state.edition,
         refresh: load,
         signOut,
       }}
