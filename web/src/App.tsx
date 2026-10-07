@@ -12,6 +12,8 @@ import SettingsPage from "./pages/SettingsPage";
 interface SessionValue {
   user: User;
   mailboxes: Mailbox[];
+  /** 能当发件人的地址（独立版的别名，含登录邮箱）；Worker 版是空数组，按信箱地址发信 */
+  senderAddresses: string[];
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -28,7 +30,7 @@ type State =
   | { phase: "loading" }
   | { phase: "setup" }
   | { phase: "anonymous" }
-  | { phase: "ready"; user: User; mailboxes: Mailbox[] };
+  | { phase: "ready"; user: User; mailboxes: Mailbox[]; senderAddresses: string[] };
 
 export default function App() {
   const location = useLocation();
@@ -36,8 +38,8 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
-      const { user, mailboxes } = await api.me();
-      setState({ phase: "ready", user, mailboxes });
+      const { user, mailboxes, senderAddresses } = await api.me();
+      setState({ phase: "ready", user, mailboxes, senderAddresses: senderAddresses ?? [] });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         const { needsSetup } = await api.needsSetup();
@@ -77,7 +79,15 @@ export default function App() {
   }
 
   return (
-    <SessionContext.Provider value={{ user: state.user, mailboxes: state.mailboxes, refresh: load, signOut }}>
+    <SessionContext.Provider
+      value={{
+        user: state.user,
+        mailboxes: state.mailboxes,
+        senderAddresses: state.senderAddresses,
+        refresh: load,
+        signOut,
+      }}
+    >
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<MailPage />} />

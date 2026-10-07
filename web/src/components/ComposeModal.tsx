@@ -48,6 +48,8 @@ interface AttachmentItem {
 
 interface Props {
   mailboxes: Mailbox[];
+  /** 信箱之外还能当发件人的地址（独立版的别名），会接在下拉框信箱后面 */
+  senderAddresses?: string[];
   providers: ProviderView[];
   isAdmin: boolean;
   draft?: ComposeDraft;
@@ -58,6 +60,7 @@ interface Props {
 
 export default function ComposeModal({
   mailboxes,
+  senderAddresses = NO_DOMAINS,
   providers,
   isAdmin,
   draft,
@@ -213,13 +216,30 @@ export default function ComposeModal({
     [mailboxes, verifiedDomains],
   );
   const senderLimited = verifiedDomains.length > 0 && allowedMailboxes.length < mailboxes.length;
+  // 下拉框的选项：可用的信箱 + 别名地址（去重；渠道限定了域名时别名也按域名过滤）
+  const senderOptions = useMemo(() => {
+    const options = allowedMailboxes.map((m) => ({
+      key: m.id,
+      address: m.address,
+      label: m.displayName ? `${m.displayName} <${m.address}>` : m.address,
+    }));
+    const seen = new Set(options.map((o) => o.address.toLowerCase()));
+    for (const address of senderAddresses) {
+      const lower = address.toLowerCase();
+      if (seen.has(lower)) continue;
+      if (verifiedDomains.length && !verifiedDomains.includes(lower.split("@")[1] ?? "")) continue;
+      seen.add(lower);
+      options.push({ key: `alias:${lower}`, address, label: address });
+    }
+    return options;
+  }, [allowedMailboxes, senderAddresses, verifiedDomains]);
 
   // 切换渠道后若当前发件人不再允许，回退到第一个可用地址
   useEffect(() => {
-    if (allowedMailboxes.length && !allowedMailboxes.some((m) => m.address === from)) {
-      setFrom(allowedMailboxes[0]!.address);
+    if (senderOptions.length && !senderOptions.some((o) => o.address.toLowerCase() === from.toLowerCase())) {
+      setFrom(senderOptions[0]!.address);
     }
-  }, [allowedMailboxes, from]);
+  }, [senderOptions, from]);
 
   async function submit() {
     if (uploading) {
@@ -277,9 +297,9 @@ export default function ComposeModal({
           <div className="compose-row">
             <span className="compose-row__label">{t("compose.from")}</span>
             <select className="select" value={from} onChange={(event) => setFrom(event.target.value)}>
-              {allowedMailboxes.map((mailbox) => (
-                <option key={mailbox.id} value={mailbox.address}>
-                  {mailbox.displayName ? `${mailbox.displayName} <${mailbox.address}>` : mailbox.address}
+              {senderOptions.map((option) => (
+                <option key={option.key} value={option.address}>
+                  {option.label}
                 </option>
               ))}
             </select>

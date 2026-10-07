@@ -215,7 +215,8 @@ export const api = {
   login: (body: { email: string; password: string }) =>
     request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
-  me: () => request<{ user: User; mailboxes: Mailbox[] }>("/api/auth/me"),
+  /** senderAddresses：独立版（V2）扩展字段，登录邮箱之外还能当发件人的别名地址；Worker 版没有这个字段 */
+  me: () => request<{ user: User; mailboxes: Mailbox[]; senderAddresses?: string[] }>("/api/auth/me"),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     request<{ ok: true }>("/api/auth/password", { method: "POST", body: JSON.stringify(body) }),
   passkeyRegisterOptions: () =>

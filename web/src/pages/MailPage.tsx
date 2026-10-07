@@ -79,7 +79,7 @@ function mailPath(view: MailView, folder: MailFolder, mailboxId?: string): strin
 }
 
 export default function MailPage() {
-  const { user, mailboxes, signOut } = useSession();
+  const { user, mailboxes, senderAddresses, signOut } = useSession();
   const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
@@ -487,11 +487,22 @@ export default function MailPage() {
     }
   }
 
-  function replyTo(message: MessageDetail) {
-    // 回复时发件人自动用「收到信的那个地址」（所属信箱），
-    // 对方看到的就是给你发信时用的地址，而不是默认发信地址
+  /**
+   * 回复 / 转发时的发件人：「收到信的那个地址」，对方看到的就是给你发信时用的地址，而不是默认发信地址。
+   * 独立版的别名（比如 hello@ 收 ads@ 转来的信）：收件人里有能发信的别名就用它；否则用所属信箱。
+   */
+  function senderFor(message: MessageDetail): string | undefined {
     const mailbox = mailboxes.find((m) => m.id === detailMailboxId);
-    const from = mailbox?.address ?? message.to[0]?.email;
+    const box = mailbox?.address.toLowerCase();
+    const own = new Set(senderAddresses.map((a) => a.toLowerCase()));
+    const alias = [...message.to, ...message.cc]
+      .map((a) => a.email.trim())
+      .find((email) => own.has(email.toLowerCase()) && email.toLowerCase() !== box);
+    return alias ?? mailbox?.address ?? message.to[0]?.email;
+  }
+
+  function replyTo(message: MessageDetail) {
+    const from = senderFor(message);
     setComposeDraft({
       from,
       to: message.from.email,
@@ -502,9 +513,9 @@ export default function MailPage() {
   }
 
   function replyAllTo(message: MessageDetail) {
-    const mailbox = mailboxes.find((item) => item.id === detailMailboxId);
-    const from = mailbox?.address ?? message.to[0]?.email;
+    const from = senderFor(message);
     const own = from?.trim().toLowerCase();
+    const ownAll = new Set(senderAddresses.map((a) => a.toLowerCase()));
     const recipients = [message.from, ...message.to, ...message.cc]
       .map((address) => address.email.trim())
       .filter((email, index, addresses) => {
@@ -512,6 +523,7 @@ export default function MailPage() {
         return (
           normalized &&
           normalized !== own &&
+          !ownAll.has(normalized) &&
           addresses.findIndex((item) => item.toLowerCase() === normalized) === index
         );
       });
@@ -527,8 +539,7 @@ export default function MailPage() {
   }
 
   function forwardMessage(message: MessageDetail) {
-    const mailbox = mailboxes.find((item) => item.id === detailMailboxId);
-    const from = mailbox?.address ?? message.to[0]?.email;
+    const from = senderFor(message);
     const recipients = message.to.map((address) => address.email).join(", ");
     const forwarded = [
       "",
@@ -704,6 +715,7 @@ export default function MailPage() {
       {composeDraft && (
         <ComposeModal
           mailboxes={mailboxes}
+          senderAddresses={senderAddresses}
           providers={providers}
           isAdmin={user.role === "admin"}
           draft={composeDraft}
