@@ -29,10 +29,12 @@ export function useSession(): SessionValue {
   return value;
 }
 
+type Edition = "worker" | "standalone";
+
 type State =
   | { phase: "loading" }
   | { phase: "setup" }
-  | { phase: "anonymous" }
+  | { phase: "anonymous"; edition: Edition; captcha: boolean }
   | {
       phase: "ready";
       user: User;
@@ -57,11 +59,20 @@ export default function App() {
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        const { needsSetup } = await api.needsSetup();
-        setState({ phase: needsSetup ? "setup" : "anonymous" });
+        // 登录前就要知道是不是独立版：独立版没有通行密钥和找回密码
+        const { needsSetup, edition, captcha } = await api.needsSetup();
+        setState(
+          needsSetup
+            ? { phase: "setup" }
+            : {
+                phase: "anonymous",
+                edition: edition === "standalone" ? "standalone" : "worker",
+                captcha: captcha === true,
+              },
+        );
         return;
       }
-      setState({ phase: "anonymous" });
+      setState({ phase: "anonymous", edition: "worker", captcha: false });
     }
   }, []);
 
@@ -71,8 +82,9 @@ export default function App() {
 
   const signOut = useCallback(async () => {
     await api.logout().catch(() => undefined);
-    setState({ phase: "anonymous" });
-  }, []);
+    // 重新问一遍服务端：回到登录页时要知道是哪一版、要不要人机验证
+    await load();
+  }, [load]);
 
   // 许可证和第三方来源页不需要登录，便于用户在登录前核对授权信息。
   if (location.pathname === "/license") return <LicensePage />;
@@ -90,7 +102,14 @@ export default function App() {
   }
 
   if (state.phase !== "ready") {
-    return <AuthPage mode={state.phase === "setup" ? "setup" : "login"} onAuthenticated={load} />;
+    return (
+      <AuthPage
+        mode={state.phase === "setup" ? "setup" : "login"}
+        edition={state.phase === "anonymous" ? state.edition : "worker"}
+        captcha={state.phase === "anonymous" && state.captcha}
+        onAuthenticated={load}
+      />
+    );
   }
 
   return (

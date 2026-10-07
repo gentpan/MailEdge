@@ -209,10 +209,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // 认证
-  needsSetup: () => request<{ needsSetup: boolean }>("/api/auth/setup"),
+  needsSetup: () =>
+    request<{ needsSetup: boolean; edition?: "standalone"; captcha?: boolean }>("/api/auth/setup"),
+  // Cap 人机验证（独立版登录用，needsSetup 回 captcha: true 时才有）
+  capChallenge: () =>
+    request<{ id: string; items: [string, string][]; ttl: number }>("/api/auth/cap/challenge", {
+      method: "POST",
+    }),
+  capRedeem: (body: { id: string; solutions: number[] }) =>
+    request<{ token: string }>("/api/auth/cap/redeem", { method: "POST", body: JSON.stringify(body) }),
   setup: (body: { email: string; password: string; name?: string; mailbox?: string }) =>
     request<{ user: User }>("/api/auth/setup", { method: "POST", body: JSON.stringify(body) }),
-  login: (body: { email: string; password: string }) =>
+  login: (body: { email: string; password: string; capToken?: string }) =>
     request<{ user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
   /**

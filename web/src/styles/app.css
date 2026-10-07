@@ -104,6 +104,70 @@
   margin-top: var(--space-3);
 }
 
+/* Cap 人机验证（独立版登录页）：整行就是一个可点的「我不是机器人」勾选框 */
+.cap-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cap-check:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.cap-check:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.cap-check:disabled {
+  cursor: default;
+}
+
+.cap-check__box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-primary);
+}
+
+.cap-check--done .cap-check__box {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  color: var(--color-on-primary);
+}
+
+.cap-check--error {
+  border-color: var(--color-error);
+}
+
+.cap-check--error .cap-check__label {
+  color: var(--color-error);
+}
+
+.cap-check__meta {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
 .btn--danger {
   background: var(--color-error);
 }

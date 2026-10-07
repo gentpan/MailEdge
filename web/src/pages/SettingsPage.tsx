@@ -59,13 +59,14 @@ const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof 
     { key: "legal", labelKey: "settings.nav.legal", icon: Copyright },
   ];
 
-/** 独立版（IMAP / SMTP 直连）没有这些 Cloudflare 版才有的功能，设置里不列出来。 */
+/** 独立版（IMAP / SMTP 直连）没有这些 Cloudflare 版才有的功能（收件地址由邮件服务器管），设置里不列出来。 */
 const STANDALONE_HIDDEN: ReadonlySet<Category> = new Set([
   "providers",
   "ai",
   "notifications",
   "update",
   "storage",
+  "mailboxes",
 ]);
 
 export default function SettingsPage() {

@@ -1,6 +1,7 @@
 import { client } from "@passwordless-id/webauthn";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { useSession } from "../../App";
 import { useI18n } from "../../i18n";
 import type { User } from "../../lib/api";
 import { api } from "../../lib/api";
@@ -14,6 +15,8 @@ interface Props {
 
 export default function AccountPanel({ user }: Props) {
   const { t } = useI18n();
+  // 独立版的账号就是邮件服务器上的邮箱：密码在服务器上改，没有通行密钥，角色也只有一种
+  const standalone = useSession().edition === "standalone";
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const { showToast, dismissToast } = useSettingsToast();
@@ -70,69 +73,77 @@ export default function AccountPanel({ user }: Props) {
         <p className="text-sm">{user.name || t("account.name.empty")}</p>
       </FormRow>
 
-      <FormRow label={t("account.role")}>
-        <span className="badge">
-          {user.role === "admin" ? t("account.role.admin") : t("account.role.user")}
-        </span>
-      </FormRow>
+      {standalone ? (
+        <FormRow label={t("account.password")}>
+          <p className="text-sm">{t("account.password.standalone")}</p>
+        </FormRow>
+      ) : (
+        <>
+          <FormRow label={t("account.role")}>
+            <span className="badge">
+              {user.role === "admin" ? t("account.role.admin") : t("account.role.user")}
+            </span>
+          </FormRow>
 
-      <FormRow label={t("account.currentPassword")}>
-        <input
-          className="input"
-          type="password"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-        />
-      </FormRow>
+          <FormRow label={t("account.currentPassword")}>
+            <input
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+            />
+          </FormRow>
 
-      <FormRow label={t("account.newPassword")} hint={t("account.newPassword.hint")}>
-        <input
-          className="input"
-          type="password"
-          autoComplete="new-password"
-          value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
-        />
-      </FormRow>
+          <FormRow label={t("account.newPassword")} hint={t("account.newPassword.hint")}>
+            <input
+              className="input"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+          </FormRow>
 
-      <div className="form-actions">
-        <button
-          className="btn"
-          type="button"
-          onClick={() => void update()}
-          disabled={busy || !currentPassword || newPassword.length < 8}
-        >
-          {busy ? t("common.saving") : t("account.updatePassword")}
-        </button>
-      </div>
-
-      <section className="account-passkey-card" aria-labelledby="account-passkey-title">
-        <div className="account-passkey-card__icon" aria-hidden="true">
-          <KeyRound size={22} />
-        </div>
-        <div className="account-passkey-card__body">
-          <div className="account-passkey-card__header">
-            <div>
-              <h2 id="account-passkey-title">{t("account.passkey.title")}</h2>
-              <p>{t("account.passkey.hint")}</p>
-            </div>
+          <div className="form-actions">
             <button
-              className="btn btn--secondary"
+              className="btn"
               type="button"
-              onClick={() => void addPasskey()}
-              disabled={passkeyBusy}
+              onClick={() => void update()}
+              disabled={busy || !currentPassword || newPassword.length < 8}
             >
-              <KeyRound size={16} />
-              {passkeyBusy ? t("account.passkey.busy") : t("account.passkey.add")}
+              {busy ? t("common.saving") : t("account.updatePassword")}
             </button>
           </div>
-          <div className="account-passkey-card__note">
-            <ShieldCheck size={15} aria-hidden="true" />
-            <span>{t("account.passkey.note")}</span>
-          </div>
-        </div>
-      </section>
+
+          <section className="account-passkey-card" aria-labelledby="account-passkey-title">
+            <div className="account-passkey-card__icon" aria-hidden="true">
+              <KeyRound size={22} />
+            </div>
+            <div className="account-passkey-card__body">
+              <div className="account-passkey-card__header">
+                <div>
+                  <h2 id="account-passkey-title">{t("account.passkey.title")}</h2>
+                  <p>{t("account.passkey.hint")}</p>
+                </div>
+                <button
+                  className="btn btn--secondary"
+                  type="button"
+                  onClick={() => void addPasskey()}
+                  disabled={passkeyBusy}
+                >
+                  <KeyRound size={16} />
+                  {passkeyBusy ? t("account.passkey.busy") : t("account.passkey.add")}
+                </button>
+              </div>
+              <div className="account-passkey-card__note">
+                <ShieldCheck size={15} aria-hidden="true" />
+                <span>{t("account.passkey.note")}</span>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
     </SettingsPanel>
   );
 }

@@ -1,6 +1,7 @@
 import { client } from "@passwordless-id/webauthn";
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
+import CapCheck, { useCap } from "../components/CapCheck";
 import LanguageToggle from "../components/LanguageToggle";
 import Logo from "../components/Logo";
 import { useI18n } from "../i18n";
@@ -8,12 +9,16 @@ import { api } from "../lib/api";
 
 interface Props {
   mode: "login" | "setup";
+  /** 独立版用邮箱服务器的账号密码登录，没有通行密钥和找回密码。 */
+  edition?: "worker" | "standalone";
+  /** 登录要先过 Cap 人机验证（独立版默认开） */
+  captcha?: boolean;
   onAuthenticated: () => Promise<void>;
 }
 
 type AuthView = "login" | "forgot" | "reset";
 
-export default function AuthPage({ mode, onAuthenticated }: Props) {
+export default function AuthPage({ mode, edition = "worker", captcha = false, onAuthenticated }: Props) {
   const { t } = useI18n();
   const resetToken =
     mode === "login"
@@ -34,6 +39,7 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const isSetup = mode === "setup";
+  const cap = useCap();
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -58,6 +64,16 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
       }
       if (isSetup) {
         await api.setup({ email, password, name: name || undefined, mailbox: mailbox || email });
+      } else if (captcha) {
+        // 没勾「我不是机器人」就直接点登录：替他算，算完接着登录
+        const capToken = await cap.start();
+        if (!capToken) throw new Error(t("auth.cap.failed"));
+        try {
+          await api.login({ email, password, capToken });
+        } finally {
+          // 通行证只能用一次：登录试过一次（不管成败）就作废，下次重新验证
+          cap.reset();
+        }
       } else {
         await api.login({ email, password });
       }
@@ -227,11 +243,13 @@ export default function AuthPage({ mode, onAuthenticated }: Props) {
               {isSetup && <span className="field__hint">{t("auth.password.min")}</span>}
             </div>
 
+            {!isSetup && captcha && <CapCheck cap={cap} />}
+
             <button className="btn btn--block" type="submit" disabled={busy}>
               {busy ? t("auth.busy") : isSetup ? t("auth.submit.setup") : t("auth.submit.login")}
             </button>
 
-            {!isSetup && (
+            {!isSetup && edition !== "standalone" && (
               <>
                 <button
                   className="btn btn--secondary btn--block auth__passkey"
