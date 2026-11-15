@@ -579,13 +579,28 @@ export default function MailPage() {
     return alias ?? mailbox?.address ?? message.to[0]?.email;
   }
 
+  /** 回复正文：作者行 + Markdown 引用块，发出后渲染为带左边线的灰色引用。 */
+  function replyQuote(message: MessageDetail): string {
+    const header = t("reply.quote", {
+      date: formatDateTime(message.receivedAt),
+      from: displayName(message.from),
+    });
+    const body = (message.text ?? "")
+      .replace(/\r\n/g, "\n")
+      .trimEnd()
+      .split("\n")
+      .map((line) => (line ? `> ${line}` : ">"))
+      .join("\n");
+    return `\n\n${header}\n\n${body}`;
+  }
+
   function replyTo(message: MessageDetail) {
     const from = senderFor(message);
     setComposeDraft({
       from,
       to: message.from.email,
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
-      text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+      text: replyQuote(message),
       aiReplyTarget: detailMailboxId ? { messageId: message.id, mailboxId: detailMailboxId } : undefined,
     });
   }
@@ -611,7 +626,7 @@ export default function MailPage() {
       to: to ?? message.from.email,
       cc: cc.join(", "),
       subject: message.subject.startsWith("Re:") ? message.subject : `Re: ${message.subject}`,
-      text: `\n\n${t("reply.quote", { from: message.from.email })}${message.text ?? ""}`,
+      text: replyQuote(message),
       aiReplyTarget: detailMailboxId ? { messageId: message.id, mailboxId: detailMailboxId } : undefined,
     });
   }

@@ -15,6 +15,8 @@ export interface User {
   role: "admin" | "user";
   isEnabled: boolean;
   createdAt: string;
+  /** 独立版：上传过头像时的图片地址（带版本号），没有为 null；Worker 版没有这个字段 */
+  avatarUrl?: string | null;
 }
 
 export interface Mailbox {
@@ -187,6 +189,12 @@ export class ApiError extends Error {
   }
 }
 
+function avatarForm(image: Blob): FormData {
+  const form = new FormData();
+  form.append("file", image, image.type === "image/webp" ? "avatar.webp" : "avatar.png");
+  return form;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -256,6 +264,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  /** 以下为独立版接口：已添加的 Passkey、个人资料（发信昵称、头像） */
+  passkeys: () =>
+    request<{ passkeys: Array<{ id: string; createdAt: string; lastUsedAt: string | null }> }>(
+      "/api/auth/passkeys",
+    ),
+  deletePasskey: (id: string) =>
+    request<{ ok: true }>(`/api/auth/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  updateProfile: (body: { name: string | null }) =>
+    request<{ ok: true; name: string | null }>("/api/profile", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  uploadAvatar: (image: Blob) =>
+    request<{ ok: true; avatarUrl: string | null }>("/api/profile/avatar", {
+      method: "POST",
+      body: avatarForm(image),
+    }),
+  deleteAvatar: () => request<{ ok: true }>("/api/profile/avatar", { method: "DELETE" }),
+  adminUpdateUserProfile: (email: string, body: { name: string | null }) =>
+    request<{ ok: true; name: string | null }>(`/api/admin/users/${encodeURIComponent(email)}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  adminUploadUserAvatar: (email: string, image: Blob) =>
+    request<{ ok: true; avatarUrl: string | null }>(`/api/admin/users/${encodeURIComponent(email)}/avatar`, {
+      method: "POST",
+      body: avatarForm(image),
+    }),
+  adminDeleteUserAvatar: (email: string) =>
+    request<{ ok: true }>(`/api/admin/users/${encodeURIComponent(email)}/avatar`, { method: "DELETE" }),
   requestPasswordReset: (body: { email: string }) =>
     request<{ ok: true }>("/api/auth/password-reset/request", {
       method: "POST",

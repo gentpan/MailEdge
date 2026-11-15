@@ -249,23 +249,25 @@ export default function AuthPage({ mode, edition = "worker", captcha = false, on
               {busy ? t("auth.busy") : isSetup ? t("auth.submit.setup") : t("auth.submit.login")}
             </button>
 
+            {!isSetup && (
+              <button
+                className="btn btn--secondary btn--block auth__passkey"
+                type="button"
+                onClick={() => void loginWithPasskey()}
+                disabled={busy || passkeyBusy || !email.trim()}
+              >
+                <KeyRound size={16} aria-hidden="true" />
+                {passkeyBusy ? t("auth.passkey.busy") : t("auth.passkey")}
+              </button>
+            )}
+
+            {/* 独立版的密码在邮件服务器上，没有找回密码 */}
             {!isSetup && edition !== "standalone" && (
-              <>
-                <button
-                  className="btn btn--secondary btn--block auth__passkey"
-                  type="button"
-                  onClick={() => void loginWithPasskey()}
-                  disabled={busy || passkeyBusy || !email.trim()}
-                >
-                  <KeyRound size={16} aria-hidden="true" />
-                  {passkeyBusy ? t("auth.passkey.busy") : t("auth.passkey")}
+              <div className="auth__links">
+                <button className="link-button" type="button" onClick={() => setView("forgot")}>
+                  {t("auth.forgot")}
                 </button>
-                <div className="auth__links">
-                  <button className="link-button" type="button" onClick={() => setView("forgot")}>
-                    {t("auth.forgot")}
-                  </button>
-                </div>
-              </>
+              </div>
             )}
           </>
         )}

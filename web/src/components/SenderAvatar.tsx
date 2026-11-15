@@ -13,7 +13,8 @@ interface SenderAvatarProps {
 const AVATAR_COLORS = ["blue", "green", "rose", "violet", "slate", "amber"] as const;
 type AvatarColor = (typeof AVATAR_COLORS)[number];
 
-// Reuse successful domain loads across list and detail instances in this page session.
+// Reuse successful loads across list and detail instances in this page session.
+// 按发件人地址记：本站用户可能有自己上传的头像，同域名的不同人头像不同。
 const loadedAvatarDomains = new Set<string>();
 
 /** 企业头像：优先使用域名 favicon，失败时使用稳定的首字母和颜色。 */
@@ -23,12 +24,13 @@ export default function SenderAvatar({ address, priority = false }: SenderAvatar
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? "?";
   const color = useMemo(() => colorFor(domain || label), [domain, label]);
   const [imageFailed, setImageFailed] = useState(!domain);
-  const [imageLoaded, setImageLoaded] = useState(Boolean(domain && loadedAvatarDomains.has(domain)));
+  const cacheKey = address.email.toLowerCase();
+  const [imageLoaded, setImageLoaded] = useState(Boolean(domain && loadedAvatarDomains.has(cacheKey)));
 
   useEffect(() => {
     setImageFailed(!domain);
-    setImageLoaded(Boolean(domain && loadedAvatarDomains.has(domain)));
-  }, [domain]);
+    setImageLoaded(Boolean(domain && loadedAvatarDomains.has(cacheKey)));
+  }, [domain, cacheKey]);
 
   if (!imageFailed && domain) {
     return (
@@ -41,13 +43,13 @@ export default function SenderAvatar({ address, priority = false }: SenderAvatar
         {!imageLoaded && initial}
         <img
           className="sender-avatar__image"
-          src={`/api/brand/avatar?domain=${encodeURIComponent(domain)}`}
+          src={`/api/brand/avatar?domain=${encodeURIComponent(domain)}&email=${encodeURIComponent(address.email.toLowerCase())}`}
           alt=""
           loading={priority ? "eager" : "lazy"}
           fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           onLoad={() => {
-            loadedAvatarDomains.add(domain);
+            loadedAvatarDomains.add(cacheKey);
             setImageLoaded(true);
           }}
           onError={() => setImageFailed(true)}

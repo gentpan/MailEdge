@@ -31,13 +31,9 @@ import LanguageToggle from "./LanguageToggle";
 import Logo from "./Logo";
 import type { MessageListStyle } from "./MessageList";
 import ThemeToggle from "./ThemeToggle";
+import UserAvatar from "./UserAvatar";
 
 export type MailView = "mail" | "outbox" | "attachments" | "contacts" | "dashboard";
-
-/** 头像用的首字母：优先取名字，退到邮箱首字符 */
-function initial(value: string): string {
-  return (value.trim()[0] ?? "?").toUpperCase();
-}
 
 type NavIcon = IconComponent;
 
@@ -558,7 +554,7 @@ export default function Sidebar({
             aria-haspopup="menu"
             onClick={() => setAccountOpen((open) => !open)}
           >
-            <span className="user-card__avatar">{initial(user.name || user.email)}</span>
+            <UserAvatar label={user.name || user.email} avatarUrl={user.avatarUrl} />
             <span className="user-card__meta">
               <span className="user-card__name">{user.name || user.email}</span>
               {user.name && <span className="user-card__email">{user.email}</span>}
@@ -569,7 +565,7 @@ export default function Sidebar({
           {accountOpen && (
             <div className="user-menu__panel" role="menu">
               <div className="user-menu__identity">
-                <span className="user-card__avatar">{initial(user.name || user.email)}</span>
+                <UserAvatar label={user.name || user.email} avatarUrl={user.avatarUrl} />
                 <span>{user.email}</span>
               </div>
               <Link

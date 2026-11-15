@@ -6,6 +6,7 @@ import {
   Copy,
   KeyRound,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Shield,
@@ -14,8 +15,11 @@ import {
   Users,
   X,
 } from "../icons";
+import { api } from "../../lib/api";
 import Spinner from "../Spinner";
+import UserAvatar from "../UserAvatar";
 import FormRow from "./FormRow";
+import ProfileEditor from "./ProfileEditor";
 import SettingsPanel from "./SettingsPanel";
 import { useSettingsToast } from "./SettingsToast";
 
@@ -24,10 +28,13 @@ export interface ManagedUser {
   username: string;
   domain: string;
   size: string;
+  /** 发信昵称与头像（本库里的资料；没设置过为 null） */
+  name?: string | null;
+  avatarUrl?: string | null;
 }
 
 export default function UsersPanel() {
-  const { user } = useSession();
+  const { user, refresh } = useSession();
   const { showToast, dismissToast } = useSettingsToast();
 
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -45,16 +52,19 @@ export default function UsersPanel() {
   const [resetPassword, setResetPassword] = useState("");
 
   const [deleteUser, setDeleteUser] = useState<ManagedUser | null>(null);
+  const [profileUser, setProfileUser] = useState<ManagedUser | null>(null);
   const [domainOptions, setDomainOptions] = useState<string[]>([]);
 
   // 载入用户列表
-  async function loadUsers() {
-    setLoading(true);
+  async function loadUsers(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch("/api/admin/users", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "获取用户列表失败");
-      setUsers(data.users || []);
+      const list: ManagedUser[] = data.users || [];
+      setUsers(list);
+      setProfileUser((current) => (current ? (list.find((u) => u.email === current.email) ?? null) : null));
       if (!newEmailDomain && data.callerDomain) {
         setNewEmailDomain(data.callerDomain);
       }
@@ -118,6 +128,12 @@ export default function UsersPanel() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** 资料改动后刷新列表；改的是自己时，侧边栏的头像和昵称也要跟着变 */
+  async function afterProfileChange(email: string) {
+    await loadUsers(true);
+    if (email.toLowerCase() === user.email.toLowerCase()) await refresh();
   }
 
   // 重置密码
@@ -272,23 +288,13 @@ export default function UsersPanel() {
                   >
                     <td style={{ padding: "10px 14px", fontWeight: 500 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <div
-                          style={{
-                            width: "26px",
-                            height: "26px",
-                            borderRadius: "50%",
-                            background: "var(--color-primary-soft)",
-                            color: "var(--color-primary)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {u.username.charAt(0).toUpperCase()}
-                        </div>
-                        <span>{u.email}</span>
+                        <UserAvatar label={u.name || u.username} avatarUrl={u.avatarUrl} className="users-row__avatar" size={26} />
+                        <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                          {u.name && <span>{u.name}</span>}
+                          <span style={u.name ? { fontSize: "12px", fontWeight: 400, color: "var(--color-text-secondary)" } : undefined}>
+                            {u.email}
+                          </span>
+                        </span>
                         {isCurrent && (
                           <span
                             style={{
@@ -347,6 +353,15 @@ export default function UsersPanel() {
                     </td>
                     <td style={{ padding: "10px 14px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "0.5rem" }}>
+                        <button
+                          type="button"
+                          className="btn btn--outline"
+                          style={{ padding: "3px 8px", fontSize: "12px" }}
+                          onClick={() => setProfileUser(u)}
+                        >
+                          <Pencil size={12} style={{ marginRight: "3px" }} />
+                          编辑资料
+                        </button>
                         <button
                           type="button"
                           className="btn btn--outline"
@@ -608,6 +623,69 @@ export default function UsersPanel() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 弹窗：编辑资料（发信昵称、头像） */}
+      {profileUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--color-bg)",
+              borderRadius: "var(--radius-lg)",
+              padding: "1.5rem",
+              width: "480px",
+              maxWidth: "92vw",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
+              <div>
+                <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>编辑资料</h3>
+                <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", margin: "0.2rem 0 0" }}>
+                  {profileUser.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn--outline"
+                style={{ padding: "4px", borderRadius: "50%" }}
+                aria-label="关闭"
+                onClick={() => setProfileUser(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <ProfileEditor
+              email={profileUser.email}
+              name={profileUser.name ?? null}
+              avatarUrl={profileUser.avatarUrl ?? null}
+              onSaveName={async (name) => {
+                await api.adminUpdateUserProfile(profileUser.email, { name });
+                await afterProfileChange(profileUser.email);
+                showToast({ kind: "success", text: "资料已保存" });
+              }}
+              onUploadAvatar={async (image) => {
+                await api.adminUploadUserAvatar(profileUser.email, image);
+                await afterProfileChange(profileUser.email);
+              }}
+              onDeleteAvatar={async () => {
+                await api.adminDeleteUserAvatar(profileUser.email);
+                await afterProfileChange(profileUser.email);
+              }}
+              onError={(text) => showToast({ kind: "error", text })}
+            />
           </div>
         </div>
       )}

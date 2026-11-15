@@ -1,6 +1,8 @@
 const EMAIL_CANVAS_MARKER = "data-mailedge-email-canvas";
 const EMAIL_FLUID_WIDTH_MARKER = "data-mailedge-fluid-width";
-const EMAIL_RESPONSIVE_CSS = `body{max-width:100%;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:720px){table{max-width:100%!important;min-width:0!important}table[${EMAIL_FLUID_WIDTH_MARKER}]{width:100%!important}td[${EMAIL_FLUID_WIDTH_MARKER}],th[${EMAIL_FLUID_WIDTH_MARKER}],col[${EMAIL_FLUID_WIDTH_MARKER}]{width:auto!important;min-width:0!important}img,video,canvas,svg{max-width:100%!important;height:auto!important}}`;
+// 引用里的邮箱链接（如 Gmail 的 "xx <a@b.com> 写道："）去掉默认蓝字下划线，与正文同色
+const EMAIL_QUOTE_CSS = `.gmail_attr a,.gmail_quote a[href^="mailto:"],blockquote a[href^="mailto:"]{color:inherit;text-decoration:none}`;
+const EMAIL_RESPONSIVE_CSS = `${EMAIL_QUOTE_CSS}body{max-width:100%;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:720px){table{max-width:100%!important;min-width:0!important}table[${EMAIL_FLUID_WIDTH_MARKER}]{width:100%!important}td[${EMAIL_FLUID_WIDTH_MARKER}],th[${EMAIL_FLUID_WIDTH_MARKER}],col[${EMAIL_FLUID_WIDTH_MARKER}]{width:auto!important;min-width:0!important}img,video,canvas,svg{max-width:100%!important;height:auto!important}}`;
 
 export type EmailColorMode = "light" | "dark";
 type AuthorDarkCanvas = "none" | "responsive" | "fixed";
