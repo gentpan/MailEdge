@@ -1,14 +1,3 @@
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  CircleAlert,
-  Cloud,
-  Send,
-  Server,
-  Trash2,
-  Zap,
-} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MailProviderType } from "../../../../src/mail/types";
 import { useI18n } from "../../i18n";
@@ -17,6 +6,7 @@ import type { Mailbox, ProviderView } from "../../lib/api";
 import { api } from "../../lib/api";
 import { brandName } from "../../lib/brand";
 import { formatDateTime, PROVIDER_LABELS } from "../../lib/format";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Cloud, Send, Server, Trash2, Zap } from "../icons";
 import FormRow from "./FormRow";
 import ProviderLogo from "./ProviderLogo";
 import { useSettingsToast } from "./SettingsToast";

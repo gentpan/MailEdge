@@ -1,10 +1,10 @@
 import { client } from "@passwordless-id/webauthn";
-import { KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "../../App";
 import { useI18n } from "../../i18n";
 import type { User } from "../../lib/api";
 import { api } from "../../lib/api";
+import { KeyRound, ShieldCheck } from "../icons";
 import FormRow from "./FormRow";
 import SettingsPanel from "./SettingsPanel";
 import { useSettingsToast } from "./SettingsToast";

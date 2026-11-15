@@ -1,9 +1,9 @@
-import { AlertTriangle, Check, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import type { Mailbox } from "../../lib/api";
 import { api } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
+import { AlertTriangle, Check, Pencil, Trash2, X } from "../icons";
 import FormRow from "./FormRow";
 import SettingsPanel from "./SettingsPanel";
 import { useSettingsToast } from "./SettingsToast";

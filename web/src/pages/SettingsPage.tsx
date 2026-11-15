@@ -1,3 +1,6 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router";
+import { useSession } from "../App";
 import {
   ArrowLeft,
   AtSign,
@@ -6,8 +9,10 @@ import {
   ChevronUp,
   Copyright,
   Database,
+  Globe,
   Loader2,
   LogOut,
+  Palette,
   RefreshCw,
   Rows3,
   Rows4,
@@ -15,15 +20,15 @@ import {
   Settings,
   Sparkles,
   User as UserIcon,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
-import { useSession } from "../App";
+  Users,
+} from "../components/icons";
 import LanguageToggle from "../components/LanguageToggle";
 import LegalOverview from "../components/LegalOverview";
 import type { MessageListStyle } from "../components/MessageList";
 import AccountPanel from "../components/settings/AccountPanel";
 import AiPanel from "../components/settings/AiPanel";
+import AppearancePanel from "../components/settings/AppearancePanel";
+import DomainsPanel from "../components/settings/DomainsPanel";
 import MailboxesPanel from "../components/settings/MailboxesPanel";
 import ProvidersPanel from "../components/settings/ProvidersPanel";
 import SettingsPanel from "../components/settings/SettingsPanel";
@@ -31,6 +36,7 @@ import SettingsToastProvider from "../components/settings/SettingsToast";
 import StoragePanel from "../components/settings/StoragePanel";
 import TelegramPanel from "../components/settings/TelegramPanel";
 import UpdatePanel from "../components/settings/UpdatePanel";
+import UsersPanel from "../components/settings/UsersPanel";
 import ThemeToggle from "../components/ThemeToggle";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
@@ -38,6 +44,8 @@ import type { Mailbox, ProviderView } from "../lib/api";
 import { api } from "../lib/api";
 
 type Category =
+  | "domains"
+  | "users"
   | "providers"
   | "ai"
   | "notifications"
@@ -45,10 +53,20 @@ type Category =
   | "storage"
   | "mailboxes"
   | "account"
+  | "appearance"
   | "legal";
 
-const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof Send; adminOnly?: boolean }> =
+const CATEGORIES: Array<{
+  key: Category;
+  labelKey: TranslationKey;
+  icon: typeof Send;
+  adminOnly?: boolean;
+  /** 只有独立版（自建 Postfix / Dovecot）才有的功能 */
+  standaloneOnly?: boolean;
+}> =
   [
+    { key: "domains", labelKey: "settings.nav.domains", icon: Globe, adminOnly: true, standaloneOnly: true },
+    { key: "users", labelKey: "settings.nav.users", icon: Users, adminOnly: true },
     { key: "providers", labelKey: "settings.nav.providers", icon: Send, adminOnly: true },
     { key: "ai", labelKey: "settings.nav.ai", icon: Sparkles, adminOnly: true },
     { key: "notifications", labelKey: "settings.nav.notifications", icon: Bell, adminOnly: true },
@@ -56,6 +74,7 @@ const CATEGORIES: Array<{ key: Category; labelKey: TranslationKey; icon: typeof 
     { key: "storage", labelKey: "settings.nav.storage", icon: Database, adminOnly: true },
     { key: "mailboxes", labelKey: "settings.nav.mailboxes", icon: AtSign },
     { key: "account", labelKey: "settings.nav.account", icon: UserIcon },
+    { key: "appearance", labelKey: "settings.nav.appearance", icon: Palette },
     { key: "legal", labelKey: "settings.nav.legal", icon: Copyright },
   ];
 
@@ -107,7 +126,10 @@ export default function SettingsPage() {
   }, [accountOpen]);
 
   const visible = CATEGORIES.filter(
-    (item) => (!item.adminOnly || isAdmin) && !(edition === "standalone" && STANDALONE_HIDDEN.has(item.key)),
+    (item) =>
+      (!item.adminOnly || isAdmin) &&
+      !(item.standaloneOnly && edition !== "standalone") &&
+      !(edition === "standalone" && STANDALONE_HIDDEN.has(item.key)),
   );
   // 二级目录路由驱动：/settings/:category，无效或不可见的回退到第一个可见 tab
   const { category: categoryParam } = useParams<{ category: string }>();
@@ -268,6 +290,10 @@ export default function SettingsPage() {
                 </button>
               </div>
             </SettingsPanel>
+          ) : category === "domains" ? (
+            <DomainsPanel />
+          ) : category === "users" ? (
+            <UsersPanel />
           ) : category === "providers" ? (
             <ProvidersPanel providers={providers} mailboxes={mailboxes} onChanged={() => void load()} />
           ) : category === "ai" ? (
@@ -280,6 +306,8 @@ export default function SettingsPage() {
             <StoragePanel />
           ) : category === "mailboxes" ? (
             <MailboxesPanel mailboxes={mailboxes} onChanged={() => void reloadAll()} />
+          ) : category === "appearance" ? (
+            <AppearancePanel />
           ) : category === "legal" ? (
             <div className="settings-panel settings-legal-panel">
               <LegalOverview className="legal-overview--embedded" />

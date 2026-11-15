@@ -1,5 +1,5 @@
-import { Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Moon, Sun } from "./icons";
 
 const THEME_KEY = "mailedge-app-theme";
 

@@ -1,3 +1,9 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { markdownToEmailHtml } from "../../../src/shared/markdown";
+import { useI18n } from "../i18n";
+import type { Mailbox, ProviderView, SendResponse, StagedAttachment } from "../lib/api";
+import { api } from "../lib/api";
+import { formatSize, PROVIDER_LABELS } from "../lib/format";
 import {
   Bold,
   Code2,
@@ -13,13 +19,7 @@ import {
   Send,
   WandSparkles,
   X,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { markdownToEmailHtml } from "../../../src/shared/markdown";
-import { useI18n } from "../i18n";
-import type { Mailbox, ProviderView, SendResponse, StagedAttachment } from "../lib/api";
-import { api } from "../lib/api";
-import { formatSize, PROVIDER_LABELS } from "../lib/format";
+} from "./icons";
 
 export interface ComposeDraft {
   from?: string;

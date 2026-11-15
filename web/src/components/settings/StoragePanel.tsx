@@ -1,8 +1,8 @@
-import { Database, HardDrive, Loader2, RefreshCw, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import type { StorageBackend, StorageConfigView } from "../../lib/api";
 import { api } from "../../lib/api";
+import { Database, HardDrive, Loader2, RefreshCw, Save } from "../icons";
 import FormRow from "./FormRow";
 import SettingsPanel from "./SettingsPanel";
 import { useSettingsToast } from "./SettingsToast";

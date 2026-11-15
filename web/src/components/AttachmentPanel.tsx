@@ -1,3 +1,9 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { useI18n } from "../i18n";
+import type { ManagedAttachmentRef, ManagedAttachmentView } from "../lib/api";
+import { api } from "../lib/api";
+import { formatDateTime, formatSize } from "../lib/format";
 import {
   Copy,
   Download,
@@ -13,13 +19,7 @@ import {
   Trash2,
   TriangleAlert,
   X,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { useI18n } from "../i18n";
-import type { ManagedAttachmentRef, ManagedAttachmentView } from "../lib/api";
-import { api } from "../lib/api";
-import { formatDateTime, formatSize } from "../lib/format";
+} from "./icons";
 import { useSettingsToast } from "./settings/SettingsToast";
 
 function itemKey(item: ManagedAttachmentView): string {

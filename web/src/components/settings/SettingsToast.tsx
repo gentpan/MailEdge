@@ -1,6 +1,6 @@
-import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "../icons";
 
 export type SettingsToastKind = "success" | "error" | "warning" | "info";
 

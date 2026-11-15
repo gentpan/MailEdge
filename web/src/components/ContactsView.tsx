@@ -1,8 +1,8 @@
-import { ContactRound, Loader2, Mail, RefreshCw, Save, Search, Trash2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import { api, type Contact } from "../lib/api";
 import { useAsyncList } from "../lib/useAsyncList";
+import { ContactRound, Loader2, Mail, RefreshCw, Save, Search, Trash2, UserPlus } from "./icons";
 
 interface Props {
   onChanged?: () => void;

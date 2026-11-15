@@ -1,4 +1,3 @@
-import { CheckCircle2, CircleAlert, Clock3, Loader2, RefreshCw, Search, Send } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n/dict";
@@ -6,6 +5,7 @@ import type { OutboundView } from "../lib/api";
 import { api } from "../lib/api";
 import { formatDateTime, formatTime, PROVIDER_LABELS } from "../lib/format";
 import { useAsyncList } from "../lib/useAsyncList";
+import { CheckCircle2, CircleAlert, Clock3, Loader2, RefreshCw, Search, Send } from "./icons";
 import SenderAvatar from "./SenderAvatar";
 
 const BADGE: Record<string, string> = {

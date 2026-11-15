@@ -1,7 +1,7 @@
 import { client } from "@passwordless-id/webauthn";
-import { KeyRound } from "lucide-react";
 import { useState } from "react";
 import CapCheck, { useCap } from "../components/CapCheck";
+import { KeyRound } from "../components/icons";
 import LanguageToggle from "../components/LanguageToggle";
 import Logo from "../components/Logo";
 import { useI18n } from "../i18n";

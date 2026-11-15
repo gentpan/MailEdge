@@ -1,8 +1,8 @@
-import { ExternalLink, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import type { UpdateVersionView } from "../../lib/api";
 import { api } from "../../lib/api";
+import { ExternalLink, RefreshCw } from "../icons";
 import SettingsPanel from "./SettingsPanel";
 
 const DEPLOYER_UPGRADE_URL = "https://mailedge.sh/";

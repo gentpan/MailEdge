@@ -36,7 +36,6 @@
     "@passwordless-id/webauthn": "^2.4.0",
     "chart.js": "^4.5.1",
     "hono": "^4.13.1",
-    "lucide-react": "^0.545.0",
     "postal-mime": "^2.7.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

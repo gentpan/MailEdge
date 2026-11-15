@@ -1,0 +1,10 @@
+/* 图标跟随转角主题：默认超椭圆，<html data-corners="square"> 时换直角版 */
+.icon .icon-sharp {
+  display: none;
+}
+:root[data-corners="square"] .icon .icon-squircle {
+  display: none;
+}
+:root[data-corners="square"] .icon .icon-sharp {
+  display: inline;
+}

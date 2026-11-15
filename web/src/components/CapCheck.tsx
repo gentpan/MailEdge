@@ -1,8 +1,8 @@
-import { Check, Loader2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { api } from "../lib/api";
 import { solveCapChallenge } from "../lib/capSolve";
+import { Check, Loader2 } from "./icons";
 
 export type CapState = "idle" | "solving" | "done" | "error";
 

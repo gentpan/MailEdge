@@ -145,6 +145,12 @@ export default function MailPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  // 点击后、详情返回前，用列表里已有的摘要先把主题/发件人画出来，避免右侧空白。
+  const [detailPreview, setDetailPreview] = useState<MessageSummary | null>(null);
+  // 详情缓存与进行中的请求：重复点击复用同一个请求，回看已读邮件秒开。
+  const detailCacheRef = useRef(new Map<string, MessageDetail>());
+  const detailInflightRef = useRef(new Map<string, Promise<MessageDetail>>());
 
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [composeDraft, setComposeDraft] = useState<ComposeDraft | null>(null);
@@ -165,6 +171,8 @@ export default function MailPage() {
     if (view !== "mail") {
       setActiveId(null);
       setDetail(null);
+      setDetailPreview(null);
+      setDetailError(null);
     }
   }, [view]);
 
@@ -253,6 +261,8 @@ export default function MailPage() {
     setPage(0);
     setActiveId(null);
     setDetail(null);
+    setDetailPreview(null);
+    setDetailError(null);
     setDetailMailboxId(undefined);
     setCategory("");
     setSearch("");
@@ -265,6 +275,8 @@ export default function MailPage() {
     if (view !== "mail") return;
     setActiveId(null);
     setDetail(null);
+    setDetailPreview(null);
+    setDetailError(null);
     const queryChanged = queryKeyRef.current !== queryKey;
     if (queryChanged) {
       queryKeyRef.current = queryKey;
@@ -382,23 +394,91 @@ export default function MailPage() {
     return () => window.clearInterval(id);
   }, [view, mailboxId, loadList]);
 
+  function detailKey(id: string, owner: string | undefined) {
+    return `${owner ?? ""}\u0000${id}`;
+  }
+
+  /** 拉取详情：已缓存直接返回，同一封邮件进行中的请求只发一次。 */
+  function fetchDetail(id: string, owner: string | undefined): Promise<MessageDetail> {
+    const key = detailKey(id, owner);
+    const cached = detailCacheRef.current.get(key);
+    if (cached) return Promise.resolve(cached);
+    const inflight = detailInflightRef.current.get(key);
+    if (inflight) return inflight;
+    const request = api
+      .message(id, owner)
+      .then((result) => {
+        const cache = detailCacheRef.current;
+        cache.set(key, result.message);
+        // 只保留最近 40 封，避免长时间浏览占用过多内存
+        if (cache.size > 40) cache.delete(cache.keys().next().value as string);
+        return result.message;
+      })
+      .finally(() => detailInflightRef.current.delete(key));
+    detailInflightRef.current.set(key, request);
+    return request;
+  }
+
+  /** 按下鼠标时就开始请求，比等 click（松开）抢出 100ms 左右。 */
+  function prefetchMessage(message: MessageSummary) {
+    void fetchDetail(message.id, message.mailboxId ?? mailboxId).catch(() => undefined);
+  }
+
+  /** 本地修改（星标/已读）同步进缓存，避免回看时显示旧状态。 */
+  function patchCachedDetail(id: string, patch: Partial<MessageDetail>) {
+    for (const [key, value] of detailCacheRef.current) {
+      if (value.id === id) detailCacheRef.current.set(key, { ...value, ...patch });
+    }
+  }
+
+  function dropCachedDetail(id: string) {
+    for (const [key, value] of detailCacheRef.current) {
+      if (value.id === id) detailCacheRef.current.delete(key);
+    }
+  }
+
   async function openMessage(message: MessageSummary) {
     const owner = message.mailboxId ?? mailboxId;
+    // 同一封邮件已经打开或正在加载：再点也不重新请求
+    if (message.id === activeId && (detailLoading || detail?.id === message.id)) return;
     const seq = ++detailSeqRef.current;
     setActiveId(message.id);
     setDetailMailboxId(owner);
-    setDetailLoading(true);
+    setDetailPreview(message);
+    setDetailError(null);
+    const cached = detailCacheRef.current.get(detailKey(message.id, owner));
+    if (cached) {
+      setDetail(cached);
+      setDetailLoading(false);
+    } else {
+      setDetail(null);
+      setDetailLoading(true);
+    }
     try {
-      const result = await api.message(message.id, owner);
+      const result = await fetchDetail(message.id, owner);
       if (seq !== detailSeqRef.current) return; // 用户已切到别的邮件，丢弃过期详情
-      setDetail(result.message);
-      setItems((previous) =>
-        previous.map((item) => (item.id === message.id ? { ...item, isRead: true } : item)),
-      );
-      void loadStats();
+      setDetail(result);
+      if (!message.isRead) {
+        setItems((previous) =>
+          previous.map((item) => (item.id === message.id ? { ...item, isRead: true } : item)),
+        );
+        void loadStats();
+      }
+    } catch (error) {
+      if (seq !== detailSeqRef.current) return;
+      setDetailError(error instanceof Error ? error.message : t("toast.actionFailed"));
     } finally {
       if (seq === detailSeqRef.current) setDetailLoading(false);
     }
+  }
+
+  function closeDetail() {
+    detailSeqRef.current += 1;
+    setActiveId(null);
+    setDetail(null);
+    setDetailPreview(null);
+    setDetailError(null);
+    setDetailLoading(false);
   }
 
   async function moveTo(id: string, target: MailFolder, ownerId = detailMailboxId ?? mailboxId) {
@@ -408,11 +488,9 @@ export default function MailPage() {
       setToast(t("toast.actionFailed"));
       return;
     }
+    dropCachedDetail(id);
     setItems((previous) => previous.filter((item) => item.id !== id));
-    if (activeId === id) {
-      setActiveId(null);
-      setDetail(null);
-    }
+    if (activeId === id) closeDetail();
     void loadStats();
   }
 
@@ -423,11 +501,9 @@ export default function MailPage() {
       setToast(t("toast.actionFailed"));
       return;
     }
+    dropCachedDetail(id);
     setItems((previous) => previous.filter((item) => item.id !== id));
-    if (activeId === id) {
-      setActiveId(null);
-      setDetail(null);
-    }
+    if (activeId === id) closeDetail();
     void loadStats();
   }
 
@@ -443,6 +519,7 @@ export default function MailPage() {
       setToast(t("toast.actionFailed"));
       return;
     }
+    patchCachedDetail(message.id, { isStarred: next });
     setDetail((current) => (current?.id === message.id ? { ...current, isStarred: next } : current));
     setItems((previous) =>
       previous.map((item) => (item.id === message.id ? { ...item, isStarred: next } : item)),
@@ -456,6 +533,7 @@ export default function MailPage() {
       setToast(t("toast.actionFailed"));
       return;
     }
+    patchCachedDetail(message.id, { isRead });
     setDetail((current) => (current?.id === message.id ? { ...current, isRead } : current));
     setItems((previous) => previous.map((item) => (item.id === message.id ? { ...item, isRead } : item)));
     void loadStats();
@@ -585,7 +663,8 @@ export default function MailPage() {
     });
   }
 
-  const mailDetailOpen = view === "mail" && Boolean(detail);
+  // 点击邮件后立刻展开详情栏（先显示骨架），不再等详情接口返回。
+  const mailDetailOpen = view === "mail" && (Boolean(detail) || activeId !== null);
   const folderLabel = customFolders.find((item) => item.id === folder)?.name;
   const shellMode =
     view === "dashboard"
@@ -670,6 +749,7 @@ export default function MailPage() {
             onMarkRead={(message, isRead) => void markRead(message, isRead)}
             onToggleStar={(message) => void toggleStar(message)}
             onSelect={(message) => void openMessage(message)}
+            onPrefetch={prefetchMessage}
             page={page}
             pageSize={pageSize}
             detailOpen={mailDetailOpen}
@@ -683,6 +763,11 @@ export default function MailPage() {
           <MessageView
             message={detail}
             loading={detailLoading}
+            preview={detailPreview}
+            error={detailError}
+            onRetry={() => {
+              if (detailPreview) void openMessage(detailPreview);
+            }}
             mailboxId={detailMailboxId}
             aiEnabled={aiEnabled}
             customFolders={customFolders}
@@ -699,8 +784,7 @@ export default function MailPage() {
             onMarkRead={(message, isRead) => void markRead(message, isRead)}
             onToggleStar={(message) => void toggleStar(message)}
             onClose={() => {
-              setActiveId(null);
-              setDetail(null);
+              closeDetail();
               setDetailMailboxId(undefined);
             }}
             contact={

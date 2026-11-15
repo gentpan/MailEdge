@@ -1,10 +1,10 @@
-import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { MAIL_CATEGORIES } from "../../../../src/ai/types";
 import { useI18n } from "../../i18n";
 import type { TranslationKey } from "../../i18n/dict";
 import type { TelegramView } from "../../lib/api";
 import { api } from "../../lib/api";
+import { Loader2 } from "../icons";
 import FormRow from "./FormRow";
 import SettingsPanel from "./SettingsPanel";
 import SettingsSection from "./SettingsSection";

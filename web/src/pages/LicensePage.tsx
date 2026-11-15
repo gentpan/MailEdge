@@ -1,5 +1,5 @@
-import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
+import { ArrowLeft } from "../components/icons";
 import LegalOverview from "../components/LegalOverview";
 import { useI18n } from "../i18n";
 

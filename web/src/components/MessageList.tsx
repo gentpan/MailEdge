@@ -1,3 +1,8 @@
+import { MAIL_CATEGORIES } from "../../../src/ai/types";
+import type { MailFolder, MessageSummary } from "../../../src/shared/message";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
+import { displayName, formatTime } from "../lib/format";
 import {
   Archive,
   ArchiveRestore,
@@ -14,12 +19,7 @@ import {
   Star,
   Trash2,
   TriangleAlert,
-} from "lucide-react";
-import { MAIL_CATEGORIES } from "../../../src/ai/types";
-import type { MailFolder, MessageSummary } from "../../../src/shared/message";
-import { useI18n } from "../i18n";
-import type { TranslationKey } from "../i18n/dict";
-import { displayName, formatTime } from "../lib/format";
+} from "./icons";
 import SenderAvatar from "./SenderAvatar";
 
 export type MessageListStyle = "comfortable" | "compact";
@@ -48,6 +48,8 @@ interface Props {
   onMarkRead: (message: MessageSummary, isRead: boolean) => void;
   onToggleStar: (message: MessageSummary) => void;
   onSelect: (message: MessageSummary) => void;
+  /** 鼠标按下时预取详情，点击松开时通常已经在路上了 */
+  onPrefetch?: (message: MessageSummary) => void;
   page: number;
   pageSize: MessagePageSize;
   /** 详情展开时，左侧列表只保留导航信息，正文摘要交给右侧详情区。 */
@@ -131,6 +133,7 @@ export default function MessageList({
   onMarkRead,
   onToggleStar,
   onSelect,
+  onPrefetch,
   page,
   pageSize,
   detailOpen = false,
@@ -286,7 +289,14 @@ export default function MessageList({
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  <button className="message-row__content" type="button" onClick={() => onSelect(item)}>
+                  <button
+                    className="message-row__content"
+                    type="button"
+                    onPointerDown={(event) => {
+                      if (event.button === 0) onPrefetch?.(item);
+                    }}
+                    onClick={() => onSelect(item)}
+                  >
                     {listStyle === "compact" ? (
                       <div className="message-row__line">
                         <span className="message-row__sender">

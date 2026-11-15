@@ -1,9 +1,9 @@
-import { Check, CircleAlert } from "lucide-react";
 import { useState } from "react";
 import type { MailProviderType } from "../../../../src/mail/types";
 import { useI18n } from "../../i18n";
 import type { Mailbox, ProviderView } from "../../lib/api";
 import { PROVIDER_LABELS } from "../../lib/format";
+import { Check, CircleAlert } from "../icons";
 import ProviderLogo from "./ProviderLogo";
 import ProviderSection from "./ProviderSection";
 import SettingsPanel from "./SettingsPanel";

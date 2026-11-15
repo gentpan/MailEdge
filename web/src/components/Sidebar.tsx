@@ -1,3 +1,9 @@
+import { type DragEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
+import type { CustomFolder, FolderStats, MailFolder } from "../../../src/shared/message";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
+import type { Mailbox, User } from "../lib/api";
 import {
   Archive,
   AtSign,
@@ -7,10 +13,10 @@ import {
   Folder,
   FolderPlus,
   GripVertical,
+  type IconComponent,
   Inbox,
   LayoutDashboard,
   LogOut,
-  type LucideIcon,
   Paperclip,
   PenSquare,
   Rows3,
@@ -20,13 +26,7 @@ import {
   Settings,
   Trash2,
   TriangleAlert,
-} from "lucide-react";
-import { type DragEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
-import type { CustomFolder, FolderStats, MailFolder } from "../../../src/shared/message";
-import { useI18n } from "../i18n";
-import type { TranslationKey } from "../i18n/dict";
-import type { Mailbox, User } from "../lib/api";
+} from "./icons";
 import LanguageToggle from "./LanguageToggle";
 import Logo from "./Logo";
 import type { MessageListStyle } from "./MessageList";
@@ -39,7 +39,7 @@ function initial(value: string): string {
   return (value.trim()[0] ?? "?").toUpperCase();
 }
 
-type NavIcon = LucideIcon;
+type NavIcon = IconComponent;
 
 const FOLDERS: Array<{ key: MailFolder; labelKey: TranslationKey; icon: NavIcon }> = [
   { key: "inbox", labelKey: "folder.inbox", icon: Inbox },

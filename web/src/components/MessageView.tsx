@@ -1,6 +1,14 @@
+import { type SyntheticEvent, useEffect, useRef, useState } from "react";
+import type { CustomFolder, MailFolder, MessageDetail, MessageSummary } from "../../../src/shared/message";
+import { useI18n } from "../i18n";
+import type { TranslationKey } from "../i18n/dict";
+import { api, type Contact, type SendResponse } from "../lib/api";
+import { prepareEmailHtml } from "../lib/emailHtml";
+import { displayName, formatDateTime, formatSize, formatTime, PROVIDER_LABELS } from "../lib/format";
 import {
   Check,
   ChevronDown,
+  FileText,
   Folder,
   Forward,
   Inbox,
@@ -12,6 +20,7 @@ import {
   Paperclip,
   Reply,
   ReplyAll,
+  RotateCw,
   SendHorizontal,
   Star,
   Trash2,
@@ -19,19 +28,16 @@ import {
   UserPlus,
   WandSparkles,
   X,
-} from "lucide-react";
-import { type SyntheticEvent, useEffect, useRef, useState } from "react";
-import type { CustomFolder, MailFolder, MessageDetail } from "../../../src/shared/message";
-import { useI18n } from "../i18n";
-import type { TranslationKey } from "../i18n/dict";
-import { api, type Contact, type SendResponse } from "../lib/api";
-import { prepareEmailHtml } from "../lib/emailHtml";
-import { displayName, formatDateTime, formatSize, PROVIDER_LABELS } from "../lib/format";
+} from "./icons";
 import SenderAvatar from "./SenderAvatar";
 
 interface Props {
   message: MessageDetail | null;
   loading: boolean;
+  /** 详情返回前用列表摘要先渲染主题与发件人 */
+  preview?: MessageSummary | null;
+  error?: string | null;
+  onRetry?: () => void;
   /** 详情所属信箱，AI 操作要按它路由 */
   mailboxId?: string;
   aiEnabled?: boolean;
@@ -54,6 +60,9 @@ interface Props {
 export default function MessageView({
   message,
   loading,
+  preview,
+  error,
+  onRetry,
   mailboxId,
   aiEnabled,
   customFolders,
@@ -70,7 +79,8 @@ export default function MessageView({
   contact,
   onAddContact,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<"move" | "more" | null>(null);
   const [frameHeight, setFrameHeight] = useState<number | null>(null);
   const [inlineReplyOpen, setInlineReplyOpen] = useState(false);
@@ -104,6 +114,7 @@ export default function MessageView({
     aiSeqRef.current += 1;
     setSeenId(currentId);
     setOpenMenu(null);
+    setDetailsOpen(false);
     setFrameHeight(null);
     setInlineReplyOpen(false);
     setInlineReplyText("");
@@ -213,6 +224,81 @@ export default function MessageView({
     }
   }
 
+  const locale = lang === "zh" ? "zh-CN" : "en-US";
+
+  /** 列表同款的友好时间：今天只显示时分，其他日期带上时分。 */
+  function friendlyTime(value: string) {
+    const date = new Date(value);
+    const day = formatTime(value, locale);
+    const clock = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
+    return date.toDateString() === new Date().toDateString() ? clock : `${day} ${clock}`;
+  }
+
+  function recipientLabel(address: { email: string; name?: string }) {
+    const own = message?.mailboxAddress ?? preview?.mailboxAddress ?? mailboxId;
+    if (own && address.email.toLowerCase() === own.toLowerCase()) return t("detail.me");
+    return displayName(address);
+  }
+
+  if (!message && (loading || error) && preview) {
+    // 详情还在路上（或失败）：先用列表摘要画出头部，正文显示骨架，右侧不再空白。
+    return (
+      <section className="detail-pane" aria-busy={loading}>
+        <div className="detail-pane__toolbar detail-pane__toolbar--placeholder">
+          <button
+            className="detail-toolbar__collapse"
+            type="button"
+            title={t("detail.close")}
+            aria-label={t("detail.close")}
+            onClick={onClose}
+          >
+            <PanelLeftClose size={17} />
+          </button>
+        </div>
+        <div className="detail-pane__body">
+          <header className="mail-head">
+            <h2 className="mail-head__subject">{preview.subject || t("detail.noSubject")}</h2>
+            <div className="mail-head__sender">
+              <SenderAvatar address={preview.from} priority />
+              <div className="mail-head__who">
+                <div className="mail-head__from">
+                  <span className="mail-head__name">{displayName(preview.from)}</span>
+                  <span className="mail-head__email">&lt;{preview.from.email}&gt;</span>
+                </div>
+                <div className="mail-head__to-line">
+                  {t("detail.sentTo", { names: preview.to.map(recipientLabel).join("、") })}
+                </div>
+              </div>
+              <div className="mail-head__aside">
+                <time dateTime={preview.receivedAt} title={formatDateTime(preview.receivedAt)}>
+                  {friendlyTime(preview.receivedAt)}
+                </time>
+              </div>
+            </div>
+          </header>
+          {error ? (
+            <div className="mail-load-error" role="alert">
+              <TriangleAlert size={18} />
+              <span>{t("detail.loadFailed", { error })}</span>
+              <button className="btn btn--secondary btn--sm" type="button" onClick={onRetry}>
+                <RotateCw size={14} />
+                {t("detail.retry")}
+              </button>
+            </div>
+          ) : (
+            <div className="mail-skeleton" aria-hidden="true">
+              <span style={{ width: "92%" }} />
+              <span style={{ width: "84%" }} />
+              <span style={{ width: "88%" }} />
+              <span style={{ width: "60%" }} />
+              <span className="mail-skeleton__block" />
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   if (loading) {
     return (
       <section className="detail-pane">
@@ -235,6 +321,7 @@ export default function MessageView({
     );
   }
 
+  const recipients = [...message.to, ...message.cc];
   return (
     <section className="detail-pane">
       <div className="detail-pane__toolbar">
@@ -419,52 +506,114 @@ export default function MessageView({
       </div>
 
       <div className="detail-pane__body" key={message.id}>
-        <header className="detail-header detail-header--message">
-          <div className="detail-header__subject-row">
-            <h2 className="detail-header__subject">{message.subject || t("detail.noSubject")}</h2>
-          </div>
+        <header className="mail-head">
+          <h2 className="mail-head__subject">{message.subject || t("detail.noSubject")}</h2>
 
-          <div className="detail-header__sender">
+          <div className="mail-head__sender">
             <SenderAvatar address={message.from} priority />
-            <div className="detail-header__sender-main">
-              <div className="detail-header__sender-line">
-                <span className="detail-header__sender-name">{displayName(message.from)}</span>
-                <span className="detail-header__sender-email">{message.from.email}</span>
+            <div className="mail-head__who">
+              <div className="mail-head__from">
+                <span className="mail-head__name">{displayName(message.from)}</span>
+                <span className="mail-head__email">&lt;{message.from.email}&gt;</span>
                 {message.direction === "inbound" &&
                   onAddContact &&
                   (contact ? (
-                    <span className="detail-header__contact-status">
-                      <Check size={14} />
+                    <span
+                      className="mail-head__contact mail-head__contact--saved"
+                      title={t("detail.contactSaved")}
+                    >
+                      <Check size={12} />
                       {t("detail.contactSaved")}
                     </span>
                   ) : (
                     <button
-                      className="detail-header__contact-button"
+                      className="mail-head__contact"
                       type="button"
                       onClick={() => onAddContact(message.from.email, displayName(message.from))}
                     >
-                      <UserPlus size={14} />
+                      <UserPlus size={12} />
                       {t("detail.addContact")}
                     </button>
                   ))}
               </div>
-              <div className="detail-header__meta">
+              <button
+                className="mail-head__to-line mail-head__to-toggle"
+                type="button"
+                aria-expanded={detailsOpen}
+                title={t("detail.showDetails")}
+                onClick={() => setDetailsOpen((open) => !open)}
+              >
                 <span>
-                  {t("detail.to")}：{message.to.map(displayName).join("、")}
+                  {t("detail.sentTo", {
+                    names: recipients.length ? recipients.map(recipientLabel).join("、") : "—",
+                  })}
                 </span>
-                <time dateTime={message.receivedAt}>{formatDateTime(message.receivedAt)}</time>
-              </div>
+                <ChevronDown size={14} className={detailsOpen ? "is-open" : undefined} />
+              </button>
+            </div>
+
+            <div className="mail-head__aside">
+              {message.attachments.length > 0 && <Paperclip size={14} aria-hidden="true" />}
+              <time dateTime={message.receivedAt} title={formatDateTime(message.receivedAt)}>
+                {friendlyTime(message.receivedAt)}
+              </time>
+              <button
+                className={`mail-head__icon-btn${message.isStarred ? " is-starred" : ""}`}
+                type="button"
+                title={message.isStarred ? t("detail.markUnstarred") : t("detail.markStarred")}
+                aria-label={message.isStarred ? t("detail.markUnstarred") : t("detail.markStarred")}
+                onClick={() => onToggleStar(message)}
+              >
+                <Star size={16} fill={message.isStarred ? "currentColor" : "none"} />
+              </button>
+              <button
+                className="mail-head__icon-btn"
+                type="button"
+                title={t("detail.reply")}
+                aria-label={t("detail.reply")}
+                onClick={() => onReply(message)}
+              >
+                <Reply size={16} />
+              </button>
             </div>
           </div>
 
-          {message.cc.length > 0 && (
-            <div className="detail-header__recipients text-xs">
-              {t("detail.cc")}：{message.cc.map(displayName).join("、")}
-            </div>
+          {detailsOpen && (
+            <dl className="mail-head__details">
+              <dt>{t("detail.from")}</dt>
+              <dd>
+                {displayName(message.from)} &lt;{message.from.email}&gt;
+              </dd>
+              {message.replyTo && message.replyTo.email !== message.from.email && (
+                <>
+                  <dt>{t("detail.replyToAddress")}</dt>
+                  <dd>{message.replyTo.email}</dd>
+                </>
+              )}
+              <dt>{t("detail.to")}</dt>
+              <dd>
+                {message.to.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join("，") || "—"}
+              </dd>
+              {message.cc.length > 0 && (
+                <>
+                  <dt>{t("detail.cc")}</dt>
+                  <dd>{message.cc.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email)).join("，")}</dd>
+                </>
+              )}
+              <dt>{t("detail.date")}</dt>
+              <dd>
+                {new Date(message.receivedAt).toLocaleString(locale, {
+                  dateStyle: "full",
+                  timeStyle: "short",
+                })}
+              </dd>
+              <dt>{t("detail.subject")}</dt>
+              <dd>{message.subject || t("detail.noSubject")}</dd>
+            </dl>
           )}
 
           {message.direction === "outbound" && message.status && (
-            <div className="detail-header__row">
+            <div className="mail-head__status">
               <span
                 className={`badge ${
                   message.status === "sent"
@@ -507,24 +656,42 @@ export default function MessageView({
         </div>
 
         {message.attachments.length > 0 && (
-          <div className="attachment-list">
-            {message.attachments.map((attachment) => (
-              <a
-                key={attachment.id}
-                className="attachment-chip"
-                href={attachment.downloadUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Paperclip size={14} />
-                {attachment.filename}
-                <span className="attachment-chip__size">{formatSize(attachment.size)}</span>
-                {attachment.mode === "link" && (
-                  <span className="badge badge--primary">{t("detail.linkBadge")}</span>
-                )}
-              </a>
-            ))}
-          </div>
+          <section className="mail-attachments">
+            <h3 className="mail-attachments__title">
+              <Paperclip size={14} />
+              {t("detail.attachments", { n: message.attachments.length })}
+            </h3>
+            <div className="mail-attachments__grid">
+              {message.attachments.map((attachment) => {
+                const ext = attachment.filename.includes(".")
+                  ? attachment.filename.split(".").pop()?.slice(0, 4).toUpperCase()
+                  : "";
+                return (
+                  <a
+                    key={attachment.id}
+                    className="mail-attachment"
+                    href={attachment.downloadUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={attachment.filename}
+                  >
+                    <span className="mail-attachment__icon" aria-hidden="true">
+                      {ext ? <span>{ext}</span> : <FileText size={18} />}
+                    </span>
+                    <span className="mail-attachment__info">
+                      <span className="mail-attachment__name">{attachment.filename}</span>
+                      <span className="mail-attachment__size">
+                        {formatSize(attachment.size)}
+                        {attachment.mode === "link" && (
+                          <span className="badge badge--primary">{t("detail.linkBadge")}</span>
+                        )}
+                      </span>
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {message.direction === "inbound" && (

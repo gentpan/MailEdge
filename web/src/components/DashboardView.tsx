@@ -1,4 +1,11 @@
 import { Chart } from "chart.js/auto";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MailCategory } from "../../../src/ai/types";
+import type { FolderStats } from "../../../src/shared/message";
+import { useSession } from "../App";
+import { useI18n } from "../i18n";
+import type { OutboundView, ProviderView, UsageView } from "../lib/api";
+import { api } from "../lib/api";
 import {
   BarChart3,
   CircleAlert,
@@ -10,14 +17,7 @@ import {
   Send,
   Server,
   Sparkles,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MailCategory } from "../../../src/ai/types";
-import type { FolderStats } from "../../../src/shared/message";
-import { useSession } from "../App";
-import { useI18n } from "../i18n";
-import type { OutboundView, ProviderView, UsageView } from "../lib/api";
-import { api } from "../lib/api";
+} from "./icons";
 
 const CATEGORY_KEYS: MailCategory[] = [
   "important",

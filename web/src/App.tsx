@@ -1,6 +1,6 @@
-import { Loader2 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
+import { Loader2 } from "./components/icons";
 import Logo from "./components/Logo";
 import type { Mailbox, User } from "./lib/api";
 import { ApiError, api } from "./lib/api";
