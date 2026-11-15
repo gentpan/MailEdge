@@ -7,6 +7,7 @@ import Logo from "./Logo";
 const PROJECT_URL = "https://github.com/gentpan/MailEdge";
 const COMMITS_URL = "https://github.com/gentpan/MailEdge/commits/main";
 const PROFILE_URL = "https://github.com/gentpan";
+const AUTHOR_SITE_URL = "https://gentpan.com";
 const LICENSE_URL = "https://github.com/gentpan/MailEdge/blob/main/LICENSE";
 
 interface Props {
@@ -110,7 +111,12 @@ export default function LegalOverview({ className = "" }: Props) {
 
       <footer className="legal-overview__footer">
         <span>© 2026 MailEdge · {t("legal.footer.rights")}</span>
-        <span>{t("legal.footer.maintained")}</span>
+        <span>
+          {t("legal.footer.maintained")}{" "}
+          <a className="legal-overview__footer-link" href={AUTHOR_SITE_URL} target="_blank" rel="noreferrer">
+            gentpan
+          </a>
+        </span>
       </footer>
     </div>
   );

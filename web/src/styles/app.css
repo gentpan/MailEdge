@@ -4047,6 +4047,11 @@
   max-width: 68ch;
 }
 
+.legal-overview__card--wide p,
+.legal-overview__card--notice p {
+  max-width: none;
+}
+
 .legal-overview__links {
   display: flex;
   flex-wrap: wrap;
@@ -4079,6 +4084,16 @@
   border-top: 1px solid var(--color-border);
   color: var(--color-text-tertiary);
   font-size: var(--text-xs);
+}
+
+.legal-overview__footer-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-overview__footer-link:hover {
+  color: var(--color-text-secondary);
 }
 
 .settings-panel {

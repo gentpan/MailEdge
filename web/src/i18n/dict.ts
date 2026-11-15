@@ -86,9 +86,9 @@ export const DICT = {
     "legal.license.view": "查看 MIT License",
     "legal.notice.title": "版权与再发布",
     "legal.notice.body":
-      "© 2026 MailEdge contributors。再发布或修改本项目时，请保留 MailEdge 的版权与 MIT License 声明。",
+      "© 2026 MailEdge。再发布或修改本项目时，请保留 MailEdge 的版权与 MIT License 声明。",
     "legal.footer.rights": "All rights reserved",
-    "legal.footer.maintained": "Maintained by GentPan",
+    "legal.footer.maintained": "Maintained by",
     "legal.back": "返回邮箱",
 
     // 列表
@@ -675,9 +675,9 @@ export const DICT = {
     "legal.license.view": "View the MIT License",
     "legal.notice.title": "Copyright and redistribution",
     "legal.notice.body":
-      "© 2026 MailEdge contributors. Keep the MailEdge copyright and MIT License notices when redistributing or modifying this project.",
+      "© 2026 MailEdge. Keep the MailEdge copyright and MIT License notices when redistributing or modifying this project.",
     "legal.footer.rights": "All rights reserved",
-    "legal.footer.maintained": "Maintained by GentPan",
+    "legal.footer.maintained": "Maintained by",
     "legal.back": "Back to mail",
 
     "list.search": "Search subject, sender, body",
